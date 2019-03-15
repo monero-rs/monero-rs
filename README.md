@@ -11,6 +11,17 @@ Supports (or should support)
  * Address and subaddress creation, de/serialization and validation
  * Private keys and one-time keys creation, de/serialization and validation
 
+Known limitations
+===
+
+## Rust Nightly
+
+To be able to compile for target `wasm`, dependency `curve25519-dalek` must use the `features = ["nightly"]` that require Rust Nightly. As soon as the dependency no longer require the nightly channel we will switch to stable.
+
+## Documentation
+
+Currently the documentation is very sparse. Patches to add usage examples and to expand on existing docs would be extremely appreciated.
+
 Contributing
 ===
 
