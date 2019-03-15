@@ -1,0 +1,440 @@
+// Rust Monero Library
+// Written in 2019 by
+//   h4sh3d <h4sh3d@truelevel.io>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+
+//! # Addresses
+//!
+//! Support for (de)serializable Monero addresses in Monero base58 format.
+//!
+//! ## Parsing
+//!
+//! ```rust
+//! extern crate monero;
+//!
+//! use std::str::FromStr;
+//! use monero::util::address::Address;
+//!
+//! let address = Address::from_str("4ADT1BtbxqEWeMKp9GgPr2NeyJXXtNxvoDawpyA4WpzFcGcoHUvXeijE66DNfohE9r1bQYaBiQjEtKE7CtkTdLwiDznFzra");
+//! ```
+//!
+
+use std::{error, fmt, ops};
+use std::str::FromStr;
+
+use keccak_hash::keccak_256;
+use base58_monero::base58;
+
+use crate::network::{self, Network};
+use crate::util::key::{PublicKey, KeyPair, ViewPair};
+
+/// Address error
+#[derive(Debug, PartialEq, Eq)]
+pub enum Error {
+    /// Invalid address magic byte
+    InvalidMagicByte,
+    /// Invalid payment id
+    InvalidPaymentId,
+    /// Missmatch checksums
+    InvalidChecksum,
+    /// Invalid format
+    InvalidFormat,
+    /// Monero base58 error
+    Base58(base58::Error),
+    /// Network error
+    Network(network::Error),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::Base58(ref e) => fmt::Display::fmt(e, f),
+            Error::Network(ref e) => fmt::Display::fmt(e, f),
+            Error::InvalidMagicByte | Error::InvalidPaymentId | Error::InvalidChecksum | Error::InvalidFormat => f.write_str(error::Error::description(self)),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            Error::Base58(ref e) => Some(e),
+            Error::Network(ref e) => Some(e),
+            Error::InvalidMagicByte | Error::InvalidPaymentId | Error::InvalidChecksum | Error::InvalidFormat => None,
+        }
+    }
+
+    fn description(&self) -> &str {
+        match *self {
+            Error::Base58(ref e) => e.description(),
+            Error::Network(ref e) => e.description(),
+            Error::InvalidMagicByte => "invalid magic byte",
+            Error::InvalidPaymentId => "invalid payment id",
+            Error::InvalidChecksum => "checksums missmatch",
+            Error::InvalidFormat => "invalid format",
+        }
+    }
+}
+
+#[doc(hidden)]
+impl From<base58::Error> for Error {
+    fn from(e: base58::Error) -> Error {
+        Error::Base58(e)
+    }
+}
+
+#[doc(hidden)]
+impl From<network::Error> for Error {
+    fn from(e: network::Error) -> Error {
+        Error::Network(e)
+    }
+}
+
+/// Address type
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum AddressType {
+    /// Standard address
+    Standard,
+    /// Address with 8 bytes payment id
+    Integrated(PaymentId),
+    /// Subaddress
+    SubAddress,
+}
+
+impl AddressType {
+    /// Recover the address type given an address bytes and the network
+    pub fn from_slice(bytes: &[u8], net: &Network) -> Result<AddressType, Error> {
+        let byte = bytes[0];
+        use Network::*;
+        use AddressType::*;
+        match net {
+            Mainnet => match byte {
+                18 => Ok(Standard),
+                19 => {
+                    let payment_id = PaymentId::from_slice(&bytes[65..73])?;
+                    Ok(Integrated(payment_id))
+                },
+                42 => Ok(SubAddress),
+                _ => Err(Error::InvalidMagicByte),
+            },
+            Stagenet => match byte {
+                53 => Ok(Standard),
+                54 => {
+                    let payment_id = PaymentId::from_slice(&bytes[65..73])?;
+                    Ok(Integrated(payment_id))
+                },
+                63 => Ok(SubAddress),
+                _ => Err(Error::InvalidMagicByte),
+            },
+            Testnet => match byte {
+                24 => Ok(Standard),
+                25 => {
+                    let payment_id = PaymentId::from_slice(&bytes[65..73])?;
+                    Ok(Integrated(payment_id))
+                },
+                36 => Ok(SubAddress),
+                _ => Err(Error::InvalidMagicByte),
+            },
+        }
+    }
+}
+
+impl Default for AddressType {
+    fn default() -> AddressType {
+        AddressType::Standard
+    }
+}
+
+impl fmt::Display for AddressType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            AddressType::Standard => write!(f, "Standard address"),
+            AddressType::Integrated(_) => write!(f, "Integrated address"),
+            AddressType::SubAddress => write!(f, "Subaddress"),
+        }
+    }
+}
+
+/// Payment Id for integrated address
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub struct PaymentId(pub [u8; 8]);
+
+impl PaymentId {
+    /// Returns the payment id bytes
+    pub fn into_bytes(&self) -> [u8; 8] {
+        self.0
+    }
+
+    /// Create a payment id from bytes
+    pub fn from_slice(bytes: &[u8]) -> Result<PaymentId, Error> {
+        if bytes.len() != 8 {
+            return Err(Error::InvalidPaymentId);
+        }
+        let mut res = [0u8; 8];
+        res.copy_from_slice(bytes);
+        Ok(PaymentId(res))
+    }
+}
+
+impl fmt::Display for PaymentId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.0))
+    }
+}
+
+impl FromStr for PaymentId {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = hex::decode(s).map_err(|_| Error::InvalidFormat)?;
+        let pid = match bytes.len() == 8 {
+            true => {
+                let mut res = [0u8; 8];
+                res.copy_from_slice(&bytes[..]);
+                res
+            },
+            false => { return Err(Error::InvalidPaymentId); },
+        };
+        Ok(PaymentId(pid))
+    }
+}
+
+impl ops::Index<ops::RangeFull> for PaymentId {
+    type Output = [u8];
+    fn index(&self, _: ops::RangeFull) -> &[u8] {
+        &self.0[..]
+    }
+}
+
+/// A Monero address
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub struct Address {
+    /// The network on which the address is valid
+    pub network: Network,
+    /// The address type
+    pub addr_type: AddressType,
+    /// The address spend public key
+    pub public_spend: PublicKey,
+    /// The address view public key
+    pub public_view: PublicKey,
+}
+
+impl Address {
+    /// Create a standard address which is valid on the given network
+    pub fn standard(
+        network: Network,
+        public_spend: PublicKey,
+        public_view: PublicKey,
+    ) -> Address {
+        Address {
+            network,
+            addr_type: AddressType::Standard,
+            public_spend,
+            public_view,
+        }
+    }
+
+    /// Create a sub-address which is valid on the given network
+    pub fn subaddress(
+        network: Network,
+        public_spend: PublicKey,
+        public_view: PublicKey,
+    ) -> Address {
+        Address {
+            network,
+            addr_type: AddressType::SubAddress,
+            public_spend,
+            public_view,
+        }
+    }
+
+    /// Create an address with an integrated payment id which is valid on the given network
+    pub fn integrated(
+        network: Network,
+        public_spend: PublicKey,
+        public_view: PublicKey,
+        payment_id: PaymentId
+    ) -> Address {
+        Address {
+            network,
+            addr_type: AddressType::Integrated(payment_id),
+            public_spend,
+            public_view,
+        }
+    }
+
+    /// Create a standard address from a view pair which is valid on the given network
+    pub fn from_viewpair(network: Network, keys: &ViewPair) -> Address {
+        let public_view = PublicKey::from_private_key(&keys.view);
+        Address {
+            network,
+            addr_type: AddressType::Standard,
+            public_spend: keys.spend,
+            public_view,
+        }
+    }
+
+    /// Create a standard address from a key pair which is valid on the given network
+    pub fn from_keypair(network: Network, keys: &KeyPair) -> Address {
+        let public_spend = PublicKey::from_private_key(&keys.spend);
+        let public_view = PublicKey::from_private_key(&keys.view);
+        Address {
+            network,
+            addr_type: AddressType::Standard,
+            public_spend,
+            public_view,
+        }
+    }
+
+    /// Parse an address from a vector of bytes, fail if the magic byte is incorrect, if public
+    /// keys are not valid points, if payment id is invalid, and if checksums missmatch
+    pub fn from_bytes(bytes: &[u8]) -> Result<Address, Error> {
+        let network = Network::from_u8(bytes[0])?;
+        let addr_type = AddressType::from_slice(&bytes, &network)?;
+        let public_spend = PublicKey::from_slice(&bytes[1..33]).map_err(|_| Error::InvalidFormat)?;
+        let public_view = PublicKey::from_slice(&bytes[33..65]).map_err(|_| Error::InvalidFormat)?;
+
+        let mut verify_checksum = [0u8; 32];
+        let (checksum_bytes, checksum) = match addr_type {
+            AddressType::Standard | AddressType::SubAddress => (&bytes[0..65], &bytes[65..69]),
+            AddressType::Integrated(_) => (&bytes[0..73], &bytes[73..77]),
+        };
+        keccak_256(checksum_bytes, &mut verify_checksum);
+        if &verify_checksum[0..4] != checksum {
+            return Err(Error::InvalidChecksum);
+        }
+
+        Ok(Address {
+            network,
+            addr_type,
+            public_spend,
+            public_view,
+        })
+    }
+
+    /// Serialize the address as a vector of bytes
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![self.network.as_u8(&self.addr_type)];
+        bytes.extend_from_slice(self.public_spend.as_bytes());
+        bytes.extend_from_slice(self.public_view.as_bytes());
+        match self.addr_type {
+            AddressType::Integrated(payment_id) => bytes.extend_from_slice(&payment_id.0),
+            _ => (),
+        };
+
+        let mut checksum = [0u8; 32];
+        keccak_256(bytes.as_slice(), &mut checksum);
+        bytes.extend_from_slice(&checksum[0..4]);
+        bytes
+    }
+
+    /// Serialize the address as an hexadecimal string
+    pub fn as_hex(&self) -> String {
+        hex::encode(self.as_bytes())
+    }
+}
+
+impl fmt::Display for Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", base58::encode(self.as_bytes().as_slice()).unwrap())
+    }
+}
+
+impl FromStr for Address {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_bytes(&base58::decode(s)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::{Address, base58, PublicKey, Network, PaymentId};
+
+    #[test]
+    fn deserialize_address() {
+        let pub_spend = PublicKey::from_slice(&[
+            226, 187, 17, 117, 6, 188, 105, 177, 58, 207, 205, 42, 205, 229, 251, 129, 118, 253,
+            21, 245, 49, 67, 36, 75, 62, 12, 80, 90, 244, 194, 108, 210
+        ]).unwrap();
+        let pub_view = PublicKey::from_slice(&[
+            220, 115, 195, 55, 189, 88, 136, 78, 63, 32, 41, 33, 168, 205, 245, 3, 139, 234, 109,
+            64, 198, 179, 53, 108, 247, 77, 183, 25, 172, 59, 113, 115
+        ]).unwrap();
+
+        let address = "4ADT1BtbxqEWeMKp9GgPr2NeyJXXtNxvoDawpyA4WpzFcGcoHUvXeijE66DNfohE9r1bQYaBiQjEtKE7CtkTdLwiDznFzra";
+        let add = Address::from_str(address);
+        assert_eq!(Ok(Address::standard(Network::Mainnet, pub_spend, pub_view)), add);
+
+        let bytes = base58::decode(address).unwrap();
+        let add = Address::from_bytes(&bytes);
+        assert_eq!(Ok(Address::standard(Network::Mainnet, pub_spend, pub_view)), add);
+    }
+
+    #[test]
+    fn deserialize_integrated_address() {
+        let pub_spend = PublicKey::from_slice(&[
+            17, 81, 127, 230, 166, 35, 81, 36, 161, 94, 154, 206, 60, 98, 195, 62, 12, 11, 234,
+            133, 228, 196, 77, 3, 68, 188, 84, 78, 94, 109, 238, 44
+        ]).unwrap();
+        let pub_view = PublicKey::from_slice(&[
+            115, 212, 211, 204, 198, 30, 73, 70, 235, 52, 160, 200, 39, 215, 134, 239, 249, 129,
+            47, 156, 14, 116, 18, 191, 112, 207, 139, 208, 54, 59, 92, 115
+        ]).unwrap();
+        let payment_id = PaymentId([88, 118, 184, 183, 41, 150, 255, 151]);
+
+        let address = "4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV";
+        let add = Address::from_str(address);
+        assert_eq!(Ok(Address::integrated(Network::Mainnet, pub_spend, pub_view, payment_id)), add);
+    }
+
+    #[test]
+    fn deserialize_sub_address() {
+        let pub_spend = PublicKey::from_slice(&[
+            212, 104, 103, 28, 131, 98, 226, 228, 37, 244, 133, 145, 213, 157, 184, 232, 6, 146,
+            127, 69, 187, 95, 33, 143, 9, 102, 181, 189, 230, 223, 231, 7
+        ]).unwrap();
+        let pub_view = PublicKey::from_slice(&[
+            154, 155, 57, 25, 23, 70, 165, 134, 222, 126, 85, 60, 127, 96, 21, 243, 108, 152, 150,
+            87, 66, 59, 161, 121, 206, 130, 170, 233, 69, 102, 128, 103
+        ]).unwrap();
+
+        let address = "8AW7SotwFrqfAKnibspuuhfowW4g3asvpQvdrTmPcpNr2GmXPtBBSxUPZQATAt8Vw2hiX9GDyxB4tMNgHjwt8qYsCeFDVvn";
+        let add = Address::from_str(address);
+        assert_eq!(Ok(Address::subaddress(Network::Mainnet, pub_spend, pub_view)), add);
+    }
+
+    #[test]
+    fn serialize_address() {
+        let address = "4ADT1BtbxqEWeMKp9GgPr2NeyJXXtNxvoDawpyA4WpzFcGcoHUvXeijE66DNfohE9r1bQYaBiQjEtKE7CtkTdLwiDznFzra";
+        let add = Address::from_str(address).unwrap();
+        let bytes = base58::decode(address).unwrap();
+        assert_eq!(bytes, add.as_bytes());
+    }
+
+    #[test]
+    fn serialize_integrated_address() {
+        let address = "4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV";
+        let add = Address::from_str(address).unwrap();
+        let bytes = base58::decode(address).unwrap();
+        assert_eq!(bytes, add.as_bytes());
+    }
+
+    #[test]
+    fn serialize_to_string() {
+        let address = "4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV";
+        let add = Address::from_str(address).unwrap();
+        assert_eq!(address, add.to_string());
+    }
+}
