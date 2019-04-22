@@ -362,6 +362,32 @@ impl FromStr for Address {
     }
 }
 
+#[cfg(feature = "serde")]
+mod serde_impl {
+    use super::*;
+
+    use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+
+    impl Serialize for Address {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            serializer.serialize_str(&self.to_string())
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Address {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let s = <&str>::deserialize(deserializer)?;
+            Address::from_str(s).map_err(D::Error::custom)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
