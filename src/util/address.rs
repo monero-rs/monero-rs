@@ -30,7 +30,7 @@
 //!
 
 use std::str::FromStr;
-use std::{error, fmt, ops};
+use std::{error, fmt};
 
 use base58_monero::base58;
 use keccak_hash::keccak_256;
@@ -127,7 +127,7 @@ impl AddressType {
             Mainnet => match byte {
                 18 => Ok(Standard),
                 19 => {
-                    let payment_id = PaymentId::from_slice(&bytes[65..73])?;
+                    let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
                 42 => Ok(SubAddress),
@@ -136,7 +136,7 @@ impl AddressType {
             Stagenet => match byte {
                 53 => Ok(Standard),
                 54 => {
-                    let payment_id = PaymentId::from_slice(&bytes[65..73])?;
+                    let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
                 63 => Ok(SubAddress),
@@ -145,7 +145,7 @@ impl AddressType {
             Testnet => match byte {
                 24 => Ok(Standard),
                 25 => {
-                    let payment_id = PaymentId::from_slice(&bytes[65..73])?;
+                    let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
                 36 => Ok(SubAddress),
@@ -171,56 +171,9 @@ impl fmt::Display for AddressType {
     }
 }
 
-/// Payment Id for integrated address
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct PaymentId(pub [u8; 8]);
-
-impl PaymentId {
-    /// Returns the payment id bytes
-    pub fn into_bytes(&self) -> [u8; 8] {
-        self.0
-    }
-
-    /// Create a payment id from bytes
-    pub fn from_slice(bytes: &[u8]) -> Result<PaymentId, Error> {
-        if bytes.len() != 8 {
-            return Err(Error::InvalidPaymentId);
-        }
-        let mut res = [0u8; 8];
-        res.copy_from_slice(bytes);
-        Ok(PaymentId(res))
-    }
-}
-
-impl fmt::Display for PaymentId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.0))
-    }
-}
-
-impl FromStr for PaymentId {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes = hex::decode(s).map_err(|_| Error::InvalidFormat)?;
-        let pid = match bytes.len() == 8 {
-            true => {
-                let mut res = [0u8; 8];
-                res.copy_from_slice(&bytes[..]);
-                res
-            }
-            false => {
-                return Err(Error::InvalidPaymentId);
-            }
-        };
-        Ok(PaymentId(pid))
-    }
-}
-
-impl ops::Index<ops::RangeFull> for PaymentId {
-    type Output = [u8];
-    fn index(&self, _: ops::RangeFull) -> &[u8] {
-        &self.0[..]
-    }
+fixed_hash::construct_fixed_hash! {
+    /// Payment Id for integrated address
+    pub struct PaymentId(8);
 }
 
 /// A Monero address

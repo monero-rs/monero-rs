@@ -15,6 +15,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+fixed-hash = "0.3"
 hex = "0.3"
 byteorder = "1"
 keccak-hash = "0.1"
