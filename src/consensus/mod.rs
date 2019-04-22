@@ -22,6 +22,9 @@
 //! The `encode` module is based on Andrew Poelstra work in `rust-bitcoin` library.
 //!
 
-#[macro_use] pub mod encode;
+#[macro_use]
+pub mod encode;
 
-pub use self::encode::{Encodable, Decodable, Encoder, Decoder, serialize, serialize_hex, deserialize};
+pub use self::encode::{
+    deserialize, serialize, serialize_hex, Decodable, Decoder, Encodable, Encoder,
+};

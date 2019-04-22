@@ -20,11 +20,11 @@
 
 use std::fmt;
 
-use keccak_hash::keccak_256;
 use curve25519_dalek::scalar::Scalar;
+use keccak_hash::keccak_256;
 
+use crate::consensus::encode::{self, Decodable, Decoder, Encodable, Encoder};
 use crate::util::key::PrivateKey;
-use crate::consensus::encode::{self, Encoder, Decoder, Encodable, Decodable};
 
 /// Result of a keccak 256
 #[derive(PartialEq)]
@@ -82,7 +82,7 @@ impl<D: Decoder> Decodable<D> for Hash {
 }
 
 impl<S: Encoder> Encodable<S> for Hash {
-    fn consensus_encode(&self, s: &mut S) -> Result <(), encode::Error> {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
         self.0.consensus_encode(s)
     }
 }
@@ -121,7 +121,7 @@ impl<D: Decoder> Decodable<D> for Hash8 {
 }
 
 impl<S: Encoder> Encodable<S> for Hash8 {
-    fn consensus_encode(&self, s: &mut S) -> Result <(), encode::Error> {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
         self.0.consensus_encode(s)
     }
 }

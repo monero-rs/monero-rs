@@ -31,26 +31,26 @@
 #![deny(unused_mut)]
 #![deny(missing_docs)]
 
-extern crate hex;
+extern crate base58_monero;
 extern crate byteorder;
 extern crate curve25519_dalek;
+extern crate hex;
 extern crate keccak_hash;
-extern crate base58_monero;
 
 #[macro_use]
 mod internal_macros;
 #[macro_use]
 pub mod consensus;
-pub mod util;
-pub mod cryptonote;
 pub mod blockdata;
+pub mod cryptonote;
 pub mod network;
+pub mod util;
 
-pub use util::key::PublicKey;
-pub use util::key::PrivateKey;
-pub use util::address::Address;
-pub use util::address::PaymentId;
-pub use network::Network;
 pub use blockdata::transaction::Transaction;
 pub use blockdata::transaction::TxIn;
 pub use blockdata::transaction::TxOut;
+pub use network::Network;
+pub use util::address::Address;
+pub use util::address::PaymentId;
+pub use util::key::PrivateKey;
+pub use util::key::PublicKey;

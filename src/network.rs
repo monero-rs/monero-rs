@@ -64,8 +64,8 @@ pub enum Network {
 impl Network {
     /// Get the associated magic byte given an address type
     pub fn as_u8(&self, addr_type: &AddressType) -> u8 {
-        use Network::*;
         use AddressType::*;
+        use Network::*;
         match self {
             Mainnet => match addr_type {
                 Standard => 18,
@@ -90,7 +90,7 @@ impl Network {
         use Network::*;
         match byte {
             18 | 19 | 42 => Ok(Mainnet),
-            53 | 54 | 63=> Ok(Stagenet),
+            53 | 54 | 63 => Ok(Stagenet),
             24 | 25 | 36 => Ok(Testnet),
             _ => Err(Error::InvalidMagicByte),
         }

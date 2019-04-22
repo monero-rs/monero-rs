@@ -21,15 +21,15 @@
 //! sent to his address.
 //!
 
+use std::collections::HashMap;
 use std::io::Cursor;
 use std::ops::Range;
-use std::collections::HashMap;
 
+use crate::consensus::encode::{Encodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::hash::Hashable;
 use crate::cryptonote::subaddress::{self, Index};
-use crate::util::key::{PrivateKey, PublicKey, ViewPair, KeyPair};
-use crate::consensus::encode::{Encodable, VarInt};
+use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
 /// Helper to generate One-Time Public keys in transactions
 pub struct KeyGenerator {
@@ -53,7 +53,10 @@ impl KeyGenerator {
     pub fn from_key(keys: &ViewPair, random: PublicKey) -> Self {
         // Computes a*R
         let ra = random * &keys.view;
-        KeyGenerator { spend: keys.spend, ra }
+        KeyGenerator {
+            spend: keys.spend,
+            ra,
+        }
     }
 
     /// Compute the One-time public key `P = H(r*A || n)*G + B` for the indexed output `n`
@@ -126,7 +129,10 @@ impl<'a> SubKeyChecker<'a> {
         let mut table = HashMap::new();
         major.for_each(|maj| {
             minor.clone().for_each(|min| {
-                let index = Index { major: maj, minor: min };
+                let index = Index {
+                    major: maj,
+                    minor: min,
+                };
                 let (_, spend) = subaddress::get_subkeys(keys, index);
                 table.insert(spend, index);
             });
@@ -168,7 +174,10 @@ impl<'a> KeyRecoverer<'a> {
     pub fn new(keys: &'a KeyPair, random: PublicKey) -> Self {
         let viewpair = keys.into();
         let checker = KeyGenerator::from_key(&viewpair, random);
-        KeyRecoverer { spend: &keys.spend, checker }
+        KeyRecoverer {
+            spend: &keys.spend,
+            checker,
+        }
     }
 
     /// Recover the One-time private key `p = H(a*R || n) + b` for index `n`
@@ -191,7 +200,7 @@ impl<'a> KeyRecoverer<'a> {
             false => {
                 let sub_spend = subaddress::get_subaddress_secret_key(&keys.view, index);
                 keys.spend + sub_spend
-            },
+            }
         };
         SubKeyChecker::get_ar_scalar(&keys.view, tx_random) + b
     }
@@ -203,54 +212,87 @@ mod tests {
 
     use super::{KeyGenerator, KeyRecoverer, SubKeyChecker, SubKeyGenerator};
     use crate::cryptonote::subaddress::{self, Index};
-    use crate::util::key::{PrivateKey, PublicKey, ViewPair, KeyPair};
+    use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
     #[test]
     #[allow(non_snake_case)]
     fn one_time_key() {
-        let a = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404").unwrap();
-        let b = PrivateKey::from_str("8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09").unwrap();
+        let a = PrivateKey::from_str(
+            "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
+        )
+        .unwrap();
+        let b = PrivateKey::from_str(
+            "8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09",
+        )
+        .unwrap();
         let A = PublicKey::from_private_key(&a);
         let B = PublicKey::from_private_key(&b);
         let keypair = KeyPair { view: a, spend: b };
 
-        let r = PrivateKey::from_str("3398f55bb862aa2689888747421c466fa712f954b98a8bbd608bcd4988a3e30e").unwrap();
+        let r = PrivateKey::from_str(
+            "3398f55bb862aa2689888747421c466fa712f954b98a8bbd608bcd4988a3e30e",
+        )
+        .unwrap();
         let R = PublicKey::from_private_key(&r); // tx_pubkey
 
         let generator = KeyGenerator::from_random(A, B, r);
         // Generate P
         let one_time_pk = generator.one_time_key(1);
-        assert_eq!("07e94dcf0f2348d374da13fe575df11b5af739bf2cf962823e068a5297f47557", one_time_pk.to_string());
+        assert_eq!(
+            "07e94dcf0f2348d374da13fe575df11b5af739bf2cf962823e068a5297f47557",
+            one_time_pk.to_string()
+        );
 
         let recover = KeyRecoverer::new(&keypair, R);
         assert_eq!(true, recover.checker.check(1, one_time_pk));
         assert_eq!(false, recover.checker.check(2, one_time_pk));
         // Generate x : P = xG
         let one_time_sk = recover.recover(1);
-        assert_eq!("2e476527180a94328f86f1ba814603e65f99e7c1c44cbb2dbf4508c20879b200", one_time_sk.to_string());
+        assert_eq!(
+            "2e476527180a94328f86f1ba814603e65f99e7c1c44cbb2dbf4508c20879b200",
+            one_time_sk.to_string()
+        );
         assert_eq!(one_time_pk, PublicKey::from_private_key(&one_time_sk));
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn one_time_subkey() {
-        let a = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404").unwrap();
-        let b = PrivateKey::from_str("8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09").unwrap();
+        let a = PrivateKey::from_str(
+            "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
+        )
+        .unwrap();
+        let b = PrivateKey::from_str(
+            "8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09",
+        )
+        .unwrap();
         let B = PublicKey::from_private_key(&b);
         let keypair = KeyPair { view: a, spend: b };
         let viewpair = ViewPair { view: a, spend: B };
 
-        let index = Index { major: 2, minor: 18 };
+        let index = Index {
+            major: 2,
+            minor: 18,
+        };
         let (sub_view_pub, sub_spend_pub) = subaddress::get_subkeys(&viewpair, index);
 
-        let r = PrivateKey::from_str("3398f55bb862aa2689888747421c466fa712f954b98a8bbd608bcd4988a3e30e").unwrap();
+        let r = PrivateKey::from_str(
+            "3398f55bb862aa2689888747421c466fa712f954b98a8bbd608bcd4988a3e30e",
+        )
+        .unwrap();
 
         let generator = SubKeyGenerator::new(sub_view_pub, sub_spend_pub);
         let (onetime_key, tx_random) = generator.one_time_keys(&r);
 
         let checker = SubKeyChecker::new(&viewpair, 0..10, 0..20);
         let check = checker.check(&onetime_key, &tx_random);
-        assert_eq!(Some(&Index { major: 2, minor: 18 }), check);
+        assert_eq!(
+            Some(&Index {
+                major: 2,
+                minor: 18
+            }),
+            check
+        );
 
         // Recover p : P = p*G
         let privkey = KeyRecoverer::recover_subkey(&keypair, &tx_random, *check.unwrap());

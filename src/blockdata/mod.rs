@@ -20,8 +20,9 @@
 //!
 
 pub mod block;
+#[cfg(test)]
+mod tests;
 pub mod transaction;
-#[cfg(test)] mod tests;
 
 pub use block::Block;
 pub use transaction::{Transaction, TransactionPrefix, TxIn, TxOut};

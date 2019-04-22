@@ -19,14 +19,14 @@
 //! view key.
 //!
 
-use std::ops::Range;
 use std::io::Cursor;
+use std::ops::Range;
 
-use crate::cryptonote::{onetime_key, hash};
+use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
 use crate::cryptonote::subaddress::Index;
+use crate::cryptonote::{hash, onetime_key};
 use crate::util::key::{PublicKey, ViewPair};
-use crate::util::ringct::{RctType, RctSig, RctSigBase, RctSigPrunable, Signature};
-use crate::consensus::encode::{self, Encoder, Decoder, Encodable, Decodable, VarInt, serialize};
+use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
 /// Transaction error
 #[derive(Debug)]
@@ -174,7 +174,14 @@ pub struct TransactionPrefix {
     pub extra: ExtraField,
 }
 
-impl_consensus_encoding!(TransactionPrefix, version, unlock_time, inputs, outputs, extra);
+impl_consensus_encoding!(
+    TransactionPrefix,
+    version,
+    unlock_time,
+    inputs,
+    outputs,
+    extra
+);
 
 impl TransactionPrefix {
     /// Return the transaction public key present in extra field
@@ -188,11 +195,18 @@ impl TransactionPrefix {
     }
 
     /// Iterate over transaction outputs and find outputs related to view pair
-    pub fn check_outputs(&self, pair: &ViewPair, major: Range<u32>, minor: Range<u32>) -> Result<Vec<OwnedTxOut>, Error> {
+    pub fn check_outputs(
+        &self,
+        pair: &ViewPair,
+        major: Range<u32>,
+        minor: Range<u32>,
+    ) -> Result<Vec<OwnedTxOut>, Error> {
         match self.tx_additional_pubkeys() {
             Some(tx_additional_pubkeys) => {
                 let checker = onetime_key::SubKeyChecker::new(&pair, major, minor);
-                Ok((1..).zip(self.outputs.iter()).zip(tx_additional_pubkeys.iter())
+                Ok((1..)
+                    .zip(self.outputs.iter())
+                    .zip(tx_additional_pubkeys.iter())
                     .filter_map(|((i, out), tx_random)| {
                         match out.target {
                             TxOutTarget::ToKey { key } => match checker.check(&key, tx_random) {
@@ -208,29 +222,30 @@ impl TransactionPrefix {
                         }
                     })
                     .collect())
-            },
+            }
             None => match self.tx_pubkey() {
                 Some(tx_pubkey) => {
                     let generator = onetime_key::KeyGenerator::from_key(pair, tx_pubkey);
-                    Ok((1..).zip(self.outputs.iter())
+                    Ok((1..)
+                        .zip(self.outputs.iter())
                         .filter_map(|(i, out)| {
                             match out.target {
                                 TxOutTarget::ToKey { key } => match generator.check(i, key) {
                                     true => Some(OwnedTxOut {
                                         index: i,
                                         out,
-                                        sub_index: Index::default()
+                                        sub_index: Index::default(),
                                     }),
                                     false => None,
-                                }
+                                },
                                 // Reject all non-toKey outputs
                                 _ => None,
                             }
                         })
                         .collect())
-                },
+                }
                 None => Err(Error::NoTxPublicKey),
-            }
+            },
         }
     }
 }
@@ -270,22 +285,25 @@ impl hash::Hashable for Transaction {
                                 let mut encoder = Cursor::new(vec![]);
                                 p.consensus_encode(&mut encoder, sig_base.rct_type).unwrap();
                                 hashes.push(hash::Hash::hash(&encoder.into_inner()));
-                            },
+                            }
                             None => {
-                                let empty_hash = hash::Hash([0x70, 0xa4, 0x85, 0x5d, 0x04, 0xd8,
-                                                            0xfa, 0x7b, 0x3b, 0x27, 0x82, 0xca,
-                                                            0x53, 0xb6, 0x00, 0xe5, 0xc0, 0x03,
-                                                            0xc7, 0xdc, 0xb2, 0x7d, 0x7e, 0x92,
-                                                            0x3c, 0x23, 0xf7, 0x86, 0x01, 0x46,
-                                                            0xd2, 0xc5]);
+                                let empty_hash = hash::Hash([
+                                    0x70, 0xa4, 0x85, 0x5d, 0x04, 0xd8, 0xfa, 0x7b, 0x3b, 0x27,
+                                    0x82, 0xca, 0x53, 0xb6, 0x00, 0xe5, 0xc0, 0x03, 0xc7, 0xdc,
+                                    0xb2, 0x7d, 0x7e, 0x92, 0x3c, 0x23, 0xf7, 0x86, 0x01, 0x46,
+                                    0xd2, 0xc5,
+                                ]);
                                 hashes.push(empty_hash);
                             }
                         }
                     }
                 }
-                let bytes: Vec<u8> = hashes.into_iter().flat_map(|h| Vec::from(&h.to_bytes()[..])).collect();
+                let bytes: Vec<u8> = hashes
+                    .into_iter()
+                    .flat_map(|h| Vec::from(&h.to_bytes()[..]))
+                    .collect();
                 hash::Hash::hash(&bytes)
-            },
+            }
         }
     }
 }
@@ -305,13 +323,15 @@ impl<D: Decoder> Decodable<D> for ExtraField {
         if decoder.position() as usize == bytes.len() {
             Ok(ExtraField(fields))
         } else {
-            Err(encode::Error::ParseFailed("data not consumed entirely when explicitly deserializing"))
+            Err(encode::Error::ParseFailed(
+                "data not consumed entirely when explicitly deserializing",
+            ))
         }
     }
 }
 
 impl<S: Encoder> Encodable<S> for ExtraField {
-    fn consensus_encode(&self, s: &mut S) -> Result <(), encode::Error> {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
         let mut encoder = Cursor::new(vec![]);
         for field in self.0.iter() {
             field.consensus_encode(&mut encoder)?;
@@ -335,51 +355,62 @@ impl<D: Decoder> Decodable<D> for SubField {
                     // This works because extra padding must be the last one
                     let byte: Result<u8, encode::Error> = Decodable::consensus_decode(d);
                     match byte {
-                        Ok(_) => { i = i +1; },
+                        Ok(_) => {
+                            i = i + 1;
+                        }
                         Err(_) => break,
                     }
                 }
                 Ok(SubField::Padding(i))
-            },
+            }
             0x1 => Ok(SubField::TxPublicKey(Decodable::consensus_decode(d)?)),
             0x2 => Ok(SubField::Nonce(Decodable::consensus_decode(d)?)),
-            0x3 => Ok(SubField::MergeMining(Decodable::consensus_decode(d)?, Decodable::consensus_decode(d)?)),
-            0x4 => Ok(SubField::AdditionalPublickKey(Decodable::consensus_decode(d)?)),
-            0xde => Ok(SubField::MysteriousMinerGate(Decodable::consensus_decode(d)?)),
+            0x3 => Ok(SubField::MergeMining(
+                Decodable::consensus_decode(d)?,
+                Decodable::consensus_decode(d)?,
+            )),
+            0x4 => Ok(SubField::AdditionalPublickKey(Decodable::consensus_decode(
+                d,
+            )?)),
+            0xde => Ok(SubField::MysteriousMinerGate(Decodable::consensus_decode(
+                d,
+            )?)),
             _ => Err(encode::Error::ParseFailed("Invalid sub-field type")),
         }
     }
 }
 
 impl<S: Encoder> Encodable<S> for SubField {
-    fn consensus_encode(&self, s: &mut S) -> Result <(), encode::Error> {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
         match *self {
             SubField::Padding(nbytes) => {
                 0x0u8.consensus_encode(s)?;
-                for _ in 0..nbytes { 0u8.consensus_encode(s)?; }
+                for _ in 0..nbytes {
+                    0u8.consensus_encode(s)?;
+                }
                 Ok(())
-            },
+            }
             SubField::TxPublicKey(ref pubkey) => {
                 0x1u8.consensus_encode(s)?;
                 pubkey.consensus_encode(s)
-            },
+            }
             SubField::Nonce(ref nonce) => {
                 0x2u8.consensus_encode(s)?;
                 nonce.consensus_encode(s)
-            },
+            }
             SubField::MergeMining(ref depth, ref merkle_root) => {
                 0x3u8.consensus_encode(s)?;
                 depth.consensus_encode(s)?;
                 merkle_root.consensus_encode(s)
-            },
+            }
             SubField::AdditionalPublickKey(ref pubkeys) => {
                 0x4u8.consensus_encode(s)?;
                 pubkeys.consensus_encode(s)
-            },
+            }
             SubField::MysteriousMinerGate(ref string) => {
                 0xdeu8.consensus_encode(s)?;
                 string.consensus_encode(s)
-            },
+            }
         }
     }
 }
@@ -403,18 +434,22 @@ impl<D: Decoder> Decodable<D> for TxIn {
 }
 
 impl<S: Encoder> Encodable<S> for TxIn {
-    fn consensus_encode(&self, s: &mut S) -> Result <(), encode::Error> {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
         match self {
             TxIn::Gen { height } => {
                 0xffu8.consensus_encode(s)?;
                 height.consensus_encode(s)
-            },
-            TxIn::ToKey { amount, key_offsets, k_image } => {
+            }
+            TxIn::ToKey {
+                amount,
+                key_offsets,
+                k_image,
+            } => {
                 0x2u8.consensus_encode(s)?;
                 amount.consensus_encode(s)?;
                 key_offsets.consensus_encode(s)?;
                 k_image.consensus_encode(s)
-            },
+            }
             _ => Err(Error::ScriptNotSupported.into()),
         }
     }
@@ -433,12 +468,12 @@ impl<D: Decoder> Decodable<D> for TxOutTarget {
 }
 
 impl<S: Encoder> Encodable<S> for TxOutTarget {
-    fn consensus_encode(&self, s: &mut S) -> Result <(), encode::Error> {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
         match self {
             TxOutTarget::ToKey { key } => {
                 0x2u8.consensus_encode(s)?;
                 key.consensus_encode(s)
-            },
+            }
             _ => Err(Error::ScriptNotSupported.into()),
         }
     }
@@ -454,17 +489,18 @@ impl<D: Decoder> Decodable<D> for Transaction {
 
         match *prefix.version {
             1 => {
-                let signatures: Result<Vec<Vec<Signature>>, encode::Error> = prefix.inputs.iter()
-                    .filter_map(|input| {
-                        match input {
-                            TxIn::ToKey { key_offsets, .. } => {
-                                let sigs: Result<Vec<Signature>, encode::Error> = key_offsets.iter()
-                                    .map(|_| Decodable::consensus_decode(d))
-                                    .collect();
-                                Some(sigs)
-                            },
-                            _ => None,
+                let signatures: Result<Vec<Vec<Signature>>, encode::Error> = prefix
+                    .inputs
+                    .iter()
+                    .filter_map(|input| match input {
+                        TxIn::ToKey { key_offsets, .. } => {
+                            let sigs: Result<Vec<Signature>, encode::Error> = key_offsets
+                                .iter()
+                                .map(|_| Decodable::consensus_decode(d))
+                                .collect();
+                            Some(sigs)
                         }
+                        _ => None,
                     })
                     .collect();
                 Ok(Transaction {
@@ -472,7 +508,7 @@ impl<D: Decoder> Decodable<D> for Transaction {
                     signatures: signatures?,
                     rct_signatures: RctSig { sig: None, p: None },
                 })
-            },
+            }
             _ => {
                 let signatures = vec![];
                 let mut rct_signatures = RctSig { sig: None, p: None };
@@ -494,7 +530,13 @@ impl<D: Decoder> Decodable<D> for Transaction {
                             },
                             false => 0,
                         };
-                        p = RctSigPrunable::consensus_decode(d, sig.rct_type, inputs, outputs, mixin_size)?;
+                        p = RctSigPrunable::consensus_decode(
+                            d,
+                            sig.rct_type,
+                            inputs,
+                            outputs,
+                            mixin_size,
+                        )?;
                     }
                     rct_signatures = RctSig { sig: Some(sig), p };
                 }
@@ -504,7 +546,7 @@ impl<D: Decoder> Decodable<D> for Transaction {
                     signatures,
                     rct_signatures,
                 })
-            },
+            }
         }
     }
 }
@@ -517,7 +559,7 @@ impl<S: Encoder> Encodable<S> for Transaction {
                 for sig in self.signatures.iter() {
                     encode_sized_vec!(sig, s);
                 }
-            },
+            }
             _ => {
                 if let Some(sig) = &self.rct_signatures.sig {
                     sig.consensus_encode(s)?;
@@ -525,7 +567,7 @@ impl<S: Encoder> Encodable<S> for Transaction {
                         p.consensus_encode(s, sig.rct_type)?;
                     }
                 }
-            },
+            }
         }
         Ok(())
     }
@@ -535,10 +577,10 @@ impl<S: Encoder> Encodable<S> for Transaction {
 mod tests {
     use std::str::FromStr;
 
-    use super::{TransactionPrefix, Transaction};
-    use crate::cryptonote::hash::Hashable;
-    use crate::util::key::{PublicKey, PrivateKey, ViewPair};
+    use super::{Transaction, TransactionPrefix};
     use crate::consensus::encode::{deserialize, deserialize_partial, serialize};
+    use crate::cryptonote::hash::Hashable;
+    use crate::util::key::{PrivateKey, PublicKey, ViewPair};
 
     #[test]
     fn deserialize_transaction_prefix() {
@@ -547,10 +589,16 @@ mod tests {
         assert_eq!(true, tx.is_ok());
         let tx = tx.unwrap();
         assert_eq!(hex, serialize(&tx));
-        assert_eq!("3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1", tx.hash().to_string());
+        assert_eq!(
+            "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
+            tx.hash().to_string()
+        );
 
         let tx = deserialize::<Transaction>(&hex[..]).unwrap();
-        assert_eq!("3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1", tx.hash().to_string());
+        assert_eq!(
+            "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
+            tx.hash().to_string()
+        );
     }
 
     #[test]
@@ -559,19 +607,31 @@ mod tests {
         let tx = deserialize_partial::<TransactionPrefix>(&hex[..]);
         assert_eq!(true, tx.is_ok());
         let tx = tx.unwrap().0;
-        assert_eq!("3b50349180b4a60e55187507746eabb7bee0de6b74168eac8720a449da28613b", tx.hash().to_string());
+        assert_eq!(
+            "3b50349180b4a60e55187507746eabb7bee0de6b74168eac8720a449da28613b",
+            tx.hash().to_string()
+        );
 
         let tx = deserialize::<Transaction>(&hex[..]);
         assert_eq!(true, tx.is_ok());
         let tx = tx.unwrap();
         assert_eq!(hex, serialize(&tx));
-        assert_eq!("5a420317e377d3d95b652fb93e65cfe97ef7d89e04be329a2ca94e73ec57b74e", tx.hash().to_string());
+        assert_eq!(
+            "5a420317e377d3d95b652fb93e65cfe97ef7d89e04be329a2ca94e73ec57b74e",
+            tx.hash().to_string()
+        );
     }
 
     #[test]
     fn find_outputs() {
-        let view = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404").unwrap();
-        let b = PrivateKey::from_str("8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09").unwrap();
+        let view = PrivateKey::from_str(
+            "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
+        )
+        .unwrap();
+        let b = PrivateKey::from_str(
+            "8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09",
+        )
+        .unwrap();
         let spend = PublicKey::from_private_key(&b);
         let viewpair = ViewPair { view, spend };
 
@@ -579,13 +639,19 @@ mod tests {
         let tx = deserialize::<TransactionPrefix>(&hex[..]);
         assert_eq!(true, tx.is_ok());
         let tx = tx.unwrap();
-        assert_eq!("3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1", tx.hash().to_string());
+        assert_eq!(
+            "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
+            tx.hash().to_string()
+        );
         assert_eq!(true, tx.check_outputs(&viewpair, 0..1, 0..200).is_ok());
         assert_eq!(hex, serialize(&tx));
 
         let tx = deserialize::<Transaction>(&hex[..]);
         assert_eq!(true, tx.is_ok());
         let tx = tx.unwrap();
-        assert_eq!("3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1", tx.hash().to_string());
+        assert_eq!(
+            "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
+            tx.hash().to_string()
+        );
     }
 }

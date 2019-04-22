@@ -18,9 +18,9 @@
 //! This module defines structures of blocks.
 //!
 
-use crate::cryptonote::hash;
-use crate::consensus::encode::VarInt;
 use crate::blockdata::transaction::Transaction;
+use crate::consensus::encode::VarInt;
+use crate::cryptonote::hash;
 
 /// Monero block header
 pub struct BlockHeader {
@@ -36,7 +36,14 @@ pub struct BlockHeader {
     pub nonce: u32,
 }
 
-impl_consensus_encoding!(BlockHeader, major_version, minor_version, timestamp, prev_id, nonce);
+impl_consensus_encoding!(
+    BlockHeader,
+    major_version,
+    minor_version,
+    timestamp,
+    prev_id,
+    nonce
+);
 
 /// Monero block with all transaction hashes
 pub struct Block {
