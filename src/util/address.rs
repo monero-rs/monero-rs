@@ -107,7 +107,7 @@ impl From<network::Error> for Error {
 }
 
 /// Address type
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum AddressType {
     /// Standard address
     Standard,
@@ -172,7 +172,7 @@ impl fmt::Display for AddressType {
 }
 
 /// Payment Id for integrated address
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct PaymentId(pub [u8; 8]);
 
 impl PaymentId {
@@ -224,7 +224,7 @@ impl ops::Index<ops::RangeFull> for PaymentId {
 }
 
 /// A Monero address
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Address {
     /// The network on which the address is valid
     pub network: Network,

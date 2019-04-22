@@ -51,7 +51,7 @@ impl error::Error for Error {
 }
 
 /// Network type
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Network {
     /// Monero Mainnet
     Mainnet,
