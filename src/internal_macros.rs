@@ -40,7 +40,7 @@ macro_rules! impl_consensus_encoding {
 }
 
 macro_rules! impl_hex_display {
-    ( $data:ident, $field:ident ) => (
+    ( $data:ident, $field:ident ) => {
         impl fmt::Debug for $data {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 write!(f, "{}", hex::encode(&self.$field[..]))
@@ -52,5 +52,5 @@ macro_rules! impl_hex_display {
                 write!(f, "{}", hex::encode(&self.$field[..]))
             }
         }
-    );
+    };
 }

@@ -62,17 +62,17 @@
 //! ```
 //!
 
-use std::{error, fmt, ops};
-use std::str::FromStr;
-use std::ops::{Add, Sub, Mul};
 use std::hash::{Hash, Hasher};
+use std::ops::{Add, Mul, Sub};
+use std::str::FromStr;
+use std::{error, fmt, ops};
 
-use curve25519_dalek::scalar::Scalar;
-use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
+use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
+use curve25519_dalek::scalar::Scalar;
 
+use crate::consensus::encode::{self, Decodable, Decoder, Encodable, Encoder};
 use crate::cryptonote::hash;
-use crate::consensus::encode::{self, Encoder, Decoder, Encodable, Decodable};
 
 /// An error that might occur during key decoding
 #[derive(Debug, PartialEq)]
@@ -91,7 +91,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Hex(ref e) => fmt::Display::fmt(e, f),
-            Error::InvalidLenght | Error::NotCanonicalScalar | Error::InvalidPoint => f.write_str(error::Error::description(self)),
+            Error::InvalidLenght | Error::NotCanonicalScalar | Error::InvalidPoint => {
+                f.write_str(error::Error::description(self))
+            }
         }
     }
 }
@@ -148,7 +150,9 @@ impl PrivateKey {
         bytes.copy_from_slice(data);
         let scalar = match Scalar::from_canonical_bytes(bytes) {
             Some(scalar) => scalar,
-            None => { return Err(Error::NotCanonicalScalar); },
+            None => {
+                return Err(Error::NotCanonicalScalar);
+            }
         };
         Ok(PrivateKey { scalar })
     }
@@ -200,7 +204,9 @@ impl<'b> Mul<&'b PublicKey> for PrivateKey {
 
     fn mul(self, other: &'b PublicKey) -> Self::Output {
         let point = self.scalar * other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -209,7 +215,9 @@ impl<'a, 'b> Mul<&'b PublicKey> for &'a PrivateKey {
 
     fn mul(self, other: &'b PublicKey) -> Self::Output {
         let point = self.scalar * other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -242,7 +250,7 @@ impl<D: Decoder> Decodable<D> for PrivateKey {
 }
 
 impl<S: Encoder> Encodable<S> for PrivateKey {
-    fn consensus_encode(&self, s: &mut S) -> Result <(), encode::Error> {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
         self.to_bytes().consensus_encode(s)
     }
 }
@@ -273,7 +281,9 @@ impl PublicKey {
         let point = CompressedEdwardsY::from_slice(data);
         match point.decompress() {
             Some(_) => (),
-            None => { return Err(Error::InvalidPoint); },
+            None => {
+                return Err(Error::InvalidPoint);
+            }
         };
         Ok(PublicKey { point })
     }
@@ -281,12 +291,15 @@ impl PublicKey {
     /// Generate a public key from the private key
     pub fn from_private_key(privkey: &PrivateKey) -> PublicKey {
         let point = &privkey.scalar * &ED25519_BASEPOINT_TABLE;
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 
     /// Get the decompressed Edward point of the public key
     fn point(&self) -> EdwardsPoint {
-        self.point.decompress()
+        self.point
+            .decompress()
             .expect("PublicKey Can only be created if a valid point is found. QED")
     }
 }
@@ -296,7 +309,9 @@ impl<'a, 'b> Add<&'b PublicKey> for &'a PublicKey {
 
     fn add(self, other: &'b PublicKey) -> Self::Output {
         let point = self.point() + other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -305,7 +320,9 @@ impl<'a> Add<PublicKey> for &'a PublicKey {
 
     fn add(self, other: PublicKey) -> Self::Output {
         let point = self.point() + other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -314,7 +331,9 @@ impl<'b> Add<&'b PublicKey> for PublicKey {
 
     fn add(self, other: &'b PublicKey) -> Self::Output {
         let point = self.point() + other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -323,7 +342,9 @@ impl Add<PublicKey> for PublicKey {
 
     fn add(self, other: PublicKey) -> Self::Output {
         let point = self.point() + other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -332,7 +353,9 @@ impl<'a, 'b> Sub<&'b PublicKey> for &'a PublicKey {
 
     fn sub(self, other: &'b PublicKey) -> Self::Output {
         let point = self.point() - other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -341,7 +364,9 @@ impl<'a> Sub<PublicKey> for &'a PublicKey {
 
     fn sub(self, other: PublicKey) -> Self::Output {
         let point = self.point() - other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -350,7 +375,9 @@ impl<'b> Sub<&'b PublicKey> for PublicKey {
 
     fn sub(self, other: &'b PublicKey) -> Self::Output {
         let point = self.point() - other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -359,7 +386,9 @@ impl Sub<PublicKey> for PublicKey {
 
     fn sub(self, other: PublicKey) -> Self::Output {
         let point = self.point() - other.point();
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -368,7 +397,9 @@ impl<'b> Mul<&'b PrivateKey> for PublicKey {
 
     fn mul(self, other: &'b PrivateKey) -> Self::Output {
         let point = self.point() * other.scalar;
-        PublicKey { point: point.compress() }
+        PublicKey {
+            point: point.compress(),
+        }
     }
 }
 
@@ -413,7 +444,7 @@ impl<D: Decoder> Decodable<D> for PublicKey {
 }
 
 impl<S: Encoder> Encodable<S> for PublicKey {
-    fn consensus_encode(&self, s: &mut S) -> Result <(), encode::Error> {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
         self.to_bytes().consensus_encode(s)
     }
 }
@@ -445,14 +476,20 @@ pub struct ViewPair {
 impl From<KeyPair> for ViewPair {
     fn from(k: KeyPair) -> ViewPair {
         let spend = PublicKey::from_private_key(&k.spend);
-        ViewPair { view: k.view, spend }
+        ViewPair {
+            view: k.view,
+            spend,
+        }
     }
 }
 
 impl From<&KeyPair> for ViewPair {
     fn from(k: &KeyPair) -> ViewPair {
         let spend = PublicKey::from_private_key(&k.spend);
-        ViewPair { view: k.view, spend }
+        ViewPair {
+            view: k.view,
+            spend,
+        }
     }
 }
 
@@ -464,26 +501,48 @@ mod tests {
 
     #[test]
     fn public_key_from_secret() {
-        let privkey = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404").unwrap();
-        assert_eq!("eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3", PublicKey::from_private_key(&privkey).to_string());
+        let privkey = PrivateKey::from_str(
+            "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
+        )
+        .unwrap();
+        assert_eq!(
+            "eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3",
+            PublicKey::from_private_key(&privkey).to_string()
+        );
     }
 
     #[test]
     fn parse_public_key() {
-        assert!(true, PublicKey::from_str("eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3").is_ok());
+        assert!(
+            true,
+            PublicKey::from_str("eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3")
+                .is_ok()
+        );
     }
 
     #[test]
     fn add_privkey_and_pubkey() {
-        let priv1 = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404").unwrap();
-        let priv2 = PrivateKey::from_str("8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09").unwrap();
+        let priv1 = PrivateKey::from_str(
+            "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
+        )
+        .unwrap();
+        let priv2 = PrivateKey::from_str(
+            "8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09",
+        )
+        .unwrap();
         let priv_res = priv1 + priv2;
-        assert_eq!("f8f4b37bedf12a2178c0adcc2565b42a212c133861cb28cdf48abf310c3ce40d", priv_res.to_string());
+        assert_eq!(
+            "f8f4b37bedf12a2178c0adcc2565b42a212c133861cb28cdf48abf310c3ce40d",
+            priv_res.to_string()
+        );
 
         let pub1 = PublicKey::from_private_key(&priv1);
         let pub2 = PublicKey::from_private_key(&priv2);
         let pub_res = pub1 + pub2;
-        assert_eq!("d35ad191b220a627977bb2912ea21fd59b24937f46c1d3814dbcb7943ff1f9f2", pub_res.to_string());
+        assert_eq!(
+            "d35ad191b220a627977bb2912ea21fd59b24937f46c1d3814dbcb7943ff1f9f2",
+            pub_res.to_string()
+        );
 
         let pubkey = PublicKey::from_private_key(&priv_res);
         assert_eq!(pubkey, pub_res);

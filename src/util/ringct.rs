@@ -20,8 +20,8 @@
 
 use std::fmt;
 
+use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
 use crate::cryptonote::hash;
-use crate::consensus::encode::{self, serialize, Encoder, Decoder, Encodable, Decodable, VarInt};
 
 /// RingCT error
 #[derive(Debug)]
@@ -41,7 +41,6 @@ impl_hex_display!(Key, key);
 
 impl_consensus_encoding!(Key, key);
 
-
 // ====================================================================
 /// Raw 64 bytes key
 pub struct Key64 {
@@ -53,7 +52,6 @@ impl_hex_display!(Key64, key);
 
 impl_consensus_encoding!(Key64, key);
 
-
 // ====================================================================
 /// Confidential transaction key
 #[derive(Debug)]
@@ -64,7 +62,6 @@ pub struct CtKey {
 }
 
 impl_consensus_encoding!(CtKey, mask);
-
 
 // ====================================================================
 /// Multisig
@@ -83,7 +80,6 @@ pub struct MultisigKLRki {
 
 impl_consensus_encoding!(MultisigKLRki, K, L, R, ki);
 
-
 // ====================================================================
 /// Vector of multisig output keys
 #[derive(Debug)]
@@ -93,7 +89,6 @@ pub struct MultisigOut {
 }
 
 impl_consensus_encoding!(MultisigOut, c);
-
 
 // ====================================================================
 /// Diffie-Hellman info
@@ -112,22 +107,25 @@ pub enum EcdhInfo {
     Bulletproof2 {
         /// Amount value
         amount: hash::Hash8,
-    }
+    },
 }
 
 impl EcdhInfo {
     /// Decode Diffie-Hellman info given the RingCT type
-    fn consensus_decode<D: Decoder>(d: &mut D, rct_type: RctType) -> Result<EcdhInfo, encode::Error> {
+    fn consensus_decode<D: Decoder>(
+        d: &mut D,
+        rct_type: RctType,
+    ) -> Result<EcdhInfo, encode::Error> {
         match rct_type {
             RctType::Full | RctType::Simple | RctType::Bulletproof | RctType::Null => {
                 Ok(EcdhInfo::Standard {
                     mask: Decodable::consensus_decode(d)?,
                     amount: Decodable::consensus_decode(d)?,
                 })
-            },
-            RctType::Bulletproof2 => {
-                Ok(EcdhInfo::Bulletproof2 { amount: Decodable::consensus_decode(d)? })
-            },
+            }
+            RctType::Bulletproof2 => Ok(EcdhInfo::Bulletproof2 {
+                amount: Decodable::consensus_decode(d)?,
+            }),
         }
     }
 }
@@ -138,15 +136,14 @@ impl<S: Encoder> Encodable<S> for EcdhInfo {
             EcdhInfo::Standard { mask, amount } => {
                 mask.consensus_encode(s)?;
                 amount.consensus_encode(s)?;
-            },
+            }
             EcdhInfo::Bulletproof2 { amount } => {
                 amount.consensus_encode(s)?;
-            },
+            }
         }
         Ok(())
     }
 }
-
 
 // ====================================================================
 /// Borromean signature for range commitment
@@ -161,7 +158,6 @@ pub struct BoroSig {
 }
 
 impl_consensus_encoding!(BoroSig, s0, s1, ee);
-
 
 // ====================================================================
 /// Mg sig
@@ -182,7 +178,6 @@ impl<S: Encoder> Encodable<S> for MgSig {
     }
 }
 
-
 // ====================================================================
 /// Range signature for range commitment
 #[derive(Debug)]
@@ -195,7 +190,6 @@ pub struct RangeSig {
 }
 
 impl_consensus_encoding!(RangeSig, asig, Ci);
-
 
 // ====================================================================
 /// Bulletproof format
@@ -228,7 +222,6 @@ pub struct Bulletproof {
 
 impl_consensus_encoding!(Bulletproof, A, S, T1, T2, taux, mu, L, R, a, b, t);
 
-
 // ====================================================================
 /// RingCT base signature format
 #[derive(Debug)]
@@ -249,7 +242,11 @@ pub struct RctSigBase {
 
 impl RctSigBase {
     /// Decode a RingCT base signature given the number of inputs and outputs of the transaction
-    pub fn consensus_decode<D: Decoder>(d: &mut D, inputs: usize, outputs: usize) -> Result<Option<RctSigBase>, encode::Error> {
+    pub fn consensus_decode<D: Decoder>(
+        d: &mut D,
+        inputs: usize,
+        outputs: usize,
+    ) -> Result<Option<RctSigBase>, encode::Error> {
         let rct_type: RctType = Decodable::consensus_decode(d)?;
         match rct_type {
             RctType::Null => Ok(None),
@@ -263,7 +260,9 @@ impl RctSigBase {
                 }
                 // EcdhInfo
                 let mut ecdh_info: Vec<EcdhInfo> = vec![];
-                for _ in 0..outputs { ecdh_info.push(EcdhInfo::consensus_decode(d, rct_type)?); }
+                for _ in 0..outputs {
+                    ecdh_info.push(EcdhInfo::consensus_decode(d, rct_type)?);
+                }
                 // OutPk
                 let out_pk: Vec<CtKey> = decode_sized_vec!(outputs, d);
                 Ok(Some(RctSigBase {
@@ -273,7 +272,7 @@ impl RctSigBase {
                     ecdh_info,
                     out_pk,
                 }))
-            },
+            }
         }
     }
 }
@@ -291,7 +290,7 @@ impl<S: Encoder> Encodable<S> for RctSigBase {
                 encode_sized_vec!(self.ecdh_info, s);
                 encode_sized_vec!(self.out_pk, s);
                 Ok(())
-            },
+            }
         }
     }
 }
@@ -301,7 +300,6 @@ impl hash::Hashable for RctSigBase {
         hash::Hash::hash(&serialize(self))
     }
 }
-
 
 // ====================================================================
 /// RingCT types
@@ -356,7 +354,6 @@ impl<S: Encoder> Encodable<S> for RctType {
     }
 }
 
-
 // ====================================================================
 /// Prunable part of RingCT signature format
 #[derive(Debug)]
@@ -381,7 +378,7 @@ impl RctSigPrunable {
         rct_type: RctType,
         inputs: usize,
         outputs: usize,
-        mixin: usize
+        mixin: usize,
     ) -> Result<Option<RctSigPrunable>, encode::Error> {
         match rct_type {
             RctType::Null => Ok(None),
@@ -393,16 +390,16 @@ impl RctSigPrunable {
                         match rct_type {
                             RctType::Bulletproof2 => {
                                 bulletproofs = Decodable::consensus_decode(d)?;
-                            },
+                            }
                             _ => {
                                 let size: u32 = Decodable::consensus_decode(d)?;
                                 bulletproofs = decode_sized_vec!(size, d);
-                            },
+                            }
                         };
-                    },
+                    }
                     false => {
                         range_sigs = decode_sized_vec!(outputs, d);
-                    },
+                    }
                 }
                 let is_full = rct_type == RctType::Full;
                 let mg_elements = match is_full {
@@ -421,10 +418,7 @@ impl RctSigPrunable {
                         ss.push(ss_elems);
                     }
                     let cc = Decodable::consensus_decode(d)?;
-                    MGs.push(MgSig {
-                        ss,
-                        cc
-                    });
+                    MGs.push(MgSig { ss, cc });
                 }
 
                 let mut pseudo_outs: Vec<Key> = vec![];
@@ -440,31 +434,33 @@ impl RctSigPrunable {
                     MGs,
                     pseudo_outs,
                 }))
-            },
+            }
         }
     }
 
     /// Encode the prunable RingCT signature part given the RingCT type of the transaction
-    pub fn consensus_encode<S: Encoder>(&self, s: &mut S, rct_type: RctType) -> Result<(), encode::Error> {
+    pub fn consensus_encode<S: Encoder>(
+        &self,
+        s: &mut S,
+        rct_type: RctType,
+    ) -> Result<(), encode::Error> {
         match rct_type {
             RctType::Null => Ok(()),
             RctType::Full | RctType::Simple | RctType::Bulletproof | RctType::Bulletproof2 => {
                 match rct_type.is_rct_bp() {
-                    true => {
-                        match rct_type {
-                            RctType::Bulletproof2 => {
-                                self.bulletproofs.consensus_encode(s)?;
-                            },
-                            _ => {
-                                let size: u32 = self.bulletproofs.len() as u32;
-                                size.consensus_encode(s)?;
-                                encode_sized_vec!(self.bulletproofs, s);
-                            },
+                    true => match rct_type {
+                        RctType::Bulletproof2 => {
+                            self.bulletproofs.consensus_encode(s)?;
+                        }
+                        _ => {
+                            let size: u32 = self.bulletproofs.len() as u32;
+                            size.consensus_encode(s)?;
+                            encode_sized_vec!(self.bulletproofs, s);
                         }
                     },
                     false => {
                         encode_sized_vec!(self.range_sigs, s);
-                    },
+                    }
                 }
                 encode_sized_vec!(self.MGs, s);
                 match rct_type {
@@ -474,11 +470,10 @@ impl RctSigPrunable {
                     _ => (),
                 }
                 Ok(())
-            },
+            }
         }
     }
 }
-
 
 // ====================================================================
 /// A RingCT signature
@@ -489,7 +484,6 @@ pub struct RctSig {
     /// The prunable part
     pub p: Option<RctSigPrunable>,
 }
-
 
 // ====================================================================
 /// A raw signature

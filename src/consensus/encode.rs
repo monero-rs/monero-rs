@@ -24,16 +24,16 @@
 //! is following.
 //!
 
-use std::u32;
-use std::io;
-use std::fmt;
-use std::ops::Deref;
-use std::io::{Cursor, Read, Write};
-use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use hex::encode as hex_encode;
+use std::fmt;
+use std::io;
+use std::io::{Cursor, Read, Write};
+use std::ops::Deref;
+use std::u32;
 
-use crate::util::{key, ringct};
 use crate::blockdata::transaction;
+use crate::util::{key, ringct};
 
 /// Encoding error
 #[derive(Debug)]
@@ -75,7 +75,8 @@ impl From<ringct::Error> for Error {
 
 /// Encode an object into a vector
 pub fn serialize<T: ?Sized>(data: &T) -> Vec<u8>
-     where T: Encodable<Cursor<Vec<u8>>>,
+where
+    T: Encodable<Cursor<Vec<u8>>>,
 {
     let mut encoder = Cursor::new(vec![]);
     data.consensus_encode(&mut encoder).unwrap();
@@ -84,7 +85,8 @@ pub fn serialize<T: ?Sized>(data: &T) -> Vec<u8>
 
 /// Encode an object into a hex-encoded string
 pub fn serialize_hex<T: ?Sized>(data: &T) -> String
-     where T: Encodable<Cursor<Vec<u8>>>
+where
+    T: Encodable<Cursor<Vec<u8>>>,
 {
     hex_encode(serialize(data))
 }
@@ -92,7 +94,8 @@ pub fn serialize_hex<T: ?Sized>(data: &T) -> String
 /// Deserialize an object from a vector, will error if said deserialization
 /// doesn't consume the entire vector.
 pub fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, Error>
-     where T: Decodable<Cursor<&'a [u8]>>
+where
+    T: Decodable<Cursor<&'a [u8]>>,
 {
     let (rv, consumed) = deserialize_partial(data)?;
 
@@ -100,14 +103,17 @@ pub fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, Error>
     if consumed == data.len() {
         Ok(rv)
     } else {
-        Err(Error::ParseFailed("data not consumed entirely when explicitly deserializing"))
+        Err(Error::ParseFailed(
+            "data not consumed entirely when explicitly deserializing",
+        ))
     }
 }
 
 /// Deserialize an object from a vector, but will not report an error if said deserialization
 /// doesn't consume the entire vector.
 pub fn deserialize_partial<'a, T>(data: &'a [u8]) -> Result<(T, usize), Error>
-    where T: Decodable<Cursor<&'a [u8]>>
+where
+    T: Decodable<Cursor<&'a [u8]>>,
 {
     let mut decoder = Cursor::new(data);
     let rv = Decodable::consensus_decode(&mut decoder)?;
@@ -115,7 +121,6 @@ pub fn deserialize_partial<'a, T>(data: &'a [u8]) -> Result<(T, usize), Error>
 
     Ok((rv, consumed))
 }
-
 
 /// A simple Encoder trait
 pub trait Encoder {
@@ -201,7 +206,7 @@ impl<W: Write> Encoder for W {
     }
     #[inline]
     fn emit_bool(&mut self, v: bool) -> Result<(), Error> {
-        self.write_i8(if v {1} else {0}).map_err(Error::Io)
+        self.write_i8(if v { 1 } else { 0 }).map_err(Error::Io)
     }
 }
 
@@ -265,25 +270,29 @@ impl Deref for VarInt {
 }
 
 // Primitive types
-macro_rules! impl_int_encodable{
-    ($ty:ident, $meth_dec:ident, $meth_enc:ident) => (
+macro_rules! impl_int_encodable {
+    ($ty:ident, $meth_dec:ident, $meth_enc:ident) => {
         impl<D: Decoder> Decodable<D> for $ty {
             #[inline]
-            fn consensus_decode(d: &mut D) -> Result<$ty, self::Error> { d.$meth_dec().map($ty::from_le) }
+            fn consensus_decode(d: &mut D) -> Result<$ty, self::Error> {
+                d.$meth_dec().map($ty::from_le)
+            }
         }
 
         impl<S: Encoder> Encodable<S> for $ty {
             #[inline]
-            fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> { s.$meth_enc(self.to_le()) }
+            fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
+                s.$meth_enc(self.to_le())
+            }
         }
-    )
+    };
 }
 
-impl_int_encodable!(u8,  read_u8,  emit_u8);
+impl_int_encodable!(u8, read_u8, emit_u8);
 impl_int_encodable!(u16, read_u16, emit_u16);
 impl_int_encodable!(u32, read_u32, emit_u32);
 impl_int_encodable!(u64, read_u64, emit_u64);
-impl_int_encodable!(i8,  read_i8,  emit_i8);
+impl_int_encodable!(i8, read_i8, emit_i8);
 impl_int_encodable!(i16, read_i16, emit_i16);
 impl_int_encodable!(i32, read_i32, emit_i32);
 impl_int_encodable!(i64, read_i64, emit_i64);
@@ -297,16 +306,19 @@ impl<S: Encoder> Encodable<S> for VarInt {
             let bits = (n & 0b0111_1111) as u8;
             n = n >> 7;
             res.push(bits);
-            if n == 0u64 { break }
+            if n == 0u64 {
+                break;
+            }
         }
         match res.split_last() {
             Some((last, arr)) => {
-                let a: Result<Vec<_>, self::Error> = arr.iter()
+                let a: Result<Vec<_>, self::Error> = arr
+                    .iter()
                     .map(|bits| s.emit_u8(*bits | 0b1000_0000))
                     .collect();
                 a?;
                 s.emit_u8(*last)
-            },
+            }
             None => s.emit_u8(0x00),
         }
     }
@@ -320,7 +332,7 @@ impl<D: Decoder> Decodable<D> for VarInt {
             let n = d.read_u8()?;
             res.push(n & 0b0111_1111);
             if n & 0b1000_0000 == 0 {
-                break
+                break;
             }
         }
         let mut int = 0u64;
@@ -338,12 +350,16 @@ impl<D: Decoder> Decodable<D> for VarInt {
 // Booleans
 impl<S: Encoder> Encodable<S> for bool {
     #[inline]
-    fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> { s.emit_u8(if *self {1} else {0}) }
+    fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
+        s.emit_u8(if *self { 1 } else { 0 })
+    }
 }
 
 impl<D: Decoder> Decodable<D> for bool {
     #[inline]
-    fn consensus_decode(d: &mut D) -> Result<bool, self::Error> { d.read_u8().map(|n| n != 0) }
+    fn consensus_decode(d: &mut D) -> Result<bool, self::Error> {
+        d.read_u8().map(|n| n != 0)
+    }
 }
 
 // Strings
@@ -362,29 +378,32 @@ impl<D: Decoder> Decodable<D> for String {
     }
 }
 
-
 // Arrays
 macro_rules! impl_array {
-    ( $size:expr ) => (
+    ( $size:expr ) => {
         impl<S: Encoder, T: Encodable<S>> Encodable<S> for [T; $size] {
             #[inline]
             fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
-                for i in self.iter() { i.consensus_encode(s)?; }
+                for i in self.iter() {
+                    i.consensus_encode(s)?;
+                }
                 Ok(())
             }
         }
 
-        impl<D: Decoder, T:Decodable<D> + Copy> Decodable<D> for [T; $size] {
+        impl<D: Decoder, T: Decodable<D> + Copy> Decodable<D> for [T; $size] {
             #[inline]
             fn consensus_decode(d: &mut D) -> Result<[T; $size], self::Error> {
                 // Set everything to the first decode
                 let mut ret = [Decodable::consensus_decode(d)?; $size];
                 // Set the rest
-                for item in ret.iter_mut().take($size).skip(1) { *item = Decodable::consensus_decode(d)?; }
+                for item in ret.iter_mut().take($size).skip(1) {
+                    *item = Decodable::consensus_decode(d)?;
+                }
                 Ok(ret)
             }
         }
-    );
+    };
 }
 
 impl_array!(8);
@@ -395,7 +414,9 @@ impl<S: Encoder, T: Encodable<S>> Encodable<S> for [T] {
     #[inline]
     fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
         VarInt(self.len() as u64).consensus_encode(s)?;
-        for c in self.iter() { c.consensus_encode(s)?; }
+        for c in self.iter() {
+            c.consensus_encode(s)?;
+        }
         Ok(())
     }
 }
@@ -405,7 +426,9 @@ impl<S: Encoder, T: Encodable<S>> Encodable<S> for [T] {
 // Vectors
 impl<S: Encoder, T: Encodable<S>> Encodable<S> for Vec<T> {
     #[inline]
-    fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> { (&self[..]).consensus_encode(s) }
+    fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
+        (&self[..]).consensus_encode(s)
+    }
 }
 
 impl<D: Decoder, T: Decodable<D>> Decodable<D> for Vec<T> {
@@ -413,32 +436,36 @@ impl<D: Decoder, T: Decodable<D>> Decodable<D> for Vec<T> {
     fn consensus_decode(d: &mut D) -> Result<Vec<T>, self::Error> {
         let len = VarInt::consensus_decode(d)?.0;
         let mut ret = Vec::with_capacity(len as usize);
-        for _ in 0..len { ret.push(Decodable::consensus_decode(d)?); }
+        for _ in 0..len {
+            ret.push(Decodable::consensus_decode(d)?);
+        }
         Ok(ret)
     }
 }
 
 macro_rules! decode_sized_vec {
-    ( $size:expr, $d:expr ) => {
-        {
-            let mut ret = Vec::with_capacity($size as usize);
-            for _ in 0..$size { ret.push(Decodable::consensus_decode($d)?); }
-            ret
+    ( $size:expr, $d:expr ) => {{
+        let mut ret = Vec::with_capacity($size as usize);
+        for _ in 0..$size {
+            ret.push(Decodable::consensus_decode($d)?);
         }
-    };
+        ret
+    }};
 }
 
 macro_rules! encode_sized_vec {
-    ( $vec:expr, $s:expr ) => {
-        {
-            for c in $vec.iter() { c.consensus_encode($s)?; }
+    ( $vec:expr, $s:expr ) => {{
+        for c in $vec.iter() {
+            c.consensus_encode($s)?;
         }
-    };
+    }};
 }
 
 impl<S: Encoder, T: Encodable<S>> Encodable<S> for Box<[T]> {
     #[inline]
-    fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> { (&self[..]).consensus_encode(s) }
+    fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
+        (&self[..]).consensus_encode(s)
+    }
 }
 
 impl<D: Decoder, T: Decodable<D>> Decodable<D> for Box<[T]> {
@@ -447,7 +474,9 @@ impl<D: Decoder, T: Decodable<D>> Decodable<D> for Box<[T]> {
         let len = VarInt::consensus_decode(d)?.0;
         let len = len as usize;
         let mut ret = Vec::with_capacity(len);
-        for _ in 0..len { ret.push(Decodable::consensus_decode(d)?); }
+        for _ in 0..len {
+            ret.push(Decodable::consensus_decode(d)?);
+        }
         Ok(ret.into_boxed_slice())
     }
 }
