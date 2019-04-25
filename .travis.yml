@@ -1,6 +1,9 @@
 language: rust
 rust:
   - nightly
+before_install:
+  - rustup target add wasm32-unknown-unknown
 script:
   - cargo build --verbose
+  - cargo build --no-default-features --target wasm32-unknown-unknown
   - cargo test --verbose

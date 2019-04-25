@@ -48,7 +48,7 @@ cargo test
 This library can be built to target wasm platform with:
 
 ```
-cargo build --target wasm32-unknown-unknown
+cargo build --target wasm32-unknown-unknown --no-default-features
 ```
 
 About

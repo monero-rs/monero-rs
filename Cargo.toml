@@ -14,8 +14,11 @@ edition = "2018"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = ["full"]
+full = ["fixed-hash/std", "fixed-hash/rand"]
+
 [dependencies]
-fixed-hash = { version = "0.3", features = ["libc"], default_features = false }
 hex = "0.3"
 byteorder = "1"
 keccak-hash = "0.1"
@@ -29,6 +32,7 @@ features = ["nightly"]
 version = "1"
 optional = true
 
-[features]
-default = ["full"]
-full = ["fixed-hash/std", "fixed-hash/rand"]
+[dependencies.fixed-hash]
+version = "0.3"
+features = ["libc"]
+default-features = false
