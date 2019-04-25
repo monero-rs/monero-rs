@@ -287,7 +287,7 @@ impl hash::Hashable for Transaction {
                                 hashes.push(hash::Hash::hash(&encoder.into_inner()));
                             }
                             None => {
-                                let empty_hash = hash::Hash([
+                                let empty_hash = hash::Hash::from_slice(&[
                                     0x70, 0xa4, 0x85, 0x5d, 0x04, 0xd8, 0xfa, 0x7b, 0x3b, 0x27,
                                     0x82, 0xca, 0x53, 0xb6, 0x00, 0xe5, 0xc0, 0x03, 0xc7, 0xdc,
                                     0xb2, 0x7d, 0x7e, 0x92, 0x3c, 0x23, 0xf7, 0x86, 0x01, 0x46,
@@ -591,13 +591,13 @@ mod tests {
         assert_eq!(hex, serialize(&tx));
         assert_eq!(
             "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
-            tx.hash().to_string()
+            format!("{:02x}", tx.hash())
         );
 
         let tx = deserialize::<Transaction>(&hex[..]).unwrap();
         assert_eq!(
             "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
-            tx.hash().to_string()
+            format!("{:02x}", tx.hash())
         );
     }
 
@@ -609,7 +609,7 @@ mod tests {
         let tx = tx.unwrap().0;
         assert_eq!(
             "3b50349180b4a60e55187507746eabb7bee0de6b74168eac8720a449da28613b",
-            tx.hash().to_string()
+            format!("{:02x}", tx.hash())
         );
 
         let tx = deserialize::<Transaction>(&hex[..]);
@@ -618,7 +618,7 @@ mod tests {
         assert_eq!(hex, serialize(&tx));
         assert_eq!(
             "5a420317e377d3d95b652fb93e65cfe97ef7d89e04be329a2ca94e73ec57b74e",
-            tx.hash().to_string()
+            format!("{:02x}", tx.hash())
         );
     }
 
@@ -641,7 +641,7 @@ mod tests {
         let tx = tx.unwrap();
         assert_eq!(
             "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
-            tx.hash().to_string()
+            format!("{:02x}", tx.hash())
         );
         assert_eq!(true, tx.check_outputs(&viewpair, 0..1, 0..200).is_ok());
         assert_eq!(hex, serialize(&tx));
@@ -651,7 +651,7 @@ mod tests {
         let tx = tx.unwrap();
         assert_eq!(
             "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
-            tx.hash().to_string()
+            format!("{:02x}", tx.hash())
         );
     }
 }

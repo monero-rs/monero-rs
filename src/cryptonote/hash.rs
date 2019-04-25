@@ -18,17 +18,16 @@
 //! Support for (de)serializable hashes (Keccak 256) and `H_n` (hash to number, or hash to scalar).
 //!
 
-use std::fmt;
-
 use curve25519_dalek::scalar::Scalar;
 use keccak_hash::keccak_256;
 
 use crate::consensus::encode::{self, Decodable, Decoder, Encodable, Encoder};
 use crate::util::key::PrivateKey;
 
-/// Result of a keccak 256
-#[derive(PartialEq)]
-pub struct Hash(pub [u8; 32]);
+fixed_hash::construct_fixed_hash!(
+    /// Result of a Keccak-256
+    pub struct Hash(32);
+);
 
 impl Hash {
     /// Create a null hash with all zeros
@@ -63,18 +62,6 @@ impl Hash {
     }
 }
 
-impl fmt::Display for Hash {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.0))
-    }
-}
-
-impl fmt::Debug for Hash {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.0))
-    }
-}
-
 impl<D: Decoder> Decodable<D> for Hash {
     fn consensus_decode(d: &mut D) -> Result<Hash, encode::Error> {
         Ok(Hash(Decodable::consensus_decode(d)?))
@@ -98,21 +85,10 @@ pub trait Hashable {
     }
 }
 
-/// 8 bytes hash
-#[derive(PartialEq)]
-pub struct Hash8(pub [u8; 8]);
-
-impl fmt::Display for Hash8 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.0))
-    }
-}
-
-impl fmt::Debug for Hash8 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.0))
-    }
-}
+fixed_hash::construct_fixed_hash!(
+    /// 8 bytes hash
+    pub struct Hash8(8);
+);
 
 impl<D: Decoder> Decodable<D> for Hash8 {
     fn consensus_decode(d: &mut D) -> Result<Hash8, encode::Error> {
