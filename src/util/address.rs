@@ -335,8 +335,8 @@ mod serde_impl {
         where
             D: Deserializer<'de>,
         {
-            let s = <&str>::deserialize(deserializer)?;
-            Address::from_str(s).map_err(D::Error::custom)
+            let s = String::deserialize(deserializer)?;
+            Address::from_str(&s).map_err(D::Error::custom)
         }
     }
 }
