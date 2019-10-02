@@ -319,8 +319,8 @@ pub enum RctType {
 
 impl RctType {
     /// Return if the format use one of the bulletproof format
-    pub fn is_rct_bp(&self) -> bool {
-        match *self {
+    pub fn is_rct_bp(self) -> bool {
+        match self {
             RctType::Bulletproof | RctType::Bulletproof2 => true,
             _ => false,
         }
@@ -385,35 +385,27 @@ impl RctSigPrunable {
             RctType::Full | RctType::Simple | RctType::Bulletproof | RctType::Bulletproof2 => {
                 let mut bulletproofs: Vec<Bulletproof> = vec![];
                 let mut range_sigs: Vec<RangeSig> = vec![];
-                match rct_type.is_rct_bp() {
-                    true => {
-                        match rct_type {
-                            RctType::Bulletproof2 => {
-                                bulletproofs = Decodable::consensus_decode(d)?;
-                            }
-                            _ => {
-                                let size: u32 = Decodable::consensus_decode(d)?;
-                                bulletproofs = decode_sized_vec!(size, d);
-                            }
-                        };
-                    }
-                    false => {
-                        range_sigs = decode_sized_vec!(outputs, d);
-                    }
+                if rct_type.is_rct_bp() {
+                    match rct_type {
+                        RctType::Bulletproof2 => {
+                            bulletproofs = Decodable::consensus_decode(d)?;
+                        }
+                        _ => {
+                            let size: u32 = Decodable::consensus_decode(d)?;
+                            bulletproofs = decode_sized_vec!(size, d);
+                        }
+                    };
+                } else {
+                    range_sigs = decode_sized_vec!(outputs, d);
                 }
+
                 let is_full = rct_type == RctType::Full;
-                let mg_elements = match is_full {
-                    true => 1,
-                    false => inputs,
-                };
+                let mg_elements = if is_full { 1 } else { inputs };
                 let mut MGs: Vec<MgSig> = vec![];
                 for _ in 0..mg_elements {
                     let mut ss: Vec<Vec<Key>> = vec![];
-                    for _ in 0..mixin + 1 {
-                        let mg_ss2_elements = match is_full {
-                            true => 1 + inputs,
-                            false => 2,
-                        };
+                    for _ in 0..=mixin {
+                        let mg_ss2_elements = if is_full { 1 + inputs } else { 2 };
                         let ss_elems: Vec<Key> = decode_sized_vec!(mg_ss2_elements, d);
                         ss.push(ss_elems);
                     }
@@ -447,8 +439,8 @@ impl RctSigPrunable {
         match rct_type {
             RctType::Null => Ok(()),
             RctType::Full | RctType::Simple | RctType::Bulletproof | RctType::Bulletproof2 => {
-                match rct_type.is_rct_bp() {
-                    true => match rct_type {
+                if rct_type.is_rct_bp() {
+                    match rct_type {
                         RctType::Bulletproof2 => {
                             self.bulletproofs.consensus_encode(s)?;
                         }
@@ -457,10 +449,9 @@ impl RctSigPrunable {
                             size.consensus_encode(s)?;
                             encode_sized_vec!(self.bulletproofs, s);
                         }
-                    },
-                    false => {
-                        encode_sized_vec!(self.range_sigs, s);
                     }
+                } else {
+                    encode_sized_vec!(self.range_sigs, s);
                 }
                 encode_sized_vec!(self.MGs, s);
                 match rct_type {

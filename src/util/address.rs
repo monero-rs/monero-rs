@@ -69,7 +69,7 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::Base58(ref e) => Some(e),
             Error::Network(ref e) => Some(e),
@@ -119,7 +119,7 @@ pub enum AddressType {
 
 impl AddressType {
     /// Recover the address type given an address bytes and the network
-    pub fn from_slice(bytes: &[u8], net: &Network) -> Result<AddressType, Error> {
+    pub fn from_slice(bytes: &[u8], net: Network) -> Result<AddressType, Error> {
         let byte = bytes[0];
         use AddressType::*;
         use Network::*;
@@ -256,7 +256,7 @@ impl Address {
     /// keys are not valid points, if payment id is invalid, and if checksums missmatch
     pub fn from_bytes(bytes: &[u8]) -> Result<Address, Error> {
         let network = Network::from_u8(bytes[0])?;
-        let addr_type = AddressType::from_slice(&bytes, &network)?;
+        let addr_type = AddressType::from_slice(&bytes, network)?;
         let public_spend =
             PublicKey::from_slice(&bytes[1..33]).map_err(|_| Error::InvalidFormat)?;
         let public_view =
@@ -285,10 +285,9 @@ impl Address {
         let mut bytes = vec![self.network.as_u8(&self.addr_type)];
         bytes.extend_from_slice(self.public_spend.as_bytes());
         bytes.extend_from_slice(self.public_view.as_bytes());
-        match self.addr_type {
-            AddressType::Integrated(payment_id) => bytes.extend_from_slice(&payment_id.0),
-            _ => (),
-        };
+        if let AddressType::Integrated(payment_id) = &self.addr_type {
+            bytes.extend_from_slice(&payment_id.0);
+        }
 
         let mut checksum = [0u8; 32];
         keccak_256(bytes.as_slice(), &mut checksum);

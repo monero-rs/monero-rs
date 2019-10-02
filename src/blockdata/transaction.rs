@@ -230,14 +230,17 @@ impl TransactionPrefix {
                         .zip(self.outputs.iter())
                         .filter_map(|(i, out)| {
                             match out.target {
-                                TxOutTarget::ToKey { key } => match generator.check(i, key) {
-                                    true => Some(OwnedTxOut {
-                                        index: i,
-                                        out,
-                                        sub_index: Index::default(),
-                                    }),
-                                    false => None,
-                                },
+                                TxOutTarget::ToKey { key } => {
+                                    if generator.check(i, key) {
+                                        Some(OwnedTxOut {
+                                            index: i,
+                                            out,
+                                            sub_index: Index::default(),
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                }
                                 // Reject all non-toKey outputs
                                 _ => None,
                             }
@@ -356,7 +359,7 @@ impl<D: Decoder> Decodable<D> for SubField {
                     let byte: Result<u8, encode::Error> = Decodable::consensus_decode(d);
                     match byte {
                         Ok(_) => {
-                            i = i + 1;
+                            i += 1;
                         }
                         Err(_) => break,
                     }
@@ -521,23 +524,27 @@ impl<D: Decoder> Decodable<D> for Transaction {
                 }
 
                 if let Some(sig) = RctSigBase::consensus_decode(d, inputs, outputs)? {
-                    let mut p = None;
-                    if sig.rct_type != RctType::Null {
-                        let mixin_size = match inputs > 0 {
-                            true => match &prefix.inputs[0] {
-                                TxIn::ToKey { key_offsets, .. } => key_offsets.len() - 1,
-                                _ => 0,
-                            },
-                            false => 0,
-                        };
-                        p = RctSigPrunable::consensus_decode(
-                            d,
-                            sig.rct_type,
-                            inputs,
-                            outputs,
-                            mixin_size,
-                        )?;
-                    }
+                    let p = {
+                        if sig.rct_type != RctType::Null {
+                            let mixin_size = if inputs > 0 {
+                                match &prefix.inputs[0] {
+                                    TxIn::ToKey { key_offsets, .. } => key_offsets.len() - 1,
+                                    _ => 0,
+                                }
+                            } else {
+                                0
+                            };
+                            RctSigPrunable::consensus_decode(
+                                d,
+                                sig.rct_type,
+                                inputs,
+                                outputs,
+                                mixin_size,
+                            )?
+                        } else {
+                            None
+                        }
+                    };
                     rct_signatures = RctSig { sig: Some(sig), p };
                 }
 
