@@ -26,7 +26,6 @@ base58-monero = "0.1"
 
 [dependencies.curve25519-dalek]
 version = "1"
-features = ["nightly"]
 
 [dependencies.serde]
 version = "1"

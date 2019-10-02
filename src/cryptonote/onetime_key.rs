@@ -195,12 +195,11 @@ impl<'a> KeyRecoverer<'a> {
     ///     { Hs(a*R) + b + Hs(a || i)      otherwise
     /// ```
     pub fn recover_subkey(keys: &KeyPair, tx_random: &PublicKey, index: Index) -> PrivateKey {
-        let b = match index.is_zero() {
-            true => keys.spend,
-            false => {
-                let sub_spend = subaddress::get_subaddress_secret_key(&keys.view, index);
-                keys.spend + sub_spend
-            }
+        let b = if index.is_zero() {
+            keys.spend
+        } else {
+            let sub_spend = subaddress::get_subaddress_secret_key(&keys.view, index);
+            keys.spend + sub_spend
         };
         SubKeyChecker::get_ar_scalar(&keys.view, tx_random) + b
     }

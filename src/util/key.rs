@@ -99,7 +99,7 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::Hex(ref e) => Some(e),
             Error::InvalidLenght | Error::NotCanonicalScalar | Error::InvalidPoint => None,
@@ -415,6 +415,7 @@ impl fmt::Debug for PublicKey {
     }
 }
 
+#[allow(clippy::derive_hash_xor_eq)]
 impl Hash for PublicKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_bytes().hash(state);

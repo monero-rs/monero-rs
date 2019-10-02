@@ -41,7 +41,7 @@ pub struct Index {
 impl Index {
     /// Return `true` if major and minor indexes are both equal to 0, the zero case is a special
     /// case
-    pub fn is_zero(&self) -> bool {
+    pub fn is_zero(self) -> bool {
         self.major == 0 && self.minor == 0
     }
 }

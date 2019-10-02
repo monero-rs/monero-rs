@@ -304,7 +304,7 @@ impl<S: Encoder> Encodable<S> for VarInt {
         let mut n = self.0;
         loop {
             let bits = (n & 0b0111_1111) as u8;
-            n = n >> 7;
+            n >>= 7;
             res.push(bits);
             if n == 0u64 {
                 break;
@@ -339,10 +339,10 @@ impl<D: Decoder> Decodable<D> for VarInt {
         res.reverse();
         let (last, arr) = res.split_last().unwrap();
         arr.iter().for_each(|bits| {
-            int = int | *bits as u64;
-            int = int << 7;
+            int |= *bits as u64;
+            int <<= 7;
         });
-        int = int | *last as u64;
+        int |= *last as u64;
         Ok(VarInt(int))
     }
 }

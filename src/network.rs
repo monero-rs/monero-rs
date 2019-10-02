@@ -37,7 +37,7 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::InvalidMagicByte => None,
         }
@@ -63,7 +63,7 @@ pub enum Network {
 
 impl Network {
     /// Get the associated magic byte given an address type
-    pub fn as_u8(&self, addr_type: &AddressType) -> u8 {
+    pub fn as_u8(self, addr_type: &AddressType) -> u8 {
         use AddressType::*;
         use Network::*;
         match self {
