@@ -11,6 +11,10 @@ Supports (or should support)
  * Address and subaddress creation, de/serialization and validation
  * Private keys and one-time keys creation, de/serialization and validation
 
+## Documentation
+
+Currently the documentation is very sparse. Patches to add usage examples and to expand on existing docs would be extremely appreciated.
+
 Contributing
 ===
 
