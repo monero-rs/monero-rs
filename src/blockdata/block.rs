@@ -21,8 +21,12 @@
 use crate::blockdata::transaction::Transaction;
 use crate::consensus::encode::VarInt;
 use crate::cryptonote::hash;
+#[cfg(feature = "serde_support")]
+use serde::{Deserialize, Serialize};
 
 /// Monero block header
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct BlockHeader {
     /// Major version, defines the consensus rules
     pub major_version: VarInt,
@@ -46,6 +50,8 @@ impl_consensus_encoding!(
 );
 
 /// Monero block with all transaction hashes
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Block {
     /// The block header
     pub header: BlockHeader,

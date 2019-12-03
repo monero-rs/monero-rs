@@ -28,6 +28,9 @@ use crate::cryptonote::{hash, onetime_key};
 use crate::util::key::{PublicKey, ViewPair};
 use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
+#[cfg(feature = "serde_support")]
+use serde::{Deserialize, Serialize};
+
 /// Transaction error
 #[derive(Debug)]
 pub enum Error {
@@ -38,7 +41,8 @@ pub enum Error {
 }
 
 /// Input key image
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct KeyImage {
     /// The actual key image
     pub image: hash::Hash,
@@ -48,7 +52,8 @@ impl_consensus_encoding!(KeyImage, image);
 
 /// A transaction input, which defines the ring size and the key image to avoid
 /// double spend.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum TxIn {
     /// A coinbase input
     Gen {
@@ -71,7 +76,8 @@ pub enum TxIn {
 }
 
 /// Output format, only output to key is used
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum TxOutTarget {
     /// Output to script
     ToScript {
@@ -93,7 +99,8 @@ pub enum TxOutTarget {
 }
 
 /// A transaction output, can be consumed by an input
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct TxOut {
     /// The amount sent to the associated key, can be 0 in case of CT
     pub amount: VarInt,
@@ -117,7 +124,8 @@ pub struct OwnedTxOut<'a> {
 /// Every transaction contains an Extra field, which is a part of transaction prefix
 ///
 /// Extra field is composed of typed sub fields of variable or fixed lenght.
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct ExtraField(pub Vec<SubField>);
 
 impl ExtraField {
@@ -140,7 +148,8 @@ impl ExtraField {
 
 /// Each sub-field contains a sub-field tag followed by sub-field content of fixed or variable
 /// lenght, in variable lenght case the lenght is encoded with a VarInt before the content itself.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum SubField {
     /// Transaction public key, fixed lenght of 32 bytes
     TxPublicKey(PublicKey),
@@ -160,7 +169,8 @@ pub enum SubField {
 /// The part of a transaction that contains all the data except signatures.
 ///
 /// Can generate the transaction prefix hash with `tx_prefix.hash()`
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct TransactionPrefix {
     /// Transaction format version
     pub version: VarInt,
@@ -261,7 +271,8 @@ impl hash::Hashable for TransactionPrefix {
 }
 
 /// A full transaction containing the prefix and all signing data
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Transaction {
     /// The transaction prefix
     pub prefix: TransactionPrefix,
