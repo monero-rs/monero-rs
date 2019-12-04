@@ -314,7 +314,7 @@ impl FromStr for Address {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(any(feature = "serde", feature = "serde_support"))]
 mod serde_impl {
     use super::*;
 

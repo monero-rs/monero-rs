@@ -35,6 +35,9 @@ use std::u32;
 use crate::blockdata::transaction;
 use crate::util::{key, ringct};
 
+#[cfg(feature = "serde_support")]
+use serde::{Deserialize, Serialize};
+
 /// Encoding error
 #[derive(Debug)]
 pub enum Error {
@@ -246,7 +249,8 @@ pub trait Decodable<D: Decoder>: Sized {
 }
 
 /// A variable-length unsigned integer
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Default)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct VarInt(pub u64);
 
 impl fmt::Display for VarInt {

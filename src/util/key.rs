@@ -74,6 +74,9 @@ use curve25519_dalek::scalar::Scalar;
 use crate::consensus::encode::{self, Decodable, Decoder, Encodable, Encoder};
 use crate::cryptonote::hash;
 
+#[cfg(feature = "serde_support")]
+use serde::{Deserialize, Serialize};
+
 /// An error that might occur during key decoding
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -257,6 +260,7 @@ impl<S: Encoder> Encodable<S> for PrivateKey {
 
 /// Monero public key
 #[derive(PartialEq, Eq, Copy, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct PublicKey {
     /// The actual Ed25519 point
     pub point: CompressedEdwardsY,

@@ -22,6 +22,18 @@ use std::fmt;
 
 use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
 use crate::cryptonote::hash;
+#[cfg(feature = "serde_support")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde_support")]
+use serde_big_array_unchecked_docs::*;
+
+///Serde support for array's bigger than 32
+#[allow(missing_docs)]
+#[cfg(feature = "serde_support")]
+pub mod serde_big_array_unchecked_docs {
+    use serde_big_array::big_array;
+    big_array! { BigArray; }
+}
 
 /// RingCT error
 #[derive(Debug)]
@@ -32,6 +44,8 @@ pub enum Error {
 
 // ====================================================================
 /// Raw 32 bytes key
+#[derive(Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Key {
     /// The actual key
     pub key: [u8; 32],
@@ -43,8 +57,11 @@ impl_consensus_encoding!(Key, key);
 
 // ====================================================================
 /// Raw 64 bytes key
+#[derive(Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Key64 {
     /// The actual key
+    #[cfg_attr(feature = "serde_support", serde(with = "BigArray"))]
     pub key: [u8; 64],
 }
 
@@ -54,7 +71,8 @@ impl_consensus_encoding!(Key64, key);
 
 // ====================================================================
 /// Confidential transaction key
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct CtKey {
     //pub dest: Key,
     /// Mask
@@ -94,7 +112,8 @@ impl_consensus_encoding!(MultisigOut, c);
 /// Diffie-Hellman info
 /// Mask and amount for transaction before Bulletproof2 and only 8 bytes hash for the amount in
 /// Bulletproof2 type
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum EcdhInfo {
     /// Standard format, before bp2
     Standard {
@@ -147,7 +166,8 @@ impl<S: Encoder> Encodable<S> for EcdhInfo {
 
 // ====================================================================
 /// Borromean signature for range commitment
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct BoroSig {
     /// s0 value
     pub s0: Key64,
@@ -161,7 +181,8 @@ impl_consensus_encoding!(BoroSig, s0, s1, ee);
 
 // ====================================================================
 /// Mg sig
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct MgSig {
     /// Matrice of keys
     pub ss: Vec<Vec<Key>>,
@@ -180,8 +201,9 @@ impl<S: Encoder> Encodable<S> for MgSig {
 
 // ====================================================================
 /// Range signature for range commitment
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(non_snake_case)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct RangeSig {
     /// asig value
     pub asig: BoroSig,
@@ -193,8 +215,9 @@ impl_consensus_encoding!(RangeSig, asig, Ci);
 
 // ====================================================================
 /// Bulletproof format
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(non_snake_case)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Bulletproof {
     /// A value
     pub A: Key,
@@ -224,7 +247,8 @@ impl_consensus_encoding!(Bulletproof, A, S, T1, T2, taux, mu, L, R, a, b, t);
 
 // ====================================================================
 /// RingCT base signature format
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct RctSigBase {
     /// The RingCT type of signatures
     pub rct_type: RctType,
@@ -304,6 +328,7 @@ impl hash::Hashable for RctSigBase {
 // ====================================================================
 /// RingCT types
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum RctType {
     /// Null type
     Null,
@@ -356,8 +381,9 @@ impl<S: Encoder> Encodable<S> for RctType {
 
 // ====================================================================
 /// Prunable part of RingCT signature format
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(non_snake_case)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct RctSigPrunable {
     /// Range signatures
     pub range_sigs: Vec<RangeSig>,
@@ -468,7 +494,8 @@ impl RctSigPrunable {
 
 // ====================================================================
 /// A RingCT signature
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct RctSig {
     /// The base part
     pub sig: Option<RctSigBase>,
@@ -478,7 +505,8 @@ pub struct RctSig {
 
 // ====================================================================
 /// A raw signature
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Signature {
     /// c value
     pub c: Key,

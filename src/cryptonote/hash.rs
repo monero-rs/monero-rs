@@ -23,9 +23,12 @@ use keccak_hash::keccak_256;
 
 use crate::consensus::encode::{self, Decodable, Decoder, Encodable, Encoder};
 use crate::util::key::PrivateKey;
+#[cfg(feature = "serde_support")]
+use serde::{Deserialize, Serialize};
 
 fixed_hash::construct_fixed_hash!(
     /// Result of a Keccak-256
+    #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
     pub struct Hash(32);
 );
 
@@ -87,6 +90,7 @@ pub trait Hashable {
 
 fixed_hash::construct_fixed_hash!(
     /// 8 bytes hash
+    #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
     pub struct Hash8(8);
 );
 
