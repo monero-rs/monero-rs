@@ -7,9 +7,10 @@ Library with support for de/serialization, parsing and executing on data structu
 
 Supports (or should support)
 
- * De/serialization of Monero blocks and transactions
+ * De/serialization of Monero blocks and transactions (consensus encoding)
  * Address and subaddress creation, de/serialization and validation
  * Private keys and one-time keys creation, de/serialization and validation
+ * Serde support on most structures with feature `serde_support`
 
 ## Documentation
 

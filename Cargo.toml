@@ -1,7 +1,8 @@
 [package]
 name = "monero"
 description = "Rust Monero Library."
-version = "0.3.0"
+keywords = ["monero"]
+version = "0.4.0"
 authors = ["h4sh3d <h4sh3d@protonmail.com>"]
 license-file = "LICENSE"
 homepage = "https://github.com/monero-rs/monero-rs"
