@@ -19,17 +19,17 @@
 
 macro_rules! impl_consensus_encoding {
     ( $thing:ident, $($field:ident),+ ) => (
-        impl<S: crate::consensus::encode::Encoder> crate::consensus::encode::Encodable<S> for $thing {
+        impl<S: $crate::consensus::encode::Encoder> $crate::consensus::encode::Encodable<S> for $thing {
             #[inline]
-            fn consensus_encode(&self, s: &mut S) -> Result<(), crate::consensus::encode::Error> {
+            fn consensus_encode(&self, s: &mut S) -> Result<(), $crate::consensus::encode::Error> {
                 $( self.$field.consensus_encode(s)?; )+
                 Ok(())
             }
         }
 
-        impl<D: crate::consensus::encode::Decoder> crate::consensus::encode::Decodable<D> for $thing {
+        impl<D: $crate::consensus::encode::Decoder> $crate::consensus::encode::Decodable<D> for $thing {
             #[inline]
-            fn consensus_decode(d: &mut D) -> Result<$thing, crate::consensus::encode::Error> {
+            fn consensus_decode(d: &mut D) -> Result<$thing, $crate::consensus::encode::Error> {
                 use crate::consensus::encode::Decodable;
                 Ok($thing {
                     $( $field: Decodable::consensus_decode(d)?, )+

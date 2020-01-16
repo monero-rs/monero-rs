@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! CryptoNote One-Time Keys module
+//! CryptoNote One-Time Keys protocol
 //!
 //! Support for CryptoNote one-time keys which the sender derives from random data and the
 //! receiver's address. Upon receiving a transaction, user scans all output keys and checks if he

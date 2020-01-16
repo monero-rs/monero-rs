@@ -17,15 +17,32 @@
 //!
 //! Support for (de)serializable Monero addresses in Monero base58 format.
 //!
-//! ## Parsing
+//! ## Parsing an address
 //!
 //! ```rust
-//! extern crate monero;
-//!
 //! use std::str::FromStr;
-//! use monero::util::address::Address;
+//! use monero::Address;
+//! use monero::util::address::Error;
 //!
-//! let address = Address::from_str("4ADT1BtbxqEWeMKp9GgPr2NeyJXXtNxvoDawpyA4WpzFcGcoHUvXeijE66DNfohE9r1bQYaBiQjEtKE7CtkTdLwiDznFzra");
+//! let address = Address::from_str("4ADT1BtbxqEWeMKp9GgPr2NeyJXXtNxvoDawpyA4WpzFcGcoHUvXeijE66DNfohE9r1bQYaBiQjEtKE7CtkTdLwiDznFzra")?;
+//!
+//! let public_spend_key = address.public_spend;
+//! let public_view_key = address.public_view;
+//! # Ok::<(), Error>(())
+//! ```
+//!
+//! ## Payment Id
+//!
+//! ```rust
+//! use std::str::FromStr;
+//! use monero::{Address, PaymentId};
+//! use monero::util::address::{AddressType, Error};
+//!
+//! let address = Address::from_str("4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV")?;
+//!
+//! let payment_id = PaymentId([88, 118, 184, 183, 41, 150, 255, 151]);
+//! assert_eq!(address.addr_type, AddressType::Integrated(payment_id));
+//! # Ok::<(), Error>(())
 //! ```
 //!
 
@@ -38,7 +55,7 @@ use keccak_hash::keccak_256;
 use crate::network::{self, Network};
 use crate::util::key::{KeyPair, PublicKey, ViewPair};
 
-/// Address error
+/// Possible errors when manipulating addresses
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     /// Invalid address magic byte
@@ -106,7 +123,7 @@ impl From<network::Error> for Error {
     }
 }
 
-/// Address type
+/// Address type: standard, integrated, or sub address
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum AddressType {
     /// Standard address
@@ -176,7 +193,7 @@ fixed_hash::construct_fixed_hash! {
     pub struct PaymentId(8);
 }
 
-/// A Monero address
+/// A generic Monero address
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Address {
     /// The network on which the address is valid

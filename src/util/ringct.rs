@@ -13,9 +13,9 @@
 // copies or substantial portions of the Software.
 //
 
-//! RingCT types
+//! RingCT primitive types
 //!
-//! Support RingCT signature formats for Monero transactions.
+//! Support for parsing RingCT signature in Monero transactions.
 //!
 
 use std::fmt;
@@ -35,7 +35,7 @@ pub mod serde_big_array_unchecked_docs {
     big_array! { BigArray; }
 }
 
-/// RingCT error
+/// RingCT possible errors
 #[derive(Debug)]
 pub enum Error {
     /// Invalid RingCT type

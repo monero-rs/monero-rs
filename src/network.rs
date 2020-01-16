@@ -21,10 +21,10 @@ use std::{error, fmt};
 
 use crate::util::address::AddressType;
 
-/// Network error
+/// Network error types
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
-    /// Invalid magic byte
+    /// Invalid magic network byte
     InvalidMagicByte,
 }
 

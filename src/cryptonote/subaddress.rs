@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! Support for CryptoNote sub-address protocol.
+//! CryptoNote sub-address protocol
 //!
 //! Sub-addresses are grouped with index of subaddresses as a pair of indices `(i,j)` with `i`, the
 //! major index, representing a group of subaddresses (called an _account_) and `j`, the minor

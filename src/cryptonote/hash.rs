@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! Hash support
+//! CryptoNote hash structures and functions
 //!
 //! Support for (de)serializable hashes (Keccak 256) and `H_n` (hash to number, or hash to scalar).
 //!

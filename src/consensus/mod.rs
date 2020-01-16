@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! # Consensus
+//! Consensus encoding decoding Monero format
 //!
 //! This module defines traits and functions which are needed to conform to Monero consensus.
 //!

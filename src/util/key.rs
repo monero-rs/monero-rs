@@ -20,21 +20,19 @@
 //! ## Parsing
 //!
 //! ```rust
-//! extern crate monero;
-//!
 //! use std::str::FromStr;
-//! use monero::util::key::{PrivateKey, PublicKey};
+//! use monero::util::key::{Error, PrivateKey, PublicKey};
 //!
 //! // parse private key from hex
-//! let privkey = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404");
+//! let privkey = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404")?;
 //! // parse public key from hex
-//! let pubkey = PublicKey::from_str("eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3");
+//! let pubkey_parsed = PublicKey::from_str("eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3")?;
 //!
 //! // or get the public key from private key
-//! let pubkey: Option<PublicKey> = match privkey {
-//!     Ok(privkey) => Some(PublicKey::from_private_key(&privkey)),
-//!     Err(_) => None,
-//! };
+//! let pubkey = PublicKey::from_private_key(&privkey);
+//!
+//! assert_eq!(pubkey_parsed, pubkey);
+//! # Ok::<(), Error>(())
 //! ```
 //!
 //! ## Arithmetic
@@ -42,13 +40,11 @@
 //! Support for private key addition and public key addition.
 //!
 //! ```rust
-//! extern crate monero;
-//!
 //! use std::str::FromStr;
-//! use monero::util::key::{PrivateKey, PublicKey};
+//! use monero::util::key::{Error, PrivateKey, PublicKey};
 //!
-//! let priv1 = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404").unwrap();
-//! let priv2 = PrivateKey::from_str("8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09").unwrap();
+//! let priv1 = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404")?;
+//! let priv2 = PrivateKey::from_str("8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09")?;
 //! let priv_res = priv1 + priv2;
 //! assert_eq!("f8f4b37bedf12a2178c0adcc2565b42a212c133861cb28cdf48abf310c3ce40d", priv_res.to_string());
 //!
@@ -59,6 +55,7 @@
 //!
 //! let pubkey = PublicKey::from_private_key(&priv_res);
 //! assert_eq!(pubkey, pub_res);
+//! # Ok::<(), Error>(())
 //! ```
 //!
 
@@ -77,7 +74,7 @@ use crate::cryptonote::hash;
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
-/// An error that might occur during key decoding
+/// Errors that might occur during key decoding
 #[derive(Debug, PartialEq)]
 pub enum Error {
     /// Invalid input lenght
