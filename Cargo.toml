@@ -17,9 +17,6 @@ include = [
 
 edition = "2018"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [features]
 default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
