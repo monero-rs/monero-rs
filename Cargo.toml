@@ -38,3 +38,6 @@ curve25519-dalek= {version ="2.0", features = ["serde"]}
 version = "0.3"
 features = ["libc"]
 default-features = false
+
+[badges]
+travis-ci = { repository = "monero-rs/monero-rs", branch = "master" }
