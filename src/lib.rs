@@ -42,12 +42,6 @@
 #![deny(unused_mut)]
 #![deny(missing_docs)]
 
-extern crate base58_monero;
-extern crate byteorder;
-extern crate curve25519_dalek;
-extern crate hex;
-extern crate keccak_hash;
-
 #[macro_use]
 mod internal_macros;
 #[macro_use]
