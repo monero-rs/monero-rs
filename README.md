@@ -19,7 +19,7 @@ Currently the documentation is very sparse. Patches to add usage examples and to
 Contributing
 ===
 
-Contributions are welcome.
+Contributions are generally welcome. If you intend to make larger changes please discuss them in an issue before PRing them to avoid duplicate work and architectural mismatches.
 
 ## Building
 
@@ -37,15 +37,7 @@ You can run tests with:
 cargo test
 ```
 
-## Building for WASM
-
-This library can be built to target wasm platform with:
-
-```
-cargo build --target wasm32-unknown-unknown --no-default-features
-```
-
 About
 ===
 
-This is a research project sponsored by TrueLevel, developed by h4sh3d.
+This started as a research project sponsored by TrueLevel SA, it is now developed and maintained by h4sh3d and member's of the community and not by the Monero Core Team.
