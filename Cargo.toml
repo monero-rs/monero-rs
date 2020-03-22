@@ -2,7 +2,7 @@
 name = "monero"
 description = "Rust Monero Library."
 keywords = ["monero"]
-version = "0.5.0"
+version = "0.6.0"
 authors = ["h4sh3d <h4sh3d@protonmail.com>"]
 license = "MIT"
 homepage = "https://github.com/monero-rs/monero-rs"
