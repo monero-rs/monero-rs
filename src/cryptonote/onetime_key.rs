@@ -43,7 +43,7 @@ impl KeyGenerator {
     /// Construct a One-time key generator from public keys and secret random, this is used to
     /// generate One-time keys for output indexes from an address when sending funds
     pub fn from_random(view: PublicKey, spend: PublicKey, random: PrivateKey) -> Self {
-        // Computes a*R
+        // Computes r*A
         let ra = random * &view;
         KeyGenerator { spend, ra }
     }
@@ -52,7 +52,7 @@ impl KeyGenerator {
     /// is used to scan if some outputs contains One-time keys owned by the view pair
     pub fn from_key(keys: &ViewPair, random: PublicKey) -> Self {
         // Computes a*R
-        let ra = random * &keys.view;
+        let ra = keys.view * &random;
         KeyGenerator {
             spend: keys.spend,
             ra,
@@ -62,7 +62,7 @@ impl KeyGenerator {
     /// Compute the One-time public key `P = H(r*A || n)*G + B` for the indexed output `n`
     pub fn one_time_key(&self, index: usize) -> PublicKey {
         // Computes a one-time public key P = H(r*A || n)*G + B
-        self.spend + PublicKey::from_private_key(&self.get_ran_scalar(index))
+        PublicKey::from_private_key(&self.get_ran_scalar(index)) + self.spend
     }
 
     /// Check if key `P` is equal to indexed key `P'`, if true the output is own by the address,
