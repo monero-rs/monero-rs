@@ -150,7 +150,7 @@ impl AddressType {
                 42 => Ok(SubAddress),
                 _ => Err(Error::InvalidMagicByte),
             },
-            Stagenet => match byte {
+            Testnet => match byte {
                 53 => Ok(Standard),
                 54 => {
                     let payment_id = PaymentId::from_slice(&bytes[65..73]);
@@ -159,7 +159,7 @@ impl AddressType {
                 63 => Ok(SubAddress),
                 _ => Err(Error::InvalidMagicByte),
             },
-            Testnet => match byte {
+            Stagenet => match byte {
                 24 => Ok(Standard),
                 25 => {
                     let payment_id = PaymentId::from_slice(&bytes[65..73]);
