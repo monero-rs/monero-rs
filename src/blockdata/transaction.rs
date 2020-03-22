@@ -25,7 +25,7 @@ use std::ops::Range;
 use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
 use crate::cryptonote::subaddress::Index;
 use crate::cryptonote::{hash, onetime_key};
-use crate::util::key::{PublicKey, ViewPair};
+use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
 #[cfg(feature = "serde_support")]
@@ -98,6 +98,17 @@ pub enum TxOutTarget {
     },
 }
 
+impl TxOutTarget {
+    /// Retreive the public keys, if any
+    pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
+        match self {
+            TxOutTarget::ToScript { keys, .. } => Some(keys.clone()),
+            TxOutTarget::ToKey { key } => Some(vec![*key]),
+            TxOutTarget::ToScriptHash { .. } => None,
+        }
+    }
+}
+
 /// A transaction output, can be consumed by an input
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
@@ -110,6 +121,13 @@ pub struct TxOut {
 
 impl_consensus_encoding!(TxOut, amount, target);
 
+impl TxOut {
+    /// Retreive the public keys, if any
+    pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
+        self.target.get_pubkeys()
+    }
+}
+
 /// Transaction ouput that can be redeemed by a key pair at a given index
 #[derive(Debug)]
 pub struct OwnedTxOut<'a> {
@@ -119,6 +137,25 @@ pub struct OwnedTxOut<'a> {
     pub out: &'a TxOut,
     /// Index of the key pair to use, can be 0/0 for main address
     pub sub_index: Index,
+    /// The associated transaction public key
+    pub tx_pubkey: PublicKey,
+}
+
+impl<'a> OwnedTxOut<'a> {
+    /// Retreive the public keys, if any
+    pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
+        self.out.get_pubkeys()
+    }
+
+    /// Recover the ephemeral private key for spending the output
+    pub fn recover_key(&self, keys: &KeyPair) -> PrivateKey {
+        if self.sub_index.is_zero() {
+            let recoverer = onetime_key::KeyRecoverer::new(keys, self.tx_pubkey);
+            recoverer.recover(self.index)
+        } else {
+            onetime_key::KeyRecoverer::recover_subkey(keys, &self.tx_pubkey, self.sub_index)
+        }
+    }
 }
 
 /// Every transaction contains an Extra field, which is a part of transaction prefix
@@ -214,7 +251,7 @@ impl TransactionPrefix {
         match self.tx_additional_pubkeys() {
             Some(tx_additional_pubkeys) => {
                 let checker = onetime_key::SubKeyChecker::new(&pair, major, minor);
-                Ok((1..)
+                Ok((0..)
                     .zip(self.outputs.iter())
                     .zip(tx_additional_pubkeys.iter())
                     .filter_map(|((i, out), tx_random)| {
@@ -224,6 +261,7 @@ impl TransactionPrefix {
                                     index: i,
                                     out,
                                     sub_index: *sub_index,
+                                    tx_pubkey: *tx_random,
                                 }),
                                 None => None,
                             },
@@ -236,7 +274,7 @@ impl TransactionPrefix {
             None => match self.tx_pubkey() {
                 Some(tx_pubkey) => {
                     let generator = onetime_key::KeyGenerator::from_key(pair, tx_pubkey);
-                    Ok((1..)
+                    Ok((0..)
                         .zip(self.outputs.iter())
                         .filter_map(|(i, out)| {
                             match out.target {
@@ -246,6 +284,7 @@ impl TransactionPrefix {
                                             index: i,
                                             out,
                                             sub_index: Index::default(),
+                                            tx_pubkey,
                                         })
                                     } else {
                                         None

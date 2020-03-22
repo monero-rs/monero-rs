@@ -31,11 +31,14 @@ use crate::cryptonote::hash::Hashable;
 use crate::cryptonote::subaddress::{self, Index};
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
+/// Special factor used in all `aR` and `rA` multiplications
+pub const MONERO_MUL_FACTOR: u8 = 8;
+
 /// Helper to generate One-Time Public keys in transactions
 pub struct KeyGenerator {
     /// Spend public key `B`
     pub spend: PublicKey,
-    /// Intermediate key `a*R` or `r*A` used during the generation process
+    /// Intermediate key `a*8*R` or `r*8*A` used during the generation process
     pub ra: PublicKey,
 }
 
@@ -43,25 +46,25 @@ impl KeyGenerator {
     /// Construct a One-time key generator from public keys and secret random, this is used to
     /// generate One-time keys for output indexes from an address when sending funds
     pub fn from_random(view: PublicKey, spend: PublicKey, random: PrivateKey) -> Self {
-        // Computes r*A
-        let ra = random * &view;
+        // Computes r*8*A
+        let ra = random * MONERO_MUL_FACTOR * &view;
         KeyGenerator { spend, ra }
     }
 
     /// Construct a One-time key generator from private keys and public random (tx pub key), this
     /// is used to scan if some outputs contains One-time keys owned by the view pair
     pub fn from_key(keys: &ViewPair, random: PublicKey) -> Self {
-        // Computes a*R
-        let ra = keys.view * &random;
+        // Computes a*8*R
+        let ra = keys.view * MONERO_MUL_FACTOR * &random;
         KeyGenerator {
             spend: keys.spend,
             ra,
         }
     }
 
-    /// Compute the One-time public key `P = H(r*A || n)*G + B` for the indexed output `n`
+    /// Compute the One-time public key `P = H(r*8*A || n)*G + B` for the indexed output `n`
     pub fn one_time_key(&self, index: usize) -> PublicKey {
-        // Computes a one-time public key P = H(r*A || n)*G + B
+        // Computes a one-time public key P = H(r*8*A || n)*G + B
         PublicKey::from_private_key(&self.get_ran_scalar(index)) + self.spend
     }
 
@@ -71,13 +74,13 @@ impl KeyGenerator {
         key == self.one_time_key(index)
     }
 
-    // Computes `H(a*R || n)` and interpret it as a scalar
+    // Computes `H(a*8*R || n)` and interpret it as a scalar
     fn get_ran_scalar(&self, index: usize) -> PrivateKey {
-        // Serializes (a*R || n)
+        // Serializes (a*8*R || n)
         let mut encoder = Cursor::new(vec![]);
         self.ra.consensus_encode(&mut encoder).unwrap();
         VarInt(index as u64).consensus_encode(&mut encoder).unwrap();
-        // Computes H(a*R || n) and interpret as a scalar
+        // Computes H(a*8*R || n) and interpret as a scalar
         //
         // The hash function H is the same Keccak function that is used in CryptoNote. When the
         // value of the hash function is interpreted as a scalar, it is converted into a
@@ -140,10 +143,10 @@ impl<'a> SubKeyChecker<'a> {
         SubKeyChecker { table, keys }
     }
 
-    /// Computes `H(a*R)` and interpret it as a scalar
+    /// Computes `H(a*8*R)` and interpret it as a scalar
     pub fn get_ar_scalar(view: &PrivateKey, tx_random: &PublicKey) -> PrivateKey {
-        let ar = *view * tx_random;
-        //// Computes H(a*R) and interpret as a scalar
+        let ar = *view * MONERO_MUL_FACTOR * tx_random;
+        //// Computes H(a*8*R) and interpret as a scalar
         ar.hash_to_scalar()
     }
 
@@ -151,11 +154,11 @@ impl<'a> SubKeyChecker<'a> {
     /// found then the output is own by the view pair, otherwise the output might be own by someone
     /// else, or the table migth be too small
     pub fn check(&self, out_pk: &PublicKey, tx_random: &PublicKey) -> Option<&Index> {
-        // Hs(a*R)
+        // Hs(a*8*R)
         let s = Self::get_ar_scalar(&self.keys.view, tx_random);
-        // Hs(a*R)*G
+        // Hs(a*8*R)*G
         let s_pk = PublicKey::from_private_key(&s);
-        // D' = P - Hs(a*R)*G
+        // D' = P - Hs(a*8*R)*G
         self.table.get(&(out_pk - s_pk))
     }
 }
@@ -180,10 +183,10 @@ impl<'a> KeyRecoverer<'a> {
         }
     }
 
-    /// Recover the One-time private key `p = H(a*R || n) + b` for index `n`
+    /// Recover the One-time private key `p = H(a*8*R || n) + b` for index `n`
     pub fn recover(&self, index: usize) -> PrivateKey {
         let scal = self.checker.get_ran_scalar(index);
-        // Computes x = H(a*R || n) + b
+        // Computes x = H(a*8*R || n) + b
         scal + self.spend
     }
 
@@ -191,8 +194,8 @@ impl<'a> KeyRecoverer<'a> {
     /// indexes)
     ///
     /// ```text
-    /// p = { Hs(a*R) + b                   i == 0
-    ///     { Hs(a*R) + b + Hs(a || i)      otherwise
+    /// p = { Hs(a*8*R) + b                   i == 0
+    ///     { Hs(a*8*R) + b + Hs(a || i)      otherwise
     /// ```
     pub fn recover_subkey(keys: &KeyPair, tx_random: &PublicKey, index: Index) -> PrivateKey {
         let b = if index.is_zero() {
@@ -217,11 +220,11 @@ mod tests {
     #[allow(non_snake_case)]
     fn one_time_key() {
         let a = PrivateKey::from_str(
-            "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
+            "bcfdda53205318e1c14fa0ddca1a45df363bb427972981d0249d0f4652a7df07",
         )
         .unwrap();
         let b = PrivateKey::from_str(
-            "8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09",
+            "e5f4301d32f3bdaef814a835a18aaaa24b13cc76cf01a832a7852faf9322e907",
         )
         .unwrap();
         let A = PublicKey::from_private_key(&a);
@@ -236,19 +239,19 @@ mod tests {
 
         let generator = KeyGenerator::from_random(A, B, r);
         // Generate P
-        let one_time_pk = generator.one_time_key(1);
+        let one_time_pk = generator.one_time_key(0);
         assert_eq!(
-            "07e94dcf0f2348d374da13fe575df11b5af739bf2cf962823e068a5297f47557",
+            "355695b900e6441156a402679dfe13aabcb9a2e622dfedf4a57a3c457a10a89b",
             one_time_pk.to_string()
         );
 
         let recover = KeyRecoverer::new(&keypair, R);
-        assert_eq!(true, recover.checker.check(1, one_time_pk));
-        assert_eq!(false, recover.checker.check(2, one_time_pk));
+        assert_eq!(true, recover.checker.check(0, one_time_pk));
+        assert_eq!(false, recover.checker.check(1, one_time_pk));
         // Generate x : P = xG
-        let one_time_sk = recover.recover(1);
+        let one_time_sk = recover.recover(0);
         assert_eq!(
-            "2e476527180a94328f86f1ba814603e65f99e7c1c44cbb2dbf4508c20879b200",
+            "2250db02f69c9393131af5bc5e47148915330cc63b952cfc253fd37966fbb20d",
             one_time_sk.to_string()
         );
         assert_eq!(one_time_pk, PublicKey::from_private_key(&one_time_sk));
