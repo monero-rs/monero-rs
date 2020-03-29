@@ -20,6 +20,40 @@
 //! can recover the corresponding secret key. He succeeds if and only if that particular output was
 //! sent to his address.
 //!
+//! ## Checking output ownership
+//!
+//! ```rust
+//! use std::str::FromStr;
+//! use monero::{PublicKey, PrivateKey};
+//! use monero::cryptonote::onetime_key::SubKeyChecker;
+//! use monero::cryptonote::subaddress::Index;
+//! use monero::util::key::ViewPair;
+//!
+//! let view = PrivateKey::from_str("bcfdda53205318e1c14fa0ddca1a45df363bb427972981d0249d0f4652a7df07").unwrap();
+//! let secret_spend = PrivateKey::from_str("e5f4301d32f3bdaef814a835a18aaaa24b13cc76cf01a832a7852faf9322e907").unwrap();
+//! let spend = PublicKey::from_private_key(&secret_spend);
+//!
+//!  let viewpair = ViewPair {
+//!      view,
+//!      spend,
+//!  };
+//!
+//! let one_time_pk =
+//!     PublicKey::from_str("e3e77faca64b5997ac1f75763e87713d03d9e2896edec65843ffd2970ef1dde6")
+//!         .unwrap();
+//!
+//! let tx_pubkey =
+//!     PublicKey::from_str("5d1402db663eda8cef4f6782b66321e4a990f746aca249c973e098ba2c0837c1")
+//!         .unwrap();
+//!
+//! let checker = SubKeyChecker::new(&viewpair, 0..3, 0..3);
+//!
+//! assert_eq!(
+//!     Some(&Index { major: 0, minor: 0 }),
+//!     checker.check(1, &one_time_pk, &tx_pubkey)
+//! );
+//! ```
+//!
 
 use std::collections::HashMap;
 use std::io::Cursor;

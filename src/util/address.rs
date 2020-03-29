@@ -35,8 +35,8 @@
 //!
 //! ```rust
 //! use std::str::FromStr;
-//! use monero::{Address, PaymentId};
-//! use monero::util::address::{AddressType, Error};
+//! use monero::Address;
+//! use monero::util::address::{AddressType, Error, PaymentId};
 //!
 //! let address = Address::from_str("4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV")?;
 //!

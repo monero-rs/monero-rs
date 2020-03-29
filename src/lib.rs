@@ -51,11 +51,10 @@ pub mod cryptonote;
 pub mod network;
 pub mod util;
 
+pub use blockdata::transaction::OwnedTxOut;
 pub use blockdata::transaction::Transaction;
-pub use blockdata::transaction::TxIn;
 pub use blockdata::transaction::TxOut;
 pub use network::Network;
 pub use util::address::Address;
-pub use util::address::PaymentId;
 pub use util::key::PrivateKey;
 pub use util::key::PublicKey;
