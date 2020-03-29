@@ -210,6 +210,16 @@ impl Mul<u8> for PrivateKey {
     }
 }
 
+impl Mul<PrivateKey> for PrivateKey {
+    type Output = PrivateKey;
+
+    fn mul(self, other: PrivateKey) -> Self::Output {
+        PrivateKey {
+            scalar: self.scalar * other.scalar,
+        }
+    }
+}
+
 impl<'b> Mul<&'b PublicKey> for PrivateKey {
     type Output = PublicKey;
 

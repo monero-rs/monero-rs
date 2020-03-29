@@ -23,8 +23,9 @@ use std::io::Cursor;
 use std::ops::Range;
 
 use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
+use crate::cryptonote::hash;
+use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
-use crate::cryptonote::{hash, onetime_key};
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
@@ -149,12 +150,8 @@ impl<'a> OwnedTxOut<'a> {
 
     /// Recover the ephemeral private key for spending the output
     pub fn recover_key(&self, keys: &KeyPair) -> PrivateKey {
-        if self.sub_index.is_zero() {
-            let recoverer = onetime_key::KeyRecoverer::new(keys, self.tx_pubkey);
-            recoverer.recover(self.index)
-        } else {
-            onetime_key::KeyRecoverer::recover_subkey(keys, &self.tx_pubkey, self.sub_index)
-        }
+        let recoverer = KeyRecoverer::new(keys, self.tx_pubkey);
+        recoverer.recover(self.index, self.sub_index)
     }
 }
 
@@ -231,6 +228,16 @@ impl_consensus_encoding!(
 );
 
 impl TransactionPrefix {
+    /// Return the number of transaction's inputs
+    pub fn nb_inputs(&self) -> usize {
+        self.inputs.len()
+    }
+
+    /// Return the number of transaction's outputs
+    pub fn nb_outputs(&self) -> usize {
+        self.outputs.len()
+    }
+
     /// Return the transaction public key present in extra field
     pub fn tx_pubkey(&self) -> Option<PublicKey> {
         self.extra.tx_pubkey()
@@ -250,18 +257,18 @@ impl TransactionPrefix {
     ) -> Result<Vec<OwnedTxOut>, Error> {
         match self.tx_additional_pubkeys() {
             Some(tx_additional_pubkeys) => {
-                let checker = onetime_key::SubKeyChecker::new(&pair, major, minor);
+                let checker = SubKeyChecker::new(&pair, major, minor);
                 Ok((0..)
                     .zip(self.outputs.iter())
                     .zip(tx_additional_pubkeys.iter())
-                    .filter_map(|((i, out), tx_random)| {
+                    .filter_map(|((i, out), tx_pubkey)| {
                         match out.target {
-                            TxOutTarget::ToKey { key } => match checker.check(&key, tx_random) {
+                            TxOutTarget::ToKey { key } => match checker.check(i, &key, tx_pubkey) {
                                 Some(sub_index) => Some(OwnedTxOut {
                                     index: i,
                                     out,
                                     sub_index: *sub_index,
-                                    tx_pubkey: *tx_random,
+                                    tx_pubkey: *tx_pubkey,
                                 }),
                                 None => None,
                             },
@@ -273,21 +280,20 @@ impl TransactionPrefix {
             }
             None => match self.tx_pubkey() {
                 Some(tx_pubkey) => {
-                    let generator = onetime_key::KeyGenerator::from_key(pair, tx_pubkey);
+                    let checker = SubKeyChecker::new(&pair, major, minor);
                     Ok((0..)
                         .zip(self.outputs.iter())
                         .filter_map(|(i, out)| {
                             match out.target {
                                 TxOutTarget::ToKey { key } => {
-                                    if generator.check(i, key) {
-                                        Some(OwnedTxOut {
+                                    match checker.check(i, &key, &tx_pubkey) {
+                                        Some(sub_index) => Some(OwnedTxOut {
                                             index: i,
                                             out,
-                                            sub_index: Index::default(),
+                                            sub_index: *sub_index,
                                             tx_pubkey,
-                                        })
-                                    } else {
-                                        None
+                                        }),
+                                        None => None,
                                     }
                                 }
                                 // Reject all non-toKey outputs

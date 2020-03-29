@@ -15,7 +15,7 @@
 
 //! CryptoNote hash structures and functions
 //!
-//! Support for (de)serializable hashes (Keccak 256) and `H_n` (hash to number, or hash to scalar).
+//! Support for (de)serializable hashes (Keccak 256) and `Hn` (hash to number, or hash to scalar).
 //!
 
 use curve25519_dalek::scalar::Scalar;

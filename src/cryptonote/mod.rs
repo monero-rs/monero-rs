@@ -15,7 +15,7 @@
 
 //! CryptoNote primitives
 //!
-//! Support for CryptoNote protocols such as Hash to number `H_n()`, One-time keys, and Subaddresses.
+//! Support for CryptoNote protocols such as Hash to number `Hn()`, One-time keys, and Subaddresses.
 //!
 
 pub mod hash;

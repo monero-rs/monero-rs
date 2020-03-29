@@ -27,7 +27,7 @@ use crate::consensus::encode::Encodable;
 use crate::cryptonote::hash;
 use crate::network::Network;
 use crate::util::address::Address;
-use crate::util::key::{PrivateKey, PublicKey, ViewPair};
+use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
 /// A subaddress index with `major` and `minor` indexes
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -58,9 +58,9 @@ impl Default for Index {
     }
 }
 
-/// Compute the scalar `m = Hn("SubAddr" || a || major_index || minor_index)` at index `i` from
-/// the view secret key `a`
-pub fn get_subaddress_secret_key(view: &PrivateKey, index: Index) -> PrivateKey {
+/// Compute the scalar `m = Hn("SubAddr" || v || major_index || minor_index)` at index `i` from
+/// the view secret key `v`
+pub fn get_secret_scalar(view: &PrivateKey, index: Index) -> PrivateKey {
     // x = a || account_index || minor_index
     let mut encoder = Cursor::new(vec![]);
     view.consensus_encode(&mut encoder).unwrap();
@@ -73,39 +73,72 @@ pub fn get_subaddress_secret_key(view: &PrivateKey, index: Index) -> PrivateKey 
     hash::Hash::hash_to_scalar(&prefix)
 }
 
-/// Compute the spend public key `D = mG + B` at index `i` from the view pair `(a, B)`
-pub fn get_subaddress_spend_public_key(keys: &ViewPair, index: Index) -> PublicKey {
+/// Compute the private spend key `s' = s + m` where `m` is computed with `get_secret_scalar` based
+/// on `v`
+pub fn get_spend_secret_key(keys: &KeyPair, index: Index) -> PrivateKey {
+    // If index is equal to 0, then return s as s'
     if index.is_zero() {
         return keys.spend;
     }
-    // m = Hn(a || index_major || index_minor)
-    let m = get_subaddress_secret_key(&keys.view, index);
-    // M = m*G
-    let m_pub = PublicKey::from_private_key(&m);
-    // D = B + M
-    keys.spend + m_pub
+    // ...otherwise compute s'
+    keys.spend + get_secret_scalar(&keys.view, index)
 }
 
-/// Compute the view public key and spend public key `(C, D)` at index `i` from view pair `(a, B)`
-/// where `C = a*D` and `D = mG + B`
-pub fn get_subkeys(keys: &ViewPair, index: Index) -> (PublicKey, PublicKey) {
+/// Compute the private view key `v' = v * s'` where `s'` is computed with `get_spend_secret_key`
+pub fn get_view_secret_key(keys: &KeyPair, index: Index) -> PrivateKey {
+    // If index is equal to 0, then return v as v'
     if index.is_zero() {
+        return keys.view;
+    }
+    // ...otherwise compute v'
+    keys.view * get_spend_secret_key(keys, index)
+}
+
+/// Compute a subkey pair `(v', s')` from a root keypair `(v, s)` for index `i`
+pub fn get_secret_keys(keys: &KeyPair, index: Index) -> KeyPair {
+    let view = get_view_secret_key(keys, index);
+    let spend = get_spend_secret_key(keys, index);
+    KeyPair { view, spend }
+}
+
+/// Compute the spend public key `S' = mG + S` at index `i` from the view pair `(v, S)`
+///
+/// If index is equal to zero return `S` as `S'`
+pub fn get_spend_public_key(keys: &ViewPair, index: Index) -> PublicKey {
+    // If index is equal to 0, then return S as S'
+    if index.is_zero() {
+        return keys.spend;
+    }
+    // ...otherwise compute S'
+    // m = Hn(v || index_major || index_minor)
+    let m = get_secret_scalar(&keys.view, index);
+    // S' = S + m*G
+    keys.spend + PublicKey::from_private_key(&m)
+}
+
+/// Compute the view public key and spend public key `(V', S')` at index `i` from view pair `(v, S)`
+/// where `V' = v*S'` and `S' = mG + S`
+///
+/// If index is equal to zero return `(v, S)` as `(V', S')`
+pub fn get_public_keys(keys: &ViewPair, index: Index) -> (PublicKey, PublicKey) {
+    // If index is equal to 0, then return (V, S) as (V', S')
+    if index.is_zero() {
+        // Get V from v
         let view = PublicKey::from_private_key(&keys.view);
         return (view, keys.spend);
     }
-    let spend = get_subaddress_spend_public_key(keys, index);
-    // C = a*D
+    // ...otherwise compute (V', S')
+    // Get S' from (v, S)
+    let spend = get_spend_public_key(keys, index);
+    // V' = v*S'
     let view = keys.view * &spend;
     (view, spend)
 }
 
 /// Compute the subaddress at index `i` valid on the given network (by default mainnet)
 pub fn get_subaddress(keys: &ViewPair, index: Index, network: Option<Network>) -> Address {
-    let net = match network {
-        Some(net) => net,
-        None => Network::default(),
-    };
-    let (view, spend) = get_subkeys(keys, index);
+    let net = network.unwrap_or_else(Network::default);
+    let (view, spend) = get_public_keys(keys, index);
     Address::subaddress(net, spend, view)
 }
 
@@ -113,7 +146,7 @@ pub fn get_subaddress(keys: &ViewPair, index: Index, network: Option<Network>) -
 mod tests {
     use std::str::FromStr;
 
-    use super::{get_subaddress, get_subkeys, Index};
+    use super::{get_public_keys, get_subaddress, Index};
     use crate::network::Network;
     use crate::util::key::{PrivateKey, PublicKey, ViewPair};
 
@@ -136,7 +169,7 @@ mod tests {
             major: 2,
             minor: 18,
         };
-        let (sub_view_pub, sub_spend_pub) = get_subkeys(&viewpair, index);
+        let (sub_view_pub, sub_spend_pub) = get_public_keys(&viewpair, index);
 
         assert_eq!(
             "601782bdde614e9ba664048a27b7407df4b76ae2e50a85fcc168a4c1766b3edf",
