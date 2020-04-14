@@ -47,7 +47,7 @@
 //!
 
 use std::str::FromStr;
-use std::{error, fmt};
+use std::fmt;
 
 use base58_monero::base58;
 use keccak_hash::keccak_256;
@@ -56,57 +56,26 @@ use crate::network::{self, Network};
 use crate::util::key::{KeyPair, PublicKey, ViewPair};
 
 /// Possible errors when manipulating addresses
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Fail, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Invalid address magic byte
+    #[fail(display = "invalid magic byte")]
     InvalidMagicByte,
     /// Invalid payment id
+    #[fail(display = "invalid payment ID")]
     InvalidPaymentId,
     /// Missmatch checksums
+    #[fail(display = "invalid checksum")]
     InvalidChecksum,
     /// Invalid format
+    #[fail(display = "invalid format")]
     InvalidFormat,
     /// Monero base58 error
+    #[fail(display = "Base58 error: {:?}", _0)]
     Base58(base58::Error),
     /// Network error
+    #[fail(display = "Network error: {:?}", _0)]
     Network(network::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Base58(ref e) => fmt::Display::fmt(e, f),
-            Error::Network(ref e) => fmt::Display::fmt(e, f),
-            Error::InvalidMagicByte
-            | Error::InvalidPaymentId
-            | Error::InvalidChecksum
-            | Error::InvalidFormat => f.write_str(error::Error::description(self)),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            Error::Base58(ref e) => Some(e),
-            Error::Network(ref e) => Some(e),
-            Error::InvalidMagicByte
-            | Error::InvalidPaymentId
-            | Error::InvalidChecksum
-            | Error::InvalidFormat => None,
-        }
-    }
-
-    fn description(&self) -> &str {
-        match *self {
-            Error::Base58(ref e) => e.description(),
-            Error::Network(ref e) => e.description(),
-            Error::InvalidMagicByte => "invalid magic byte",
-            Error::InvalidPaymentId => "invalid payment id",
-            Error::InvalidChecksum => "checksums missmatch",
-            Error::InvalidFormat => "invalid format",
-        }
-    }
 }
 
 #[doc(hidden)]

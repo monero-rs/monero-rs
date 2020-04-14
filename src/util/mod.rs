@@ -22,48 +22,21 @@ pub mod address;
 pub mod key;
 pub mod ringct;
 
-use std::{error, fmt};
-
 use super::network;
 
 /// A general error code, other errors should implement conversions to/from this
 /// if appropriate.
-#[derive(Debug, PartialEq)]
+#[derive(Fail, Debug, PartialEq)]
 pub enum Error {
     /// Monero network error
+    #[fail(display = "Network error: {:?}", _0)]
     Network(network::Error),
     /// Monero address error
+    #[fail(display = "Address error: {:?}", _0)]
     Address(address::Error),
     /// Monero key error
+    #[fail(display = "Key error: {:?}", _0)]
     Key(key::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Network(ref e) => fmt::Display::fmt(e, f),
-            Error::Address(ref e) => fmt::Display::fmt(e, f),
-            Error::Key(ref e) => fmt::Display::fmt(e, f),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            Error::Network(ref e) => Some(e),
-            Error::Address(ref e) => Some(e),
-            Error::Key(ref e) => Some(e),
-        }
-    }
-
-    fn description(&self) -> &str {
-        match *self {
-            Error::Network(ref e) => e.description(),
-            Error::Address(ref e) => e.description(),
-            Error::Key(ref e) => e.description(),
-        }
-    }
 }
 
 #[doc(hidden)]

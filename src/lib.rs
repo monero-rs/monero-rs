@@ -42,6 +42,9 @@
 #![deny(unused_mut)]
 #![deny(missing_docs)]
 
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
 #[macro_use]
 mod internal_macros;
 #[macro_use]

@@ -196,7 +196,7 @@ impl<'a> OwnedTxOut<'a> {
 
 /// Every transaction contains an Extra field, which is a part of transaction prefix
 ///
-/// Extra field is composed of typed sub fields of variable or fixed lenght.
+/// Extra field is composed of typed sub fields of variable or fixed length.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct ExtraField(pub Vec<SubField>);
@@ -220,22 +220,22 @@ impl ExtraField {
 }
 
 /// Each sub-field contains a sub-field tag followed by sub-field content of fixed or variable
-/// lenght, in variable lenght case the lenght is encoded with a VarInt before the content itself.
+/// length, in variable length case the length is encoded with a VarInt before the content itself.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum SubField {
-    /// Transaction public key, fixed lenght of 32 bytes
+    /// Transaction public key, fixed length of 32 bytes
     TxPublicKey(PublicKey),
     /// 255 bytes limited nonce, can contain an encrypted or unencrypted payment id, variable
-    /// lenght
+    /// length
     Nonce(Vec<u8>),
-    /// Padding size is limited to 255 null bytes, variable lenght
+    /// Padding size is limited to 255 null bytes, variable length
     Padding(u8),
-    /// Merge mining infos: `depth` and `merkle_root`, fixed lenght of one VarInt and 32 bytes hash
+    /// Merge mining infos: `depth` and `merkle_root`, fixed length of one VarInt and 32 bytes hash
     MergeMining(VarInt, hash::Hash),
-    /// Additional public keys for Subaddresses outputs, variable lenght of `n` additional public keys
+    /// Additional public keys for Subaddresses outputs, variable length of `n` additional public keys
     AdditionalPublickKey(Vec<PublicKey>),
-    /// Mysterious MinerGate, variable lenght
+    /// Mysterious MinerGate, variable length
     MysteriousMinerGate(String),
 }
 

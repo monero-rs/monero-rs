@@ -62,7 +62,7 @@
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Mul, Sub};
 use std::str::FromStr;
-use std::{error, fmt, ops};
+use std::{fmt, ops};
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
@@ -75,45 +75,20 @@ use crate::cryptonote::hash;
 use serde::{Deserialize, Serialize};
 
 /// Errors that might occur during key decoding
-#[derive(Debug, PartialEq)]
+#[derive(Fail, Debug, PartialEq)]
 pub enum Error {
-    /// Invalid input lenght
-    InvalidLenght,
+    /// Invalid input length
+    #[fail(display = "invalid length")]
+    InvalidLength,
     /// Not a canonical representation of an ed25519 scalar
+    #[fail(display = "not a canonical representation of an ed25519 scalar")]
     NotCanonicalScalar,
     /// Invalid point on the curve
+    #[fail(display = "invalid point on the curve")]
     InvalidPoint,
     /// Hex parsing error
+    #[fail(display = "Hex error: {:?}", _0)]
     Hex(hex::FromHexError),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Hex(ref e) => fmt::Display::fmt(e, f),
-            Error::InvalidLenght | Error::NotCanonicalScalar | Error::InvalidPoint => {
-                f.write_str(error::Error::description(self))
-            }
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            Error::Hex(ref e) => Some(e),
-            Error::InvalidLenght | Error::NotCanonicalScalar | Error::InvalidPoint => None,
-        }
-    }
-
-    fn description(&self) -> &str {
-        match *self {
-            Error::Hex(ref e) => e.description(),
-            Error::InvalidLenght => "invalid lenght",
-            Error::NotCanonicalScalar => "not a canonical scalar",
-            Error::InvalidPoint => "invalid point",
-        }
-    }
 }
 
 #[doc(hidden)]
@@ -144,7 +119,7 @@ impl PrivateKey {
     /// Deserialize a private key from a slice
     pub fn from_slice(data: &[u8]) -> Result<PrivateKey, Error> {
         if data.len() != 32 {
-            return Err(Error::InvalidLenght);
+            return Err(Error::InvalidLength);
         }
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(data);
@@ -298,7 +273,7 @@ impl PublicKey {
     /// Deserialize a public key from a slice
     pub fn from_slice(data: &[u8]) -> Result<PublicKey, Error> {
         if data.len() != 32 {
-            return Err(Error::InvalidLenght);
+            return Err(Error::InvalidLength);
         }
         let point = CompressedEdwardsY::from_slice(data);
         match point.decompress() {

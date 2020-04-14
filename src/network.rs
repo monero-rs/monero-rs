@@ -17,37 +17,14 @@
 //!
 //! This module defines the different Monero networks and their magic bytes.
 
-use std::{error, fmt};
-
 use crate::util::address::AddressType;
 
 /// Network error types
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Fail, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Invalid magic network byte
+    #[fail(display = "invalid magic byte")]
     InvalidMagicByte,
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::InvalidMagicByte => f.write_str(error::Error::description(self)),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            Error::InvalidMagicByte => None,
-        }
-    }
-
-    fn description(&self) -> &str {
-        match *self {
-            Error::InvalidMagicByte => "invalid magic byte",
-        }
-    }
 }
 
 /// Network type
