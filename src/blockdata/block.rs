@@ -62,3 +62,23 @@ pub struct Block {
 }
 
 impl_consensus_encoding!(Block, header, miner_tx, tx_hashes);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::consensus::encode::deserialize;
+    use crate::consensus::encode::serialize;
+    #[test]
+    fn test_block_ser() {
+        let hex = "0c0c94debaf805beb3489c722a285c092a32e7c6893abfc7d069699c8326fc3445a749c5276b6200000000029b892201ffdf882201b699d4c8b1ec020223df524af2a2ef5f870adb6e1ceb03a475c39f8b9ef76aa50b46ddd2a18349402b012839bfa19b7524ec7488917714c216ca254b38ed0424ca65ae828a7c006aeaf10208f5316a7f6b99cca60000";
+        let bytes = hex::decode(hex).unwrap();
+        let block = deserialize::<Block>(&bytes[..]).unwrap();
+        //Lets reconstruct again
+        let bytes2 = serialize::<Block>(&block);
+        dbg!(&bytes.len());
+        dbg!(&bytes2.len());
+        assert_eq!(bytes, bytes2);
+        let hex2 = hex::encode(bytes2);
+        assert_eq!(hex, hex2);
+    }
+}
