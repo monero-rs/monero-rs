@@ -75,8 +75,6 @@ mod test {
         let block = deserialize::<Block>(&bytes[..]).unwrap();
         //Lets reconstruct again
         let bytes2 = serialize::<Block>(&block);
-        dbg!(&bytes.len());
-        dbg!(&bytes2.len());
         assert_eq!(bytes, bytes2);
         let hex2 = hex::encode(bytes2);
         assert_eq!(hex, hex2);
