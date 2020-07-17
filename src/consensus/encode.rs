@@ -179,7 +179,7 @@ macro_rules! encoder_fn {
         fn $name(&mut self, v: $val_type) -> Result<(), Error> {
             WriteBytesExt::$writefn::<LittleEndian>(self, v).map_err(Error::Io)
         }
-    }
+    };
 }
 
 macro_rules! decoder_fn {
@@ -188,7 +188,7 @@ macro_rules! decoder_fn {
         fn $name(&mut self) -> Result<$val_type, Error> {
             ReadBytesExt::$readfn::<LittleEndian>(self).map_err(Error::Io)
         }
-    }
+    };
 }
 
 impl<W: Write> Encoder for W {
@@ -431,6 +431,10 @@ impl<S: Encoder, T: Encodable<S>> Encodable<S> for [T] {
 impl<S: Encoder, T: Encodable<S>> Encodable<S> for Vec<T> {
     #[inline]
     fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
+        // we need to add 0 sized arrays as well.
+        if self.len() == 0 {
+            VarInt(self.len() as u64).consensus_encode(s)?;
+        };
         (&self[..]).consensus_encode(s)
     }
 }
