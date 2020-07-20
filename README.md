@@ -3,7 +3,7 @@
 Rust Monero Library
 ===
 
-Library with support for de/serialization, parsing and executing on data structures and network messages related to Monero currency.
+Library with support for de/serialization on block data structures and key/address generation and scanning related to Monero cryptocurrency.
 
 Supports (or should support)
 
