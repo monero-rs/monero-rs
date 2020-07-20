@@ -273,7 +273,13 @@ impl RctSigBase {
     ) -> Result<Option<RctSigBase>, encode::Error> {
         let rct_type: RctType = Decodable::consensus_decode(d)?;
         match rct_type {
-            RctType::Null => Ok(None),
+            RctType::Null => Ok(Some(RctSigBase {
+                rct_type: RctType::Null,
+                txn_fee: Default::default(),
+                pseudo_outs: vec![],
+                ecdh_info: vec![],
+                out_pk: vec![],
+            })),
             RctType::Full | RctType::Simple | RctType::Bulletproof | RctType::Bulletproof2 => {
                 let mut pseudo_outs: Vec<Key> = vec![];
                 // TxnFee
