@@ -679,10 +679,14 @@ impl<S: Encoder> Encodable<S> for Transaction {
 mod tests {
     use std::str::FromStr;
 
-    use super::{Transaction, TransactionPrefix};
-    use crate::consensus::encode::{deserialize, deserialize_partial, serialize};
+    use super::{Transaction, TransactionPrefix, ExtraField};
+    use crate::consensus::encode::{deserialize, deserialize_partial, serialize, VarInt};
     use crate::cryptonote::hash::Hashable;
     use crate::util::key::{PrivateKey, PublicKey, ViewPair};
+    use crate::blockdata::TxIn;
+    use crate::TxOut;
+    use crate::blockdata::transaction::{TxOutTarget, SubField};
+    use crate::util::ringct::{RctSig, RctSigBase, RctType};
 
     #[test]
     fn deserialize_transaction_prefix() {
@@ -755,5 +759,84 @@ mod tests {
             "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
             format!("{:02x}", tx.hash())
         );
+    }
+
+    #[test]
+    fn test_tx_hash() {
+        let tx = "f8ad7c58e6fce1792dd78d764ce88a11db0e3c3bb484d868ae05a7321fb6c6b0";
+
+        let pk_extra = vec![179,155,220,223,213,23,81,160,95,232,87,102,151,63,70,249,139,40,110,16,51,193,175,208,38,120,65,191,155,139,1,4];
+        let transaction = Transaction
+        {
+            prefix: TransactionPrefix {
+                version: VarInt(2),
+                unlock_time: VarInt(2143845),
+                inputs: vec![
+                    TxIn::Gen {
+                        height:VarInt(2143785)
+                    }
+                ],
+                outputs: vec![
+                    TxOut {
+                        amount: VarInt(1550800739964),
+                        target: TxOutTarget::ToKey {
+                            key: PublicKey::from_slice(hex::decode("e2e19d8badb15e77c8e1f441cf6acd9bcde34a07cae82bbe5ff9629bf88e6e81").unwrap().as_slice()).unwrap()
+                        }
+                    }
+                ],
+                extra: ExtraField {
+                    0: vec![SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),SubField::Nonce(vec![196,37,4,0,27,37,187,163,0,0,0,0,0,0,0,0,0])]
+                }
+            },
+            signatures: vec![],
+            rct_signatures: RctSig {
+                sig: Option::from(RctSigBase {
+                    rct_type: RctType::Null,
+                    txn_fee: Default::default(),
+                    pseudo_outs: vec![],
+                    ecdh_info: vec![],
+                    out_pk: vec![]
+                }),
+                p: None
+            }
+        };
+        assert_eq!(tx.as_bytes().to_vec(),hex::encode(transaction.hash().0.to_vec()).as_bytes().to_vec());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_tx_hash_fail() {
+        let tx = "f8ad7c58e6fce1792dd78d764ce88a11db0e3c3bb484d868ae05a7321fb6c6b0";
+
+        let pk_extra = vec![179,155,220,223,213,23,81,160,95,232,87,102,151,63,70,249,139,40,110,16,51,193,175,208,38,120,65,191,155,139,1,4];
+        let transaction = Transaction
+        {
+            prefix: TransactionPrefix {
+                version: VarInt(2),
+                unlock_time: VarInt(2143845),
+                inputs: vec![
+                    TxIn::Gen {
+                        height:VarInt(2143785)
+                    }
+                ],
+                outputs: vec![
+                    TxOut {
+                        amount: VarInt(1550800739964),
+                        target: TxOutTarget::ToKey {
+                            key: PublicKey::from_slice(hex::decode("e2e19d8badb15e77c8e1f441cf6acd9bcde34a07cae82bbe5ff9629bf88e6e81").unwrap().as_slice()).unwrap()
+                        }
+                    }
+                ],
+                extra: ExtraField {
+                    0: vec![SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),SubField::Nonce(vec![196,37,4,0,27,37,187,163,0,0,0,0,0,0,0,0,0])]
+                }
+            },
+            signatures: vec![],
+            rct_signatures: RctSig {
+                sig: None,
+                p: None
+            }
+        };
+        assert_eq!(tx.as_bytes().to_vec(),hex::encode(transaction.hash().0.to_vec()).as_bytes().to_vec());
     }
 }

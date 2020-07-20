@@ -46,8 +46,8 @@
 //! ```
 //!
 
-use std::str::FromStr;
 use std::fmt;
+use std::str::FromStr;
 
 use base58_monero::base58;
 use keccak_hash::keccak_256;
