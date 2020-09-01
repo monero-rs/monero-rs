@@ -23,39 +23,19 @@ pub mod key;
 pub mod ringct;
 
 use super::network;
+use thiserror::Error;
 
 /// A general error code, other errors should implement conversions to/from this
 /// if appropriate.
-#[derive(Fail, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
     /// Monero network error
-    #[fail(display = "Network error: {:?}", _0)]
-    Network(network::Error),
+    #[error("Network error: {0}")]
+    Network(#[from] network::Error),
     /// Monero address error
-    #[fail(display = "Address error: {:?}", _0)]
-    Address(address::Error),
+    #[error("Address error: {0}")]
+    Address(#[from] address::Error),
     /// Monero key error
-    #[fail(display = "Key error: {:?}", _0)]
-    Key(key::Error),
-}
-
-#[doc(hidden)]
-impl From<network::Error> for Error {
-    fn from(e: network::Error) -> Error {
-        Error::Network(e)
-    }
-}
-
-#[doc(hidden)]
-impl From<address::Error> for Error {
-    fn from(e: address::Error) -> Error {
-        Error::Address(e)
-    }
-}
-
-#[doc(hidden)]
-impl From<key::Error> for Error {
-    fn from(e: key::Error) -> Error {
-        Error::Key(e)
-    }
+    #[error("Key error: {0}")]
+    Key(#[from] key::Error),
 }
