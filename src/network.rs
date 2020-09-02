@@ -18,12 +18,13 @@
 //! This module defines the different Monero networks and their magic bytes.
 
 use crate::util::address::AddressType;
+use thiserror::Error;
 
 /// Network error types
-#[derive(Fail, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Invalid magic network byte
-    #[fail(display = "invalid magic byte")]
+    #[error("invalid magic byte")]
     InvalidMagicByte,
 }
 

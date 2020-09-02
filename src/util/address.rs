@@ -55,41 +55,29 @@ use keccak_hash::keccak_256;
 use crate::network::{self, Network};
 use crate::util::key::{KeyPair, PublicKey, ViewPair};
 
+use thiserror::Error;
+
 /// Possible errors when manipulating addresses
-#[derive(Fail, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Invalid address magic byte
-    #[fail(display = "invalid magic byte")]
+    #[error("invalid magic byte")]
     InvalidMagicByte,
     /// Invalid payment id
-    #[fail(display = "invalid payment ID")]
+    #[error("invalid payment ID")]
     InvalidPaymentId,
     /// Missmatch checksums
-    #[fail(display = "invalid checksum")]
+    #[error("invalid checksum")]
     InvalidChecksum,
     /// Invalid format
-    #[fail(display = "invalid format")]
+    #[error("invalid format")]
     InvalidFormat,
     /// Monero base58 error
-    #[fail(display = "Base58 error: {:?}", _0)]
-    Base58(base58::Error),
+    #[error("Base58 error: {0}")]
+    Base58(#[from] base58::Error),
     /// Network error
-    #[fail(display = "Network error: {:?}", _0)]
-    Network(network::Error),
-}
-
-#[doc(hidden)]
-impl From<base58::Error> for Error {
-    fn from(e: base58::Error) -> Error {
-        Error::Base58(e)
-    }
-}
-
-#[doc(hidden)]
-impl From<network::Error> for Error {
-    fn from(e: network::Error) -> Error {
-        Error::Network(e)
-    }
+    #[error("Network error: {0}")]
+    Network(#[from] network::Error),
 }
 
 /// Address type: standard, integrated, or sub address

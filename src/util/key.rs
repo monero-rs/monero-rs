@@ -71,31 +71,26 @@ use curve25519_dalek::scalar::Scalar;
 use crate::consensus::encode::{self, Decodable, Decoder, Encodable, Encoder};
 use crate::cryptonote::hash;
 
+use thiserror::Error;
+
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
 /// Errors that might occur during key decoding
-#[derive(Fail, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
     /// Invalid input length
-    #[fail(display = "invalid length")]
+    #[error("invalid length")]
     InvalidLength,
     /// Not a canonical representation of an ed25519 scalar
-    #[fail(display = "not a canonical representation of an ed25519 scalar")]
+    #[error("not a canonical representation of an ed25519 scalar")]
     NotCanonicalScalar,
     /// Invalid point on the curve
-    #[fail(display = "invalid point on the curve")]
+    #[error("invalid point on the curve")]
     InvalidPoint,
     /// Hex parsing error
-    #[fail(display = "Hex error: {:?}", _0)]
-    Hex(hex::FromHexError),
-}
-
-#[doc(hidden)]
-impl From<hex::FromHexError> for Error {
-    fn from(e: hex::FromHexError) -> Error {
-        Error::Hex(e)
-    }
+    #[error("Hex error: {0}")]
+    Hex(#[from] hex::FromHexError),
 }
 
 /// Monero private key
