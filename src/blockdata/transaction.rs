@@ -19,15 +19,17 @@
 //! view key.
 //!
 
-use std::io::Cursor;
-use std::ops::Range;
-
 use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
 use crate::cryptonote::hash;
+use crate::cryptonote::hash::Hashable;
 use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
+use hex::encode as hex_encode;
+use std::fmt::{Display, Error as FmtError, Formatter};
+use std::io::Cursor;
+use std::ops::Range;
 
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
@@ -201,6 +203,15 @@ impl<'a> OwnedTxOut<'a> {
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct ExtraField(pub Vec<SubField>);
 
+impl Display for ExtraField {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        for field in &self.0 {
+            writeln!(fmt, "Subfield: {}", field)?;
+        }
+        Ok(())
+    }
+}
+
 impl ExtraField {
     /// Return the transaction public key, if any, present in extra field
     pub fn tx_pubkey(&self) -> Option<PublicKey> {
@@ -239,6 +250,28 @@ pub enum SubField {
     MysteriousMinerGate(String),
 }
 
+impl Display for SubField {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        match self {
+            SubField::TxPublicKey(PublicKey) => writeln!(fmt, "Tx public Key: {}", PublicKey),
+            SubField::Nonce(nonce) => {
+                let nonce_str = hex_encode(serialize(nonce));
+                writeln!(fmt, "Nonce: {}", nonce_str)
+            }
+            SubField::Padding(padding) => writeln!(fmt, "Padding: {}", padding),
+            SubField::MergeMining(code, hash) => writeln!(fmt, "Merge mining: {}, {}", code, hash),
+            SubField::AdditionalPublickKey(keys) => {
+                writeln!(fmt, "Additional publick keys: ")?;
+                for key in keys {
+                    writeln!(fmt, "key: {}", key)?;
+                }
+                Ok(())
+            }
+            SubField::MysteriousMinerGate(MinerGate) => writeln!(fmt, "Mysterious miner gate: {}", MinerGate),
+        }
+    }
+}
+
 /// The part of a transaction that contains all the data except signatures.
 ///
 /// Can generate the transaction prefix hash with `tx_prefix.hash()`
@@ -255,6 +288,14 @@ pub struct TransactionPrefix {
     pub outputs: Vec<TxOut>,
     /// Additional data associated with a transaction
     pub extra: ExtraField,
+}
+
+impl Display for TransactionPrefix {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        writeln!(fmt, "Version: {}", self.version)?;
+        writeln!(fmt, "Unlock time: {}", self.unlock_time)?;
+        writeln!(fmt, "Extra field: {}", self.extra)
+    }
 }
 
 impl_consensus_encoding!(
@@ -364,6 +405,18 @@ pub struct Transaction {
     pub signatures: Vec<Vec<Signature>>,
     /// RingCT signatures
     pub rct_signatures: RctSig,
+}
+
+impl Display for Transaction {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        writeln!(fmt, "Prefix: {}", self.prefix)?;
+        for sigs in &self.signatures {
+            for sig in sigs {
+                writeln!(fmt, "Signature: {}", sig)?;
+            }
+        }
+        writeln!(fmt, "RCT signature: {}", self.rct_signatures)
+    }
 }
 
 impl hash::Hashable for Transaction {
