@@ -24,7 +24,7 @@ use std::ops::Range;
 
 use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
 use crate::cryptonote::hash;
-use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
+use crate::cryptonote::onetime_key::{KeyGenerator, KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
@@ -364,6 +364,71 @@ pub struct Transaction {
     pub signatures: Vec<Vec<Signature>>,
     /// RingCT signatures
     pub rct_signatures: RctSig,
+}
+
+use std::convert::TryInto;
+use curve25519_dalek::{scalar::Scalar, edwards::CompressedEdwardsY};
+use hex_literal::hex;
+use crate::util::ringct::EcdhInfo;
+impl Transaction {
+    /// Calculate and verify an output's amount
+    pub fn get_amount<'a>(&self, view_pair: &ViewPair, out: &OwnedTxOut) -> Option<u64> {
+        if out.index >= self.prefix.outputs.len() {
+            return None;
+        }
+
+        let ecdh_info;
+        match self.rct_signatures.sig.as_ref() {
+            Some(sig) => ecdh_info = sig.ecdh_info[out.index].clone(),
+            None => return None,
+        }
+
+        let shared_key = KeyGenerator::from_key(view_pair, out.tx_pubkey).get_rvn_scalar(out.index);
+
+        let commitment_mask;
+        let result;
+        match ecdh_info {
+            EcdhInfo::Standard {mask, amount} => {
+                let hashed_shared_key = hash::Hash::hash(shared_key.as_bytes()).to_bytes();
+                commitment_mask = Scalar::from_bytes_mod_order(mask.key) - Scalar::from_bytes_mod_order(hashed_shared_key);
+
+                result = u64::from_le_bytes(
+                    (
+                        Scalar::from_bytes_mod_order(amount.key) -
+                        Scalar::from_bytes_mod_order(hash::Hash::hash(&hashed_shared_key).to_bytes())
+                    ).to_bytes()[0 .. 8].try_into().unwrap()
+                );
+            },
+
+            EcdhInfo::Bulletproof2 {amount} => {
+                let mut commitment_key = "commitment_mask".as_bytes().to_vec();
+                commitment_key.extend(shared_key.as_bytes());
+                commitment_mask = Scalar::from_bytes_mod_order(
+                    hash::Hash::hash(&commitment_key).to_fixed_bytes()
+                );
+
+                let mut amount_enc_key = "amount".as_bytes().to_vec();
+                amount_enc_key.extend(shared_key.as_bytes());
+                let amount_enc_key = hash::Hash::hash(&amount_enc_key).to_fixed_bytes();
+                result = u64::from_le_bytes(amount_enc_key[0 .. 8].try_into().unwrap()) ^ u64::from_le_bytes(amount.0);
+            },
+        }
+ 
+        /// Verify the commitment
+        if (
+            (
+                PublicKey::from_private_key(&PrivateKey::from_scalar(commitment_mask)).point.decompress().unwrap() +
+                CompressedEdwardsY::from_slice(
+                    &hex!("8b655970153799af2aeadc9ff1add0ea6c7251d54154cfa92c173a0dd39c1f94")
+                ).decompress().unwrap()
+            ) * Scalar::from(result)
+        ).compress() != CompressedEdwardsY(
+            self.rct_signatures.sig.as_ref().unwrap().out_pk[out.index].mask.key
+        ) {
+            return None;
+        }
+        Some(result)
+    }
 }
 
 impl hash::Hashable for Transaction {
