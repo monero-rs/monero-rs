@@ -21,7 +21,6 @@
 
 use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
 use crate::cryptonote::hash;
-use crate::cryptonote::hash::Hashable;
 use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
@@ -253,7 +252,7 @@ pub enum SubField {
 impl Display for SubField {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
         match self {
-            SubField::TxPublicKey(PublicKey) => writeln!(fmt, "Tx public Key: {}", PublicKey),
+            SubField::TxPublicKey(public_key) => writeln!(fmt, "Tx public Key: {}", public_key),
             SubField::Nonce(nonce) => {
                 let nonce_str = hex_encode(serialize(nonce));
                 writeln!(fmt, "Nonce: {}", nonce_str)
@@ -267,7 +266,9 @@ impl Display for SubField {
                 }
                 Ok(())
             }
-            SubField::MysteriousMinerGate(MinerGate) => writeln!(fmt, "Mysterious miner gate: {}", MinerGate),
+            SubField::MysteriousMinerGate(miner_gate) => {
+                writeln!(fmt, "Mysterious miner gate: {}", miner_gate)
+            }
         }
     }
 }

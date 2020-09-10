@@ -293,13 +293,13 @@ impl Display for RctSigBase {
         writeln!(fmt, "RCT type: {}", self.rct_type)?;
         writeln!(fmt, "Tx fee: {}", self.txn_fee)?;
         for out in &self.pseudo_outs {
-            writeln!(fmt, "Pseudo_out: {}", out)?;
+            writeln!(fmt, "Pseudo out: {}", out)?;
         }
         for ecdh in &self.ecdh_info {
-            writeln!(fmt, "Ecdh_info: {}", ecdh)?;
+            writeln!(fmt, "Ecdh info: {}", ecdh)?;
         }
         for out in &self.out_pk {
-            writeln!(fmt, "Out_pk: {}", out)?;
+            writeln!(fmt, "Out pk: {}", out)?;
         }
         Ok(())
     }
