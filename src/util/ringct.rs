@@ -19,6 +19,7 @@
 //!
 
 use std::fmt;
+use std::fmt::{Display, Error as FmtError, Formatter};
 
 use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
 use crate::cryptonote::hash;
@@ -79,6 +80,12 @@ pub struct CtKey {
     pub mask: Key,
 }
 
+impl Display for CtKey {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        writeln!(fmt, "Mask: {}", self.mask)
+    }
+}
+
 impl_consensus_encoding!(CtKey, mask);
 
 // ====================================================================
@@ -127,6 +134,23 @@ pub enum EcdhInfo {
         /// Amount value
         amount: hash::Hash8,
     },
+}
+
+impl Display for EcdhInfo {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        match self {
+            EcdhInfo::Standard { mask, amount } => {
+                writeln!(fmt, "Standard")?;
+                writeln!(fmt, "Mask: {}", mask)?;
+                writeln!(fmt, "Amount: {}", amount)?;
+            }
+            EcdhInfo::Bulletproof2 { amount } => {
+                writeln!(fmt, "Bulletproof2")?;
+                writeln!(fmt, "Amount: {}", amount)?;
+            }
+        };
+        Ok(())
+    }
 }
 
 impl EcdhInfo {
@@ -264,6 +288,23 @@ pub struct RctSigBase {
     pub out_pk: Vec<CtKey>,
 }
 
+impl Display for RctSigBase {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        writeln!(fmt, "RCT type: {}", self.rct_type)?;
+        writeln!(fmt, "Tx fee: {}", self.txn_fee)?;
+        for out in &self.pseudo_outs {
+            writeln!(fmt, "Pseudo_out: {}", out)?;
+        }
+        for ecdh in &self.ecdh_info {
+            writeln!(fmt, "Ecdh_info: {}", ecdh)?;
+        }
+        for out in &self.out_pk {
+            writeln!(fmt, "Out_pk: {}", out)?;
+        }
+        Ok(())
+    }
+}
+
 impl RctSigBase {
     /// Decode a RingCT base signature given the number of inputs and outputs of the transaction
     pub fn consensus_decode<D: Decoder>(
@@ -346,6 +387,19 @@ pub enum RctType {
     Bulletproof,
     /// Bulletproof2 type, used in the current network
     Bulletproof2,
+}
+
+impl Display for RctType {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        let rct_type = match self {
+            RctType::Null => "Null",
+            RctType::Full => "Full",
+            RctType::Simple => "Simple",
+            RctType::Bulletproof => "Bulletproof",
+            RctType::Bulletproof2 => "Bulletproof2",
+        };
+        write!(fmt, "{}", rct_type)
+    }
 }
 
 impl RctType {
@@ -509,6 +563,16 @@ pub struct RctSig {
     pub p: Option<RctSigPrunable>,
 }
 
+impl Display for RctSig {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        match &self.sig {
+            Some(v) => writeln!(fmt, "Signature: {}", v)?,
+            None => writeln!(fmt, "Signature: None")?,
+        };
+        Ok(())
+    }
+}
+
 // ====================================================================
 /// A raw signature
 #[derive(Debug, Clone)]
@@ -518,6 +582,13 @@ pub struct Signature {
     pub c: Key,
     /// r value
     pub r: Key,
+}
+
+impl Display for Signature {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        writeln!(fmt, "C: {}", self.c)?;
+        writeln!(fmt, "R: {}", self.r)
+    }
 }
 
 impl_consensus_encoding!(Signature, c, r);

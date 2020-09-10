@@ -179,7 +179,7 @@ macro_rules! encoder_fn {
         fn $name(&mut self, v: $val_type) -> Result<(), Error> {
             WriteBytesExt::$writefn::<LittleEndian>(self, v).map_err(Error::Io)
         }
-    }
+    };
 }
 
 macro_rules! decoder_fn {
@@ -188,7 +188,7 @@ macro_rules! decoder_fn {
         fn $name(&mut self) -> Result<$val_type, Error> {
             ReadBytesExt::$readfn::<LittleEndian>(self).map_err(Error::Io)
         }
-    }
+    };
 }
 
 impl<W: Write> Encoder for W {

@@ -23,6 +23,7 @@ use crate::consensus::encode::VarInt;
 use crate::cryptonote::hash;
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Error, Formatter};
 
 /// Monero block header
 #[derive(Debug, Clone, Default)]
@@ -38,6 +39,16 @@ pub struct BlockHeader {
     pub prev_id: hash::Hash,
     /// Nonce
     pub nonce: u32,
+}
+
+impl Display for BlockHeader {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), Error> {
+        writeln!(fmt, "Major version: {}", self.major_version,)?;
+        writeln!(fmt, "Minor version: {}", self.minor_version,)?;
+        writeln!(fmt, "Timestamp: {}", self.timestamp,)?;
+        writeln!(fmt, "Previous id: {}", self.prev_id,)?;
+        writeln!(fmt, "Nonce: {}", self.nonce,)
+    }
 }
 
 impl_consensus_encoding!(
@@ -59,6 +70,17 @@ pub struct Block {
     pub miner_tx: Transaction,
     /// List of included transactions
     pub tx_hashes: Vec<hash::Hash>,
+}
+
+impl Display for Block {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), Error> {
+        writeln!(fmt, "Block header: {}", self.header,)?;
+        writeln!(fmt, "Miner tx: {}", self.miner_tx)?;
+        for tx in &self.tx_hashes {
+            writeln!(fmt, "tx: {}", tx,)?;
+        }
+        Ok(())
+    }
 }
 
 impl_consensus_encoding!(Block, header, miner_tx, tx_hashes);
