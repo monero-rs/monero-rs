@@ -129,8 +129,8 @@ pub enum EcdhInfo {
         /// Amount value
         amount: Key,
     },
-    /// bp2 format
-    Bulletproof2 {
+    /// Bulletproof format
+    Bulletproof {
         /// Amount value
         amount: hash::Hash8,
     },
@@ -144,7 +144,7 @@ impl Display for EcdhInfo {
                 writeln!(fmt, "Mask: {}", mask)?;
                 writeln!(fmt, "Amount: {}", amount)?;
             }
-            EcdhInfo::Bulletproof2 { amount } => {
+            EcdhInfo::Bulletproof { amount } => {
                 writeln!(fmt, "Bulletproof2")?;
                 writeln!(fmt, "Amount: {}", amount)?;
             }
@@ -166,7 +166,7 @@ impl EcdhInfo {
                     amount: Decodable::consensus_decode(d)?,
                 })
             }
-            RctType::Bulletproof2 | RctType::CLSAG => Ok(EcdhInfo::Bulletproof2 {
+            RctType::Bulletproof2 | RctType::CLSAG => Ok(EcdhInfo::Bulletproof {
                 amount: Decodable::consensus_decode(d)?,
             }),
         }
@@ -180,7 +180,7 @@ impl<S: Encoder> Encodable<S> for EcdhInfo {
                 mask.consensus_encode(s)?;
                 amount.consensus_encode(s)?;
             }
-            EcdhInfo::Bulletproof2 { amount } => {
+            EcdhInfo::Bulletproof { amount } => {
                 amount.consensus_encode(s)?;
             }
         }
