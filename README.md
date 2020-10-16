@@ -31,7 +31,7 @@ cd monero-rs
 cargo build
 ```
 
-You can run tests with:
+or
 
 ```
 cargo test
@@ -40,4 +40,4 @@ cargo test
 About
 ===
 
-This started as a research project sponsored by TrueLevel SA, it is now developed and maintained by h4sh3d and member's of the community and not by the Monero Core Team.
+This started as a research project sponsored by TrueLevel SA, it is now developed and maintained by h4sh3d and member's of the community and NOT by the Monero Core Team.
