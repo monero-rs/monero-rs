@@ -19,11 +19,6 @@
 //! and associated primitives. It is designed for Rust programs built to work with
 //! the Monero network.
 //!
-//! It is also written entirely in Rust and is should compatible with `wasm32`
-//! target to power web-based application with the benefits of strong type
-//! safety, including ownership and lifetime, for financial and/or cryptographic
-//! software.
-//!
 //! ## Caution
 //!
 //! The Software is provided “as is”, without warranty of any kind, express or
