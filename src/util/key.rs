@@ -129,13 +129,10 @@ impl PrivateKey {
         }
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(data);
-        let scalar = match Scalar::from_canonical_bytes(bytes) {
-            Some(scalar) => scalar,
-            None => {
-                return Err(Error::NotCanonicalScalar);
-            }
-        };
-        Ok(PrivateKey { scalar })
+        match Scalar::from_canonical_bytes(bytes) {
+            Some(scalar) => Ok(PrivateKey { scalar }),
+            None => Err(Error::NotCanonicalScalar),
+        }
     }
 
     /// Create a secret key from a raw curve25519 scalar
@@ -294,12 +291,9 @@ impl PublicKey {
         }
         let point = CompressedEdwardsY::from_slice(data);
         match point.decompress() {
-            Some(_) => (),
-            None => {
-                return Err(Error::InvalidPoint);
-            }
-        };
-        Ok(PublicKey { point })
+            Some(_) => Ok(PublicKey { point }),
+            None => Err(Error::InvalidPoint),
+        }
     }
 
     /// Generate a public key from the private key
@@ -567,7 +561,8 @@ mod tests {
     fn check_privkey_decoding() {
         let priv1 = PrivateKey::from_str(
             "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
-        ).unwrap();
+        )
+        .unwrap();
         let bytes = priv1.as_bytes();
         let priv2 = PrivateKey::from_bytes(bytes).unwrap();
         assert_eq!(priv1, priv2, "Must be equal");
