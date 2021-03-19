@@ -22,7 +22,9 @@ pub mod address;
 pub mod key;
 pub mod ringct;
 
+use crate::blockdata::transaction;
 use super::network;
+
 use thiserror::Error;
 
 /// A general error code, other errors should implement conversions to/from this
@@ -38,4 +40,10 @@ pub enum Error {
     /// Monero key error
     #[error("Key error: {0}")]
     Key(#[from] key::Error),
+    /// Monero RingCT error
+    #[error("RingCT error: {0}")]
+    RingCT(#[from] ringct::Error),
+    /// Monero transaction error
+    #[error("Transaction error: {0}")]
+    Transaction(#[from] transaction::Error),
 }

@@ -48,8 +48,10 @@ pub mod util;
 
 pub use blockdata::transaction::OwnedTxOut;
 pub use blockdata::transaction::Transaction;
+pub use blockdata::transaction::TxIn;
 pub use blockdata::transaction::TxOut;
 pub use network::Network;
 pub use util::address::Address;
 pub use util::key::PrivateKey;
 pub use util::key::PublicKey;
+pub use util::Error;

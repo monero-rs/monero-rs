@@ -21,22 +21,6 @@ Contributing
 
 Contributions are generally welcome. If you intend to make larger changes please discuss them in an issue before PRing them to avoid duplicate work and architectural mismatches.
 
-## Building
-
-The library can be built and tested using cargo:
-
-```
-git clone git@github.com:monero-rs/monero-rs.git
-cd monero-rs
-cargo build
-```
-
-or
-
-```
-cargo test
-```
-
 About
 ===
 
