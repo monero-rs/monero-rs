@@ -91,6 +91,9 @@ pub enum Error {
     /// Hex parsing error
     #[error("Hex error: {0}")]
     Hex(#[from] hex::FromHexError),
+    /// Error reading the public key from bytes
+    #[error("reading the public key")]
+    FailedReading,
 }
 
 /// Monero private key
@@ -109,6 +112,14 @@ impl PrivateKey {
     /// Serialize a public key to bytes
     pub fn to_bytes(&self) -> [u8; 32] {
         self.scalar.to_bytes()
+    }
+
+    /// Deserialize a private key from bytes
+    pub fn from_bytes<D: std::io::Read>(mut d: D) -> Result<Self, Error> {
+        let mut buf = [0u8; 32];
+        let _ = d.read_exact(&mut buf).map_err(|_| Error::FailedReading)?;
+        let scalar = Scalar::from_bytes_mod_order(buf);
+        Ok(Self { scalar })
     }
 
     /// Deserialize a private key from a slice
@@ -263,6 +274,17 @@ impl PublicKey {
     /// Serialize a public key to bytes
     pub fn to_bytes(&self) -> [u8; 32] {
         self.point.to_bytes()
+    }
+
+    /// Deserialize a public key from bytes
+    pub fn from_bytes<D: std::io::Read>(mut d: D) -> Result<Self, Error> {
+        let mut buf = [0u8; 32];
+        let _ = d.read_exact(&mut buf).map_err(|_| Error::FailedReading)?;
+        let point = CompressedEdwardsY(buf);
+        match point.decompress() {
+            Some(_) => Ok(Self { point }),
+            None => Err(Error::InvalidPoint),
+        }
     }
 
     /// Deserialize a public key from a slice
@@ -539,5 +561,15 @@ mod tests {
 
         let pubkey = PublicKey::from_private_key(&priv_res);
         assert_eq!(pubkey, pub_res);
+    }
+
+    #[test]
+    fn check_privkey_decoding() {
+        let priv1 = PrivateKey::from_str(
+            "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
+        ).unwrap();
+        let bytes = priv1.as_bytes();
+        let priv2 = PrivateKey::from_bytes(bytes).unwrap();
+        assert_eq!(priv1, priv2, "Must be equal");
     }
 }
