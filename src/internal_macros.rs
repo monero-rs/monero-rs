@@ -19,20 +19,25 @@
 
 macro_rules! impl_consensus_encoding {
     ( $thing:ident, $($field:ident),+ ) => (
-        impl<S: $crate::consensus::encode::Encoder> $crate::consensus::encode::Encodable<S> for $thing {
+        impl $crate::consensus::encode::Encodable for $thing {
             #[inline]
-            fn consensus_encode(&self, s: &mut S) -> Result<(), $crate::consensus::encode::Error> {
-                $( self.$field.consensus_encode(s)?; )+
-                Ok(())
+            fn consensus_encode<S: ::std::io::Write>(
+                &self,
+                s: &mut S
+            ) -> Result<usize, ::std::io::Error> {
+                let mut len = 0;
+                $( len += self.$field.consensus_encode(s)?; )+
+                Ok(len)
             }
         }
 
-        impl<D: $crate::consensus::encode::Decoder> $crate::consensus::encode::Decodable<D> for $thing {
+        impl $crate::consensus::encode::Decodable for $thing {
             #[inline]
-            fn consensus_decode(d: &mut D) -> Result<$thing, $crate::consensus::encode::Error> {
-                use crate::consensus::encode::Decodable;
+            fn consensus_decode<D: ::std::io::Read>(
+                d: &mut D
+            ) -> Result<$thing, $crate::consensus::encode::Error> {
                 Ok($thing {
-                    $( $field: Decodable::consensus_decode(d)?, )+
+                    $( $field: crate::consensus::encode::Decodable::consensus_decode(d)?, )+
                 })
             }
         }

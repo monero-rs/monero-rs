@@ -24,7 +24,10 @@
 
 #[macro_use]
 pub mod encode;
+#[doc(hidden)]
+#[macro_use]
+pub mod endian;
 
 pub use self::encode::{
-    deserialize, serialize, serialize_hex, Decodable, Decoder, Encodable, Encoder,
+    deserialize, serialize, serialize_hex, Decodable, Encodable, ReadExt, WriteExt,
 };

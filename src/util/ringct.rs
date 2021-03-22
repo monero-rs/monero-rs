@@ -18,15 +18,17 @@
 //! Support for parsing RingCT signature in Monero transactions.
 //!
 
-use std::fmt;
-use std::fmt::{Display, Error as FmtError, Formatter};
+use std::{fmt, io};
 
-use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
+use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
+
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_support")]
 use serde_big_array_unchecked_docs::*;
+
+use thiserror::Error;
 
 ///Serde support for array's bigger than 32
 #[allow(missing_docs)]
@@ -37,9 +39,10 @@ pub mod serde_big_array_unchecked_docs {
 }
 
 /// RingCT possible errors
-#[derive(Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
     /// Invalid RingCT type
+    #[error("Unknown RingCT type")]
     UnknownRctType,
 }
 
@@ -80,8 +83,8 @@ pub struct CtKey {
     pub mask: Key,
 }
 
-impl Display for CtKey {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for CtKey {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "Mask: {}", self.mask)
     }
 }
@@ -136,8 +139,8 @@ pub enum EcdhInfo {
     },
 }
 
-impl Display for EcdhInfo {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for EcdhInfo {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
             EcdhInfo::Standard { mask, amount } => {
                 writeln!(fmt, "Standard")?;
@@ -155,7 +158,7 @@ impl Display for EcdhInfo {
 
 impl EcdhInfo {
     /// Decode Diffie-Hellman info given the RingCT type
-    fn consensus_decode<D: Decoder>(
+    fn consensus_decode<D: io::Read>(
         d: &mut D,
         rct_type: RctType,
     ) -> Result<EcdhInfo, encode::Error> {
@@ -173,18 +176,19 @@ impl EcdhInfo {
     }
 }
 
-impl<S: Encoder> Encodable<S> for EcdhInfo {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for EcdhInfo {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let mut len = 0;
         match self {
             EcdhInfo::Standard { mask, amount } => {
-                mask.consensus_encode(s)?;
-                amount.consensus_encode(s)?;
+                len += mask.consensus_encode(s)?;
+                len += amount.consensus_encode(s)?;
             }
             EcdhInfo::Bulletproof { amount } => {
-                amount.consensus_encode(s)?;
+                len += amount.consensus_encode(s)?;
             }
         }
-        Ok(())
+        Ok(len)
     }
 }
 
@@ -214,12 +218,14 @@ pub struct MgSig {
     pub cc: Key,
 }
 
-impl<S: Encoder> Encodable<S> for MgSig {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for MgSig {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let mut len = 0;
         for ss in self.ss.iter() {
-            encode_sized_vec!(ss, s);
+            len += encode_sized_vec!(ss, s);
         }
-        self.cc.consensus_encode(s)
+        len += self.cc.consensus_encode(s)?;
+        Ok(len)
     }
 }
 
@@ -237,12 +243,14 @@ pub struct CLSAG {
     pub D: Key,
 }
 
-impl<S: Encoder> Encodable<S> for CLSAG {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for CLSAG {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let mut len = 0;
         // Encode the vector without prefix lenght
-        encode_sized_vec!(self.s, s);
-        self.c1.consensus_encode(s)?;
-        self.D.consensus_encode(s)
+        len += encode_sized_vec!(self.s, s);
+        len += self.c1.consensus_encode(s)?;
+        len += self.D.consensus_encode(s)?;
+        Ok(len)
     }
 }
 
@@ -309,8 +317,8 @@ pub struct RctSigBase {
     pub out_pk: Vec<CtKey>,
 }
 
-impl Display for RctSigBase {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for RctSigBase {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "RCT type: {}", self.rct_type)?;
         writeln!(fmt, "Tx fee: {}", self.txn_fee)?;
         for out in &self.pseudo_outs {
@@ -328,7 +336,7 @@ impl Display for RctSigBase {
 
 impl RctSigBase {
     /// Decode a RingCT base signature given the number of inputs and outputs of the transaction
-    pub fn consensus_decode<D: Decoder>(
+    pub fn consensus_decode<D: io::Read>(
         d: &mut D,
         inputs: usize,
         outputs: usize,
@@ -373,23 +381,24 @@ impl RctSigBase {
     }
 }
 
-impl<S: Encoder> Encodable<S> for RctSigBase {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
-        self.rct_type.consensus_encode(s)?;
+impl Encodable for RctSigBase {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let mut len = 0;
+        len += self.rct_type.consensus_encode(s)?;
         match self.rct_type {
-            RctType::Null => Ok(()),
+            RctType::Null => Ok(len),
             RctType::Full
             | RctType::Simple
             | RctType::Bulletproof
             | RctType::Bulletproof2
             | RctType::CLSAG => {
-                self.txn_fee.consensus_encode(s)?;
+                len += self.txn_fee.consensus_encode(s)?;
                 if self.rct_type == RctType::Simple {
-                    encode_sized_vec!(self.pseudo_outs, s);
+                    len += encode_sized_vec!(self.pseudo_outs, s);
                 }
-                encode_sized_vec!(self.ecdh_info, s);
-                encode_sized_vec!(self.out_pk, s);
-                Ok(())
+                len += encode_sized_vec!(self.ecdh_info, s);
+                len += encode_sized_vec!(self.out_pk, s);
+                Ok(len)
             }
         }
     }
@@ -420,8 +429,8 @@ pub enum RctType {
     CLSAG,
 }
 
-impl Display for RctType {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for RctType {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let rct_type = match self {
             RctType::Null => "Null",
             RctType::Full => "Full",
@@ -437,15 +446,15 @@ impl Display for RctType {
 impl RctType {
     /// Return if the format use one of the bulletproof format
     pub fn is_rct_bp(self) -> bool {
-        match self {
-            RctType::Bulletproof | RctType::Bulletproof2 | RctType::CLSAG => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            RctType::Bulletproof | RctType::Bulletproof2 | RctType::CLSAG
+        )
     }
 }
 
-impl<D: Decoder> Decodable<D> for RctType {
-    fn consensus_decode(d: &mut D) -> Result<RctType, encode::Error> {
+impl Decodable for RctType {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<RctType, encode::Error> {
         let rct_type: u8 = Decodable::consensus_decode(d)?;
         match rct_type {
             0 => Ok(RctType::Null),
@@ -459,17 +468,16 @@ impl<D: Decoder> Decodable<D> for RctType {
     }
 }
 
-impl<S: Encoder> Encodable<S> for RctType {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for RctType {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
-            RctType::Null => 0u8.consensus_encode(s)?,
-            RctType::Full => 1u8.consensus_encode(s)?,
-            RctType::Simple => 2u8.consensus_encode(s)?,
-            RctType::Bulletproof => 3u8.consensus_encode(s)?,
-            RctType::Bulletproof2 => 4u8.consensus_encode(s)?,
-            RctType::CLSAG => 5u8.consensus_encode(s)?,
+            RctType::Null => 0u8.consensus_encode(s),
+            RctType::Full => 1u8.consensus_encode(s),
+            RctType::Simple => 2u8.consensus_encode(s),
+            RctType::Bulletproof => 3u8.consensus_encode(s),
+            RctType::Bulletproof2 => 4u8.consensus_encode(s),
+            RctType::CLSAG => 5u8.consensus_encode(s),
         }
-        Ok(())
     }
 }
 
@@ -495,7 +503,7 @@ impl RctSigPrunable {
     /// Decode a prunable RingCT signature given the number of inputs and outputs in the
     /// transaction, the RingCT type and the number of mixins
     #[allow(non_snake_case)]
-    pub fn consensus_decode<D: Decoder>(
+    pub fn consensus_decode<D: io::Read>(
         d: &mut D,
         rct_type: RctType,
         inputs: usize,
@@ -579,45 +587,46 @@ impl RctSigPrunable {
     }
 
     /// Encode the prunable RingCT signature part given the RingCT type of the transaction
-    pub fn consensus_encode<S: Encoder>(
+    pub fn consensus_encode<S: io::Write>(
         &self,
         s: &mut S,
         rct_type: RctType,
-    ) -> Result<(), encode::Error> {
+    ) -> Result<usize, io::Error> {
         match rct_type {
-            RctType::Null => Ok(()),
+            RctType::Null => Ok(0),
             RctType::Full
             | RctType::Simple
             | RctType::Bulletproof
             | RctType::Bulletproof2
             | RctType::CLSAG => {
+                let mut len = 0;
                 if rct_type.is_rct_bp() {
                     match rct_type {
                         RctType::Bulletproof2 | RctType::CLSAG => {
-                            self.bulletproofs.consensus_encode(s)?;
+                            len += self.bulletproofs.consensus_encode(s)?;
                         }
                         _ => {
                             let size: u32 = self.bulletproofs.len() as u32;
-                            size.consensus_encode(s)?;
-                            encode_sized_vec!(self.bulletproofs, s);
+                            len += size.consensus_encode(s)?;
+                            len += encode_sized_vec!(self.bulletproofs, s);
                         }
                     }
                 } else {
-                    encode_sized_vec!(self.range_sigs, s);
+                    len += encode_sized_vec!(self.range_sigs, s);
                 }
 
                 match rct_type {
-                    RctType::CLSAG => encode_sized_vec!(self.CLSAGs, s),
-                    _ => encode_sized_vec!(self.MGs, s),
+                    RctType::CLSAG => len += encode_sized_vec!(self.CLSAGs, s),
+                    _ => len += encode_sized_vec!(self.MGs, s),
                 }
 
                 match rct_type {
                     RctType::Bulletproof | RctType::Bulletproof2 | RctType::CLSAG => {
-                        encode_sized_vec!(self.pseudo_outs, s);
+                        len += encode_sized_vec!(self.pseudo_outs, s);
                     }
                     _ => (),
                 }
-                Ok(())
+                Ok(len)
             }
         }
     }
@@ -634,8 +643,8 @@ pub struct RctSig {
     pub p: Option<RctSigPrunable>,
 }
 
-impl Display for RctSig {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for RctSig {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match &self.sig {
             Some(v) => writeln!(fmt, "Signature: {}", v)?,
             None => writeln!(fmt, "Signature: None")?,
@@ -655,8 +664,8 @@ pub struct Signature {
     pub r: Key,
 }
 
-impl Display for Signature {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for Signature {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "C: {}", self.c)?;
         writeln!(fmt, "R: {}", self.r)
     }

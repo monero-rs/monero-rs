@@ -21,8 +21,6 @@
 //!
 
 pub mod block;
-#[cfg(test)]
-mod tests;
 pub mod transaction;
 
 pub use block::Block;

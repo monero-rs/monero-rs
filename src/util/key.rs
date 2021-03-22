@@ -62,13 +62,13 @@
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Mul, Sub};
 use std::str::FromStr;
-use std::{fmt, ops};
+use std::{fmt, io, ops};
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::scalar::Scalar;
 
-use crate::consensus::encode::{self, Decodable, Decoder, Encodable, Encoder};
+use crate::consensus::encode::{self, Decodable, Encodable};
 use crate::cryptonote::hash;
 
 use thiserror::Error;
@@ -233,15 +233,15 @@ impl ops::Index<ops::RangeFull> for PrivateKey {
     }
 }
 
-impl<D: Decoder> Decodable<D> for PrivateKey {
-    fn consensus_decode(d: &mut D) -> Result<PrivateKey, encode::Error> {
+impl Decodable for PrivateKey {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<PrivateKey, encode::Error> {
         let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
         Ok(PrivateKey::from_slice(&bytes)?)
     }
 }
 
-impl<S: Encoder> Encodable<S> for PrivateKey {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for PrivateKey {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.to_bytes().consensus_encode(s)
     }
 }
@@ -429,15 +429,15 @@ impl ops::Index<ops::RangeFull> for PublicKey {
     }
 }
 
-impl<D: Decoder> Decodable<D> for PublicKey {
-    fn consensus_decode(d: &mut D) -> Result<PublicKey, encode::Error> {
+impl Decodable for PublicKey {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<PublicKey, encode::Error> {
         let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
         Ok(PublicKey::from_slice(&bytes)?)
     }
 }
 
-impl<S: Encoder> Encodable<S> for PublicKey {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for PublicKey {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.to_bytes().consensus_encode(s)
     }
 }

@@ -23,18 +23,16 @@ full = ["fixed-hash/std", "fixed-hash/rand"]
 serde_support = ["serde", "serde-big-array"]
 
 [dependencies]
-hex = "0.4"
-byteorder = "1"
-keccak-hash = "0.3"
-base58-monero = "0.1"
-serde = { version = "1.0", features = ["derive"], optional = true }
-serde-big-array = { version ="0.2.0", optional = true }
-curve25519-dalek = { version ="3.0", features = ["serde"] }
-thiserror = "^1.0.20"
+hex = "0.4.3"
+keccak-hash = "0.7.0"
+base58-monero = "0.2.1"
+serde = { version = "1.0.124", features = ["derive"], optional = true }
+serde-big-array = { version = "0.3.2", optional = true }
+curve25519-dalek = { version = "3.0.2", features = ["serde"] }
+thiserror = "1.0.24"
 
 [dependencies.fixed-hash]
-version = "0.3"
-features = ["libc"]
+version = "0.7.0"
 default-features = false
 
 [badges]

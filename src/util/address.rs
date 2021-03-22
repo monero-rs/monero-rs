@@ -58,7 +58,7 @@ use crate::util::key::{KeyPair, PublicKey, ViewPair};
 use thiserror::Error;
 
 /// Possible errors when manipulating addresses
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
     /// Invalid address magic byte
     #[error("invalid magic byte")]

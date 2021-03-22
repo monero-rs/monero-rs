@@ -21,7 +21,9 @@
 use curve25519_dalek::scalar::Scalar;
 use keccak_hash::keccak_256;
 
-use crate::consensus::encode::{self, Decodable, Decoder, Encodable, Encoder};
+use std::io;
+
+use crate::consensus::encode::{self, Decodable, Encodable};
 use crate::util::key::PrivateKey;
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
@@ -65,14 +67,14 @@ impl Hash {
     }
 }
 
-impl<D: Decoder> Decodable<D> for Hash {
-    fn consensus_decode(d: &mut D) -> Result<Hash, encode::Error> {
+impl Decodable for Hash {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Hash, encode::Error> {
         Ok(Hash(Decodable::consensus_decode(d)?))
     }
 }
 
-impl<S: Encoder> Encodable<S> for Hash {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for Hash {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.0.consensus_encode(s)
     }
 }
@@ -94,14 +96,14 @@ fixed_hash::construct_fixed_hash!(
     pub struct Hash8(8);
 );
 
-impl<D: Decoder> Decodable<D> for Hash8 {
-    fn consensus_decode(d: &mut D) -> Result<Hash8, encode::Error> {
+impl Decodable for Hash8 {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Hash8, encode::Error> {
         Ok(Hash8(Decodable::consensus_decode(d)?))
     }
 }
 
-impl<S: Encoder> Encodable<S> for Hash8 {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for Hash8 {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.0.consensus_encode(s)
     }
 }

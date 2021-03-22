@@ -19,26 +19,30 @@
 //! view key.
 //!
 
-use crate::consensus::encode::{self, serialize, Decodable, Decoder, Encodable, Encoder, VarInt};
+use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 use hex::encode as hex_encode;
-use std::fmt::{Display, Error as FmtError, Formatter};
-use std::io::Cursor;
+
 use std::ops::Range;
+use std::{fmt, io};
+
+use thiserror::Error;
 
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
 /// Transaction error
-#[derive(Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
     /// No transaction public key found in extra
+    #[error("No transaction public key found")]
     NoTxPublicKey,
     /// Scripts input/output are not supported
+    #[error("Script not supported")]
     ScriptNotSupported,
 }
 
@@ -202,8 +206,8 @@ impl<'a> OwnedTxOut<'a> {
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct ExtraField(pub Vec<SubField>);
 
-impl Display for ExtraField {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for ExtraField {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         for field in &self.0 {
             writeln!(fmt, "Subfield: {}", field)?;
         }
@@ -249,8 +253,8 @@ pub enum SubField {
     MysteriousMinerGate(String),
 }
 
-impl Display for SubField {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for SubField {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
             SubField::TxPublicKey(public_key) => writeln!(fmt, "Tx public Key: {}", public_key),
             SubField::Nonce(nonce) => {
@@ -291,8 +295,8 @@ pub struct TransactionPrefix {
     pub extra: ExtraField,
 }
 
-impl Display for TransactionPrefix {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for TransactionPrefix {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "Version: {}", self.version)?;
         writeln!(fmt, "Unlock time: {}", self.unlock_time)?;
         writeln!(fmt, "Extra field: {}", self.extra)
@@ -408,8 +412,8 @@ pub struct Transaction {
     pub rct_signatures: RctSig,
 }
 
-impl Display for Transaction {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+impl fmt::Display for Transaction {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "Prefix: {}", self.prefix)?;
         for sigs in &self.signatures {
             for sig in sigs {
@@ -434,7 +438,7 @@ impl hash::Hashable for Transaction {
                     } else {
                         match &self.rct_signatures.p {
                             Some(p) => {
-                                let mut encoder = Cursor::new(vec![]);
+                                let mut encoder = io::Cursor::new(vec![]);
                                 p.consensus_encode(&mut encoder, sig_base.rct_type).unwrap();
                                 hashes.push(hash::Hash::hash(&encoder.into_inner()));
                             }
@@ -462,11 +466,11 @@ impl hash::Hashable for Transaction {
 
 // ----------------------------------------------------------------------------------------------------------------
 
-impl<D: Decoder> Decodable<D> for ExtraField {
-    fn consensus_decode(d: &mut D) -> Result<ExtraField, encode::Error> {
+impl Decodable for ExtraField {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<ExtraField, encode::Error> {
         let mut fields: Vec<SubField> = vec![];
         let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
-        let mut decoder = Cursor::new(&bytes[..]);
+        let mut decoder = io::Cursor::new(&bytes[..]);
         // Decode each extra field
         while decoder.position() < bytes.len() as u64 {
             fields.push(Decodable::consensus_decode(&mut decoder)?);
@@ -482,9 +486,9 @@ impl<D: Decoder> Decodable<D> for ExtraField {
     }
 }
 
-impl<S: Encoder> Encodable<S> for ExtraField {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
-        let mut encoder = Cursor::new(vec![]);
+impl Encodable for ExtraField {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let mut encoder = io::Cursor::new(vec![]);
         for field in self.0.iter() {
             field.consensus_encode(&mut encoder)?;
         }
@@ -492,8 +496,8 @@ impl<S: Encoder> Encodable<S> for ExtraField {
     }
 }
 
-impl<D: Decoder> Decodable<D> for SubField {
-    fn consensus_decode(d: &mut D) -> Result<SubField, encode::Error> {
+impl Decodable for SubField {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<SubField, encode::Error> {
         let tag: u8 = Decodable::consensus_decode(d)?;
 
         match tag {
@@ -532,43 +536,44 @@ impl<D: Decoder> Decodable<D> for SubField {
     }
 }
 
-impl<S: Encoder> Encodable<S> for SubField {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for SubField {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let mut len = 0;
         match *self {
             SubField::Padding(nbytes) => {
-                0x0u8.consensus_encode(s)?;
+                len += 0x0u8.consensus_encode(s)?;
                 for _ in 0..nbytes {
-                    0u8.consensus_encode(s)?;
+                    len += 0u8.consensus_encode(s)?;
                 }
-                Ok(())
+                Ok(len)
             }
             SubField::TxPublicKey(ref pubkey) => {
-                0x1u8.consensus_encode(s)?;
-                pubkey.consensus_encode(s)
+                len += 0x1u8.consensus_encode(s)?;
+                Ok(len + pubkey.consensus_encode(s)?)
             }
             SubField::Nonce(ref nonce) => {
-                0x2u8.consensus_encode(s)?;
-                nonce.consensus_encode(s)
+                len += 0x2u8.consensus_encode(s)?;
+                Ok(len + nonce.consensus_encode(s)?)
             }
             SubField::MergeMining(ref depth, ref merkle_root) => {
-                0x3u8.consensus_encode(s)?;
-                depth.consensus_encode(s)?;
-                merkle_root.consensus_encode(s)
+                len += 0x3u8.consensus_encode(s)?;
+                len += depth.consensus_encode(s)?;
+                Ok(len + merkle_root.consensus_encode(s)?)
             }
             SubField::AdditionalPublickKey(ref pubkeys) => {
-                0x4u8.consensus_encode(s)?;
-                pubkeys.consensus_encode(s)
+                len += 0x4u8.consensus_encode(s)?;
+                Ok(len + pubkeys.consensus_encode(s)?)
             }
             SubField::MysteriousMinerGate(ref string) => {
-                0xdeu8.consensus_encode(s)?;
-                string.consensus_encode(s)
+                len += 0xdeu8.consensus_encode(s)?;
+                Ok(len + string.consensus_encode(s)?)
             }
         }
     }
 }
 
-impl<D: Decoder> Decodable<D> for TxIn {
-    fn consensus_decode(d: &mut D) -> Result<TxIn, encode::Error> {
+impl Decodable for TxIn {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<TxIn, encode::Error> {
         let intype: u8 = Decodable::consensus_decode(d)?;
         match intype {
             0xff => Ok(TxIn::Gen {
@@ -585,30 +590,33 @@ impl<D: Decoder> Decodable<D> for TxIn {
     }
 }
 
-impl<S: Encoder> Encodable<S> for TxIn {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for TxIn {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             TxIn::Gen { height } => {
-                0xffu8.consensus_encode(s)?;
-                height.consensus_encode(s)
+                let len = 0xffu8.consensus_encode(s)?;
+                Ok(len + height.consensus_encode(s)?)
             }
             TxIn::ToKey {
                 amount,
                 key_offsets,
                 k_image,
             } => {
-                0x2u8.consensus_encode(s)?;
-                amount.consensus_encode(s)?;
-                key_offsets.consensus_encode(s)?;
-                k_image.consensus_encode(s)
+                let mut len = 0x2u8.consensus_encode(s)?;
+                len += amount.consensus_encode(s)?;
+                len += key_offsets.consensus_encode(s)?;
+                Ok(len + k_image.consensus_encode(s)?)
             }
-            _ => Err(Error::ScriptNotSupported.into()),
+            _ => Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                Error::ScriptNotSupported,
+            )),
         }
     }
 }
 
-impl<D: Decoder> Decodable<D> for TxOutTarget {
-    fn consensus_decode(d: &mut D) -> Result<TxOutTarget, encode::Error> {
+impl Decodable for TxOutTarget {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<TxOutTarget, encode::Error> {
         let outtype: u8 = Decodable::consensus_decode(d)?;
         match outtype {
             0x2 => Ok(TxOutTarget::ToKey {
@@ -619,21 +627,24 @@ impl<D: Decoder> Decodable<D> for TxOutTarget {
     }
 }
 
-impl<S: Encoder> Encodable<S> for TxOutTarget {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for TxOutTarget {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             TxOutTarget::ToKey { key } => {
-                0x2u8.consensus_encode(s)?;
-                key.consensus_encode(s)
+                let len = 0x2u8.consensus_encode(s)?;
+                Ok(len + key.consensus_encode(s)?)
             }
-            _ => Err(Error::ScriptNotSupported.into()),
+            _ => Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                Error::ScriptNotSupported,
+            )),
         }
     }
 }
 
 #[allow(non_snake_case)]
-impl<D: Decoder> Decodable<D> for Transaction {
-    fn consensus_decode(d: &mut D) -> Result<Transaction, encode::Error> {
+impl Decodable for Transaction {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Transaction, encode::Error> {
         let prefix: TransactionPrefix = Decodable::consensus_decode(d)?;
 
         let inputs = prefix.inputs.len();
@@ -707,25 +718,25 @@ impl<D: Decoder> Decodable<D> for Transaction {
     }
 }
 
-impl<S: Encoder> Encodable<S> for Transaction {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
-        self.prefix.consensus_encode(s)?;
+impl Encodable for Transaction {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let mut len = self.prefix.consensus_encode(s)?;
         match *self.prefix.version {
             1 => {
                 for sig in self.signatures.iter() {
-                    encode_sized_vec!(sig, s);
+                    len += encode_sized_vec!(sig, s);
                 }
             }
             _ => {
                 if let Some(sig) = &self.rct_signatures.sig {
-                    sig.consensus_encode(s)?;
+                    len += sig.consensus_encode(s)?;
                     if let Some(p) = &self.rct_signatures.p {
-                        p.consensus_encode(s, sig.rct_type)?;
+                        len += p.consensus_encode(s, sig.rct_type)?;
                     }
                 }
             }
         }
-        Ok(())
+        Ok(len)
     }
 }
 
