@@ -420,7 +420,7 @@ impl fmt::Display for Transaction {
                 writeln!(fmt, "Signature: {}", sig)?;
             }
         }
-        Ok(())
+        writeln!(fmt, "RCT signature: {}", self.rct_signatures)
     }
 }
 
@@ -434,21 +434,19 @@ pub enum AmountError {
     IndexOutOfRange,
     /// SigMissing
     SigMissing,
-    /// FailedVerify
-    FailedVerify,
 }
 
 impl Transaction {
-    /// Calculate and verify an output's amount
+    /// Calculate an output's amount
     pub fn get_amount<'a>(
         &self,
         view_pair: &ViewPair,
         out: &OwnedTxOut,
     ) -> Result<u64, AmountError> {
         if out.index >= self.prefix.outputs.len() {
-            return Err(AmountError::IndexOutOfRange);
+            Err(AmountError::IndexOutOfRange)?;
         }
-        // writeln!(fmt, "RCT signature: {}", self.rct_signatures);
+
         dbg!(&self.rct_signatures);
 
         let sig = self
@@ -465,31 +463,43 @@ impl Transaction {
         let shared_key = KeyGenerator::from_key(view_pair, out.tx_pubkey).get_rvn_scalar(out.index);
 
         let (_commitment_mask, amount) = match ecdh_info {
+            // ecdhDecode in rctOps.cpp else
             EcdhInfo::Standard { mask, amount } => {
-                let hashed_shared_key = hash::Hash::hash(shared_key.as_bytes()).to_bytes();
-                let commitment_mask = Scalar::from_bytes_mod_order(mask.key)
-                    - Scalar::from_bytes_mod_order(hashed_shared_key);
-                let bt = Scalar::from_bytes_mod_order(amount.key);
-                let yt =
-                    Scalar::from_bytes_mod_order(hash::Hash::hash(&hashed_shared_key).to_bytes());
-                let raw_amount = (bt - yt).to_bytes()[0..8].try_into().expect("Can't fail");
-                let amount = u64::from_le_bytes(raw_amount);
-                (commitment_mask, amount)
-            }
+                let shared_sec1 = hash::Hash::hash(shared_key.as_bytes()).to_bytes();
+                let shared_sec2 = hash::Hash::hash(&shared_sec1).to_bytes();
+                let mask_scalar = Scalar::from_bytes_mod_order(mask.key)
+                    - Scalar::from_bytes_mod_order(shared_sec1);
 
+                let amount_scalar = Scalar::from_bytes_mod_order(amount.key)
+                    - Scalar::from_bytes_mod_order(shared_sec2);
+                // get first 64 bits (d2b in rctTypes.cpp)
+                let amount_significant_bytes = amount_scalar.to_bytes()[0..8]
+                    .try_into()
+                    .expect("Can't fail");
+                let amount = u64::from_le_bytes(amount_significant_bytes);
+                (mask_scalar, amount)
+            }
+            // ecdhDecode in rctOps.cpp if (v2)
             EcdhInfo::Bulletproof { amount } => {
+                // genCommitmentMask
                 let mut commitment_key = "commitment_mask".as_bytes().to_vec();
                 commitment_key.extend(shared_key.as_bytes());
-                let bt = amount.0; // 8 bytes
-                let yt = Scalar::from_bytes_mod_order(
+                let mask_scalar = Scalar::from_bytes_mod_order(
                     hash::Hash::hash(&commitment_key).to_fixed_bytes(),
                 );
+                // ecdhHash
                 let mut amount_key = "amount".as_bytes().to_vec();
                 amount_key.extend(shared_key.as_bytes());
-                let hn = hash::Hash::hash(&amount_key).to_fixed_bytes();
-                let hn = hn[0..8].try_into().expect("hn create above has 32 bytes");
-                let amount = u64::from_le_bytes(hn) ^ u64::from_le_bytes(bt);
-                (yt, amount)
+                let hash_shared_key = hash::Hash::hash(&amount_key).to_fixed_bytes();
+                let hash_shared_key = hash_shared_key[0..8]
+                    .try_into()
+                    .expect("hn create above has 32 bytes");
+
+                let masked_amount = amount.0; // 8 bytes
+
+                let amount =
+                    u64::from_le_bytes(masked_amount) ^ u64::from_le_bytes(hash_shared_key);
+                (mask_scalar, amount)
             }
         };
         Ok(amount)
