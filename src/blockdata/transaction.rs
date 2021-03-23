@@ -419,70 +419,80 @@ impl fmt::Display for Transaction {
             for sig in sigs {
                 writeln!(fmt, "Signature: {}", sig)?;
             }
+        }
+        Ok(())
+    }
+}
 
-use std::convert::TryInto;
-use curve25519_dalek::{scalar::Scalar, edwards::CompressedEdwardsY};
-use hex_literal::hex;
 use crate::util::ringct::EcdhInfo;
+use curve25519_dalek::scalar::Scalar;
+use std::convert::TryInto;
+
+/// Error recovering the amount of a transaction
+pub enum AmountError {
+    /// index of outputs out of range
+    IndexOutOfRange,
+    /// SigMissing
+    SigMissing,
+    /// FailedVerify
+    FailedVerify,
+}
+
 impl Transaction {
     /// Calculate and verify an output's amount
-    pub fn get_amount<'a>(&self, view_pair: &ViewPair, out: &OwnedTxOut) -> Option<u64> {
+    pub fn get_amount<'a>(
+        &self,
+        view_pair: &ViewPair,
+        out: &OwnedTxOut,
+    ) -> Result<u64, AmountError> {
         if out.index >= self.prefix.outputs.len() {
-            return None;
+            return Err(AmountError::IndexOutOfRange);
         }
-        writeln!(fmt, "RCT signature: {}", self.rct_signatures)
+        // writeln!(fmt, "RCT signature: {}", self.rct_signatures);
+        dbg!(&self.rct_signatures);
 
-        let ecdh_info;
-        match self.rct_signatures.sig.as_ref() {
-            Some(sig) => ecdh_info = sig.ecdh_info[out.index].clone(),
-            None => return None,
-        }
+        let sig = self
+            .rct_signatures
+            .sig
+            .as_ref()
+            .ok_or(AmountError::SigMissing)?;
+
+        let ecdh_info = sig
+            .ecdh_info
+            .get(out.index)
+            .ok_or(AmountError::IndexOutOfRange)?;
 
         let shared_key = KeyGenerator::from_key(view_pair, out.tx_pubkey).get_rvn_scalar(out.index);
 
-        let commitment_mask;
-        let result;
-        match ecdh_info {
-            EcdhInfo::Standard {mask, amount} => {
+        let (_commitment_mask, amount) = match ecdh_info {
+            EcdhInfo::Standard { mask, amount } => {
                 let hashed_shared_key = hash::Hash::hash(shared_key.as_bytes()).to_bytes();
-                commitment_mask = Scalar::from_bytes_mod_order(mask.key) - Scalar::from_bytes_mod_order(hashed_shared_key);
+                let commitment_mask = Scalar::from_bytes_mod_order(mask.key)
+                    - Scalar::from_bytes_mod_order(hashed_shared_key);
+                let bt = Scalar::from_bytes_mod_order(amount.key);
+                let yt =
+                    Scalar::from_bytes_mod_order(hash::Hash::hash(&hashed_shared_key).to_bytes());
+                let raw_amount = (bt - yt).to_bytes()[0..8].try_into().expect("Can't fail");
+                let amount = u64::from_le_bytes(raw_amount);
+                (commitment_mask, amount)
+            }
 
-                result = u64::from_le_bytes(
-                    (
-                        Scalar::from_bytes_mod_order(amount.key) -
-                        Scalar::from_bytes_mod_order(hash::Hash::hash(&hashed_shared_key).to_bytes())
-                    ).to_bytes()[0 .. 8].try_into().unwrap()
-                );
-            },
-
-            EcdhInfo::Bulletproof2 {amount} => {
+            EcdhInfo::Bulletproof { amount } => {
                 let mut commitment_key = "commitment_mask".as_bytes().to_vec();
                 commitment_key.extend(shared_key.as_bytes());
-                commitment_mask = Scalar::from_bytes_mod_order(
-                    hash::Hash::hash(&commitment_key).to_fixed_bytes()
+                let bt = amount.0; // 8 bytes
+                let yt = Scalar::from_bytes_mod_order(
+                    hash::Hash::hash(&commitment_key).to_fixed_bytes(),
                 );
-
-                let mut amount_enc_key = "amount".as_bytes().to_vec();
-                amount_enc_key.extend(shared_key.as_bytes());
-                let amount_enc_key = hash::Hash::hash(&amount_enc_key).to_fixed_bytes();
-                result = u64::from_le_bytes(amount_enc_key[0 .. 8].try_into().unwrap()) ^ u64::from_le_bytes(amount.0);
-            },
-        }
- 
-        /// Verify the commitment
-        if (
-            (
-                PublicKey::from_private_key(&PrivateKey::from_scalar(commitment_mask)).point.decompress().unwrap() +
-                CompressedEdwardsY::from_slice(
-                    &hex!("8b655970153799af2aeadc9ff1add0ea6c7251d54154cfa92c173a0dd39c1f94")
-                ).decompress().unwrap()
-            ) * Scalar::from(result)
-        ).compress() != CompressedEdwardsY(
-            self.rct_signatures.sig.as_ref().unwrap().out_pk[out.index].mask.key
-        ) {
-            return None;
-        }
-        Some(result)
+                let mut amount_key = "amount".as_bytes().to_vec();
+                amount_key.extend(shared_key.as_bytes());
+                let hn = hash::Hash::hash(&amount_key).to_fixed_bytes();
+                let hn = hn[0..8].try_into().expect("hn create above has 32 bytes");
+                let amount = u64::from_le_bytes(hn) ^ u64::from_le_bytes(bt);
+                (yt, amount)
+            }
+        };
+        Ok(amount)
     }
 }
 
