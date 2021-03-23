@@ -23,7 +23,7 @@ use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::{KeyGenerator, KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
-use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
+use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair, H};
 use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 use hex::encode as hex_encode;
 
@@ -434,6 +434,8 @@ pub enum AmountError {
     IndexOutOfRange,
     /// SigMissing
     SigMissing,
+    /// invalid commitment
+    FalsifiedAmount,
 }
 
 impl Transaction {
@@ -446,8 +448,6 @@ impl Transaction {
         if out.index >= self.prefix.outputs.len() {
             Err(AmountError::IndexOutOfRange)?;
         }
-
-        dbg!(&self.rct_signatures);
 
         let sig = self
             .rct_signatures
@@ -462,7 +462,7 @@ impl Transaction {
 
         let shared_key = KeyGenerator::from_key(view_pair, out.tx_pubkey).get_rvn_scalar(out.index);
 
-        let (_commitment_mask, amount) = match ecdh_info {
+        let (commitment_mask, amount) = match ecdh_info {
             // ecdhDecode in rctOps.cpp else
             EcdhInfo::Standard { mask, amount } => {
                 let shared_sec1 = hash::Hash::hash(shared_key.as_bytes()).to_bytes();
@@ -509,6 +509,15 @@ impl Transaction {
                 (mask_scalar, amount)
             }
         };
+
+        let blinding_factor = PublicKey::from_private_key(&PrivateKey::from_scalar(commitment_mask));
+        let committed_amount = H * &PrivateKey::from_scalar(Scalar::from(amount));
+        let expected_commitment = blinding_factor + committed_amount;
+        let actual_commitment = PublicKey::from_slice(&sig.out_pk[out.index].mask.key);
+        if actual_commitment != Ok(expected_commitment) {
+            Err(AmountError::FalsifiedAmount)?;
+        }
+
         Ok(amount)
     }
 }
