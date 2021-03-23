@@ -481,24 +481,31 @@ impl Transaction {
             }
             // ecdhDecode in rctOps.cpp if (v2)
             EcdhInfo::Bulletproof { amount } => {
-                // genCommitmentMask
+                // genCommitmentMask in .cpp
                 let mut commitment_key = "commitment_mask".as_bytes().to_vec();
                 commitment_key.extend(shared_key.as_bytes());
+                // yt in Z2M p 53
                 let mask_scalar = Scalar::from_bytes_mod_order(
                     hash::Hash::hash(&commitment_key).to_fixed_bytes(),
                 );
-                // ecdhHash
+                // ecdhHash in .cpp
                 let mut amount_key = "amount".as_bytes().to_vec();
                 amount_key.extend(shared_key.as_bytes());
-                let hash_shared_key = hash::Hash::hash(&amount_key).to_fixed_bytes();
-                let hash_shared_key = hash_shared_key[0..8]
-                    .try_into()
-                    .expect("hn create above has 32 bytes");
 
+                // Hn("amount", Hn(rKbv,t))
+                let hash_shared_key = hash::Hash::hash(&amount_key).to_fixed_bytes();
+                let hash_shared_key_significant_bytes = hash_shared_key[0..8]
+                    .try_into()
+                    .expect("hash_shared_key create above has 32 bytes");
+
+                // bt in Z2M and masked.amount in .cpp
                 let masked_amount = amount.0; // 8 bytes
 
-                let amount =
-                    u64::from_le_bytes(masked_amount) ^ u64::from_le_bytes(hash_shared_key);
+                // amount_t = bt XOR Hn("amount", Hn("amount", Hn(rKbv,t)))
+                // xor8(masked.amount, ecdhHash(sharedSec)); in .cpp
+                let amount = u64::from_le_bytes(masked_amount)
+                    ^ u64::from_le_bytes(hash_shared_key_significant_bytes);
+
                 (mask_scalar, amount)
             }
         };
