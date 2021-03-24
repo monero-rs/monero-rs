@@ -23,14 +23,17 @@ use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::{KeyGenerator, KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
+use crate::util::amount::RecoveryError;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair, H};
-use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
-use hex::encode as hex_encode;
+use crate::util::ringct::{EcdhInfo, RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
+use curve25519_dalek::scalar::Scalar;
+use hex::encode as hex_encode;
+use thiserror::Error;
+
+use std::convert::TryInto;
 use std::ops::Range;
 use std::{fmt, io};
-
-use thiserror::Error;
 
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
@@ -424,42 +427,27 @@ impl fmt::Display for Transaction {
     }
 }
 
-use crate::util::ringct::EcdhInfo;
-use curve25519_dalek::scalar::Scalar;
-use std::convert::TryInto;
-
-/// Error recovering the amount of a transaction
-#[derive(Debug)]
-pub enum AmountError {
-    /// index of outputs out of range
-    IndexOutOfRange,
-    /// SigMissing
-    SigMissing,
-    /// invalid commitment
-    FalsifiedAmount,
-}
-
 impl Transaction {
     /// Calculate an output's amount
     pub fn get_amount<'a>(
         &self,
         view_pair: &ViewPair,
         out: &OwnedTxOut,
-    ) -> Result<u64, AmountError> {
+    ) -> Result<u64, RecoveryError> {
         if out.index >= self.prefix.outputs.len() {
-            Err(AmountError::IndexOutOfRange)?;
+            Err(RecoveryError::IndexOutOfRange)?;
         }
 
         let sig = self
             .rct_signatures
             .sig
             .as_ref()
-            .ok_or(AmountError::SigMissing)?;
+            .ok_or(RecoveryError::MissingSignature)?;
 
         let ecdh_info = sig
             .ecdh_info
             .get(out.index)
-            .ok_or(AmountError::IndexOutOfRange)?;
+            .ok_or(RecoveryError::IndexOutOfRange)?;
 
         let shared_key = KeyGenerator::from_key(view_pair, out.tx_pubkey).get_rvn_scalar(out.index);
 
@@ -516,8 +504,9 @@ impl Transaction {
         let committed_amount = H * &PrivateKey::from_scalar(Scalar::from(amount));
         let expected_commitment = blinding_factor + committed_amount;
         let actual_commitment = PublicKey::from_slice(&sig.out_pk[out.index].mask.key);
+
         if actual_commitment != Ok(expected_commitment) {
-            Err(AmountError::FalsifiedAmount)?;
+            Err(RecoveryError::FalsifiedAmount)?;
         }
 
         Ok(amount)
