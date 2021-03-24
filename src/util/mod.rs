@@ -22,8 +22,8 @@ pub mod address;
 pub mod key;
 pub mod ringct;
 
-use crate::blockdata::transaction;
 use super::network;
+use crate::blockdata::transaction;
 
 use thiserror::Error;
 

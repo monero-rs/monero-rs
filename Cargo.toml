@@ -24,6 +24,7 @@ serde_support = ["serde", "serde-big-array"]
 
 [dependencies]
 hex = "0.4.3"
+hex-literal = "0.3.1"
 keccak-hash = "0.7.0"
 base58-monero = "0.2.1"
 serde = { version = "1.0.124", features = ["derive"], optional = true }
