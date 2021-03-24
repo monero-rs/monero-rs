@@ -13,5 +13,5 @@ pub enum RecoveryError {
     MissingSignature,
     /// Invalid commitment
     #[error("Invalid commitment")]
-    FalsifiedAmount,
+    InvalidCommitment,
 }

@@ -506,7 +506,7 @@ impl Transaction {
         let actual_commitment = PublicKey::from_slice(&sig.out_pk[out.index].mask.key);
 
         if actual_commitment != Ok(expected_commitment) {
-            Err(RecoveryError::FalsifiedAmount)?;
+            Err(RecoveryError::InvalidCommitment)?;
         }
 
         Ok(amount)
