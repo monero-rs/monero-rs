@@ -429,6 +429,7 @@ use curve25519_dalek::scalar::Scalar;
 use std::convert::TryInto;
 
 /// Error recovering the amount of a transaction
+#[derive(Debug)]
 pub enum AmountError {
     /// index of outputs out of range
     IndexOutOfRange,
