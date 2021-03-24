@@ -511,7 +511,8 @@ impl Transaction {
             }
         };
 
-        let blinding_factor = PublicKey::from_private_key(&PrivateKey::from_scalar(commitment_mask));
+        let blinding_factor =
+            PublicKey::from_private_key(&PrivateKey::from_scalar(commitment_mask));
         let committed_amount = H * &PrivateKey::from_scalar(Scalar::from(amount));
         let expected_commitment = blinding_factor + committed_amount;
         let actual_commitment = PublicKey::from_slice(&sig.out_pk[out.index].mask.key);

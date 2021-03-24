@@ -453,7 +453,9 @@ impl hash::Hashable for PublicKey {
 /// Alternative generator H used for pedersen commitments
 /// https://github.com/monero-project/monero/blob/master/src/ringct/rctTypes.h#L555
 pub const H: PublicKey = PublicKey {
-    point: CompressedEdwardsY(hex!("8b655970153799af2aeadc9ff1add0ea6c7251d54154cfa92c173a0dd39c1f94"))
+    point: CompressedEdwardsY(hex!(
+        "8b655970153799af2aeadc9ff1add0ea6c7251d54154cfa92c173a0dd39c1f94"
+    )),
 };
 
 /// Two Monero private keys, view and spend key
