@@ -27,6 +27,8 @@ pub mod encode;
 #[doc(hidden)]
 #[macro_use]
 pub mod endian;
+/// implements strict_encode for a few types
+pub mod strict_encode;
 
 pub use self::encode::{
     deserialize, serialize, serialize_hex, Decodable, Encodable, ReadExt, WriteExt,
