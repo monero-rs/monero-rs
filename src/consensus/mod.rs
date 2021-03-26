@@ -29,6 +29,7 @@ pub mod encode;
 pub mod endian;
 /// implements strict_encode for a few types
 pub mod strict_encode;
+pub use strict_encoding::Error;
 
 pub use self::encode::{
     deserialize, serialize, serialize_hex, Decodable, Encodable, ReadExt, WriteExt,
