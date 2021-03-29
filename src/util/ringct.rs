@@ -33,6 +33,7 @@ use thiserror::Error;
 ///Serde support for array's bigger than 32
 #[allow(missing_docs)]
 #[cfg(feature = "serde_support")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_support")))]
 pub mod serde_big_array_unchecked_docs {
     use serde_big_array::big_array;
     big_array! { BigArray; }

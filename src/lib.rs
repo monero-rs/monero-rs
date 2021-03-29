@@ -19,6 +19,15 @@
 //! and associated primitives. It is designed for Rust programs built to work with
 //! the Monero network.
 //!
+//! ## `strict_encoding` Support
+//!
+//! The `strict_encoding_support` feature enables `StrictEncode` and `StrictDecode` trait
+//! implementation for a few types that implements [consensus::Encodable] and
+//! [consensus::Decodable].
+//!
+//! `strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same
+//! interface, i.e. `StrictEncode` and `StrictDecode`.
+//!
 //! ## Caution
 //!
 //! The Software is provided “as is”, without warranty of any kind, express or

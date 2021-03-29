@@ -27,7 +27,8 @@ pub mod encode;
 #[doc(hidden)]
 #[macro_use]
 pub mod endian;
-/// implements strict_encode for a few types
+#[cfg(feature = "strict_encoding_support")]
+#[cfg_attr(docsrs, doc(cfg(feature = "strict_encoding_support")))]
 pub mod strict_encode;
 
 pub use self::encode::{
