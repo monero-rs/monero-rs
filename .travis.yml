@@ -6,5 +6,6 @@ rust:
 script:
   - cargo build --verbose
   - cargo build --verbose --features serde_support
-  - cargo test --verbose
-  - cargo test --verbose --features serde_support
+  - cargo build --verbose --features strict_encoding_support
+  - cargo build --verbose --all-features
+  - cargo test --verbose --all-features
