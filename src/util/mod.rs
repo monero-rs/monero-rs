@@ -19,6 +19,7 @@
 //!
 
 pub mod address;
+pub mod amount;
 pub mod key;
 pub mod ringct;
 
@@ -46,4 +47,7 @@ pub enum Error {
     /// Monero transaction error
     #[error("Transaction error: {0}")]
     Transaction(#[from] transaction::Error),
+    /// Monero amount error
+    #[error("Amount recovery error: {0}")]
+    AmountRecovery(#[from] amount::RecoveryError),
 }
