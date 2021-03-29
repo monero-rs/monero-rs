@@ -428,6 +428,41 @@ impl fmt::Display for Transaction {
 }
 
 impl Transaction {
+    /// Return the transaction prefix
+    pub fn prefix(&self) -> &TransactionPrefix {
+        &self.prefix
+    }
+
+    /// Return the number of transaction's inputs
+    pub fn nb_inputs(&self) -> usize {
+        self.prefix().inputs.len()
+    }
+
+    /// Return the number of transaction's outputs
+    pub fn nb_outputs(&self) -> usize {
+        self.prefix().outputs.len()
+    }
+
+    /// Return the transaction public key present in extra field
+    pub fn tx_pubkey(&self) -> Option<PublicKey> {
+        self.prefix().extra.tx_pubkey()
+    }
+
+    /// Return the additional public keys present in extra field
+    pub fn tx_additional_pubkeys(&self) -> Option<Vec<PublicKey>> {
+        self.prefix().extra.tx_additional_pubkeys()
+    }
+
+    /// Iterate over transaction outputs and find outputs related to view pair
+    pub fn check_outputs(
+        &self,
+        pair: &ViewPair,
+        major: Range<u32>,
+        minor: Range<u32>,
+    ) -> Result<Vec<OwnedTxOut>, Error> {
+        self.prefix().check_outputs(pair, major, minor)
+    }
+
     /// Calculate an output's amount
     pub fn get_amount<'a>(
         &self,
