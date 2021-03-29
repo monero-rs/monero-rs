@@ -11,6 +11,17 @@ Supports (or should support)
  * Address and subaddress creation, de/serialization and validation
  * Private keys and one-time keys creation, de/serialization and validation
  * Serde support on most structures with feature `serde_support`
+ * Strict encoding support on most structures with feature `strict_encoding_support`
+
+### `serde` Support
+
+The `serde_support` feature enables implementation of `serde` on serializable types.
+
+### `strict_encoding` Support
+
+The `strict_encoding_support` feature enables `StrictEncode` and `StrictDecode` trait implementation for a few types that implements `consensus::Encodable` and `consensus::Decodable`.
+
+`strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same interface, i.e. `StrictEncode` and `StrictDecode`.
 
 ## Documentation
 
