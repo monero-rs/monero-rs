@@ -13,10 +13,10 @@
 // copies or substantial portions of the Software.
 //
 
-//! Monero Transaction
+//! Transaction, prefix, inputs and outputs types
 //!
 //! This module support (de)serializing Monero transaction and input/amount discovery with private
-//! view key.
+//! view key and amount recovery.
 //!
 
 use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
@@ -38,7 +38,7 @@ use std::{fmt, io};
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
-/// Transaction error
+/// Errors possible when manipulating transactions
 #[derive(Error, Debug, PartialEq)]
 pub enum Error {
     /// No transaction public key found in extra

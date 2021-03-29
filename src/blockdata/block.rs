@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! Block
+//! Block and block header
 //!
 //! This module defines structures of blocks.
 //!

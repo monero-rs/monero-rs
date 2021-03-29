@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! Utility functions
+//! Utility functions to manipulate types such as addresses, amounts, or keys
 //!
 //! Shared functions needed in different part of the library.
 //!

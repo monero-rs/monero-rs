@@ -13,9 +13,9 @@
 // copies or substantial portions of the Software.
 //
 
-//! CryptoNote primitives
+//! CryptoNote primitives types and helper functions such as one-time addresses or sub-addresses
 //!
-//! Support for CryptoNote protocols such as Hash to number `Hn()`, One-time keys, and Subaddresses.
+//! Support for CryptoNote protocols such as Hash to number `Hn()` with [hash::Hashable], One-time keys, and Subaddresses.
 //!
 
 pub mod hash;

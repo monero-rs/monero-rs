@@ -15,9 +15,19 @@
 
 //! # Rust Monero Library
 //!
-//! This is a library for which supports subsets of the Monero network protocol
-//! and associated primitives. It is designed for Rust programs built to work with
-//! the Monero network.
+//! This is a library for which supports subsets of the Monero protocol and type primitives. It is
+//! designed for Rust programs built to work with the Monero ecosystem.
+//!
+//! The library currently focuses on manipulating types such as addresses, transactions, blocks and
+//! public keys, but do **not** implementat transaction signing.
+//!
+//! ## Default features
+//!
+//! The default feature `full` enables the `std` and `rand` features for the `fixed-hash`
+//! dependency.
+//!
+//! It is worth noting that `std` is widely used all over the library and no `no_std` support is
+//! planned at the moment.
 //!
 //! ## `strict_encoding` Support
 //!
@@ -28,15 +38,17 @@
 //! `strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same
 //! interface, i.e. `StrictEncode` and `StrictDecode`.
 //!
+//! ## `serde` Support
+//!
+//! The `serde_support` feature enables implementation of `serde` on serializable types.
+//!
 //! ## Caution
 //!
-//! The Software is provided “as is”, without warranty of any kind, express or
-//! implied, including but not limited to the warranties of merchantability,
-//! fitness for a particular purpose and noninfringement. In no event shall the
-//! authors or copyright holders be liable for any claim, damages or other
-//! liability, whether in an action of contract, tort or otherwise, arising
-//! from, out of or in connection with the software or the use or other dealings
-//! in the Software.
+//! The Software is provided “as is”, without warranty of any kind, express or implied, including
+//! but not limited to the warranties of merchantability, fitness for a particular purpose and
+//! noninfringement. In no event shall the authors or copyright holders be liable for any claim,
+//! damages or other liability, whether in an action of contract, tort or otherwise, arising from,
+//! out of or in connection with the software or the use or other dealings in the Software.
 //!
 
 // Coding conventions

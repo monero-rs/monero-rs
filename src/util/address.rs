@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! # Addresses
+//! # Addresses and Payment Ids
 //!
 //! Support for (de)serializable Monero addresses in Monero base58 format.
 //!

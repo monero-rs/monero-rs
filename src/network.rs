@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! Monero network types
+//! Monero network related types and errors
 //!
 //! This module defines the different Monero networks and their magic bytes.
 
