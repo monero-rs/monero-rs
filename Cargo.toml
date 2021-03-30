@@ -17,9 +17,6 @@ include = [
 
 edition = "2018"
 
-[package.metadata.docs.rs]
-features = ["full", "serde_support", "strict_encoding_support"]
-
 [features]
 default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
@@ -43,3 +40,7 @@ default-features = false
 
 [badges]
 travis-ci = { repository = "monero-rs/monero-rs", branch = "master" }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
