@@ -51,6 +51,8 @@
 //! out of or in connection with the software or the use or other dealings in the Software.
 //!
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
