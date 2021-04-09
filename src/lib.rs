@@ -52,7 +52,6 @@
 //!
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
-
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]

@@ -21,6 +21,7 @@
 use crate::blockdata::block::{Block, BlockHeader};
 use crate::blockdata::transaction::TransactionPrefix;
 use crate::consensus::encode::{Decodable, Encodable, Error};
+use crate::cryptonote::hash::{Hash, Hash8};
 use crate::{PrivateKey, PublicKey, Transaction, TxIn, TxOut};
 
 pub extern crate strict_encoding;
@@ -56,6 +57,8 @@ impl_strict_encoding!(TxIn);
 impl_strict_encoding!(TxOut);
 impl_strict_encoding!(Block);
 impl_strict_encoding!(BlockHeader);
+impl_strict_encoding!(Hash);
+impl_strict_encoding!(Hash8);
 
 impl From<Error> for strict_encoding::Error {
     #[inline]
