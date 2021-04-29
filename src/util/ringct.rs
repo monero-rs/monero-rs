@@ -49,7 +49,7 @@ pub enum Error {
 
 // ====================================================================
 /// Raw 32 bytes key
-#[derive(Clone)]
+#[derive(Clone, Copy, PartialEq, Hash)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Key {
     /// The actual key
@@ -60,9 +60,17 @@ impl_hex_display!(Key, key);
 
 impl_consensus_encoding!(Key, key);
 
+impl From<[u8; 32]> for Key {
+    fn from(key: [u8; 32]) -> Self {
+        Self {
+            key
+        }
+    }
+}
+
 // ====================================================================
 /// Raw 64 bytes key
-#[derive(Clone)]
+#[derive(Clone, Copy, PartialEq, Hash)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Key64 {
     /// The actual key
@@ -74,9 +82,17 @@ impl_hex_display!(Key64, key);
 
 impl_consensus_encoding!(Key64, key);
 
+impl From<[u8; 64]> for Key64 {
+    fn from(key: [u8; 64]) -> Self {
+        Self {
+            key
+        }
+    }
+}
+
 // ====================================================================
 /// Confidential transaction key
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct CtKey {
     //pub dest: Key,
