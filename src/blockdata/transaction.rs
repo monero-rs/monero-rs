@@ -886,8 +886,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::{ExtraField, Transaction, TransactionPrefix};
-    use crate::blockdata::transaction::{SubField, TxOutTarget};
-    use crate::blockdata::TxIn;
+    use crate::blockdata::transaction::{SubField, TxIn, TxOutTarget};
     use crate::consensus::encode::{deserialize, deserialize_partial, serialize, VarInt};
     use crate::cryptonote::hash::Hashable;
     use crate::util::key::{PrivateKey, PublicKey, ViewPair};
