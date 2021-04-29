@@ -13,10 +13,11 @@
 // copies or substantial portions of the Software.
 //
 
-//! Transaction, prefix, inputs and outputs types
+//! Transaction, transaction's prefix, inputs and outputs structures used to parse and create
+//! transactions.
 //!
-//! This module support (de)serializing Monero transaction and input/amount discovery with private
-//! view key and amount recovery.
+//! This module support (de)serializing Monero transaction and input/amount discovery/recovery with
+//! private view key and public spend key (view key-pair: [`ViewPair`]).
 //!
 
 use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
@@ -38,77 +39,79 @@ use std::{fmt, io};
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
-/// Errors possible when manipulating transactions
-#[derive(Error, Debug, PartialEq)]
+/// Errors possible when manipulating transactions.
+#[derive(Error, Clone, Copy, Debug, PartialEq)]
 pub enum Error {
-    /// No transaction public key found in extra
+    /// No transaction public key found in extra.
     #[error("No transaction public key found")]
     NoTxPublicKey,
-    /// Scripts input/output are not supported
+    /// Scripts input/output are not supported.
     #[error("Script not supported")]
     ScriptNotSupported,
 }
 
-/// Input key image
+/// The key image used in transaction inputs [`TxIn`] to commit to the use of an output one-time
+/// public key as in [`TxOutTarget::ToKey`].
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct KeyImage {
-    /// The actual key image
+    /// The actual key image data.
     pub image: hash::Hash,
 }
 
 impl_consensus_encoding!(KeyImage, image);
 
-/// A transaction input, which defines the ring size and the key image to avoid
-/// double spend.
+/// A transaction input, either a coinbase spend or a one-time key spend which defines the ring
+/// size and the key image to avoid double spend.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum TxIn {
-    /// A coinbase input
+    /// A coinbase input.
     Gen {
-        /// Block height of where the coinbase transaction is included
+        /// Block height of where the coinbase transaction is included.
         height: VarInt,
     },
-    /// A key input from a key output
+    /// A key input from a key output.
     ToKey {
-        /// Amount spend from the output, 0 in case of CT
+        /// Amount spend from the output, 0 in case of CT.
         amount: VarInt,
-        /// Relative offsets of keys use in the ring
+        /// Relative offsets of keys use in the ring.
         key_offsets: Vec<VarInt>,
-        /// The corresponding key image of the output
+        /// The corresponding key image of the output.
         k_image: KeyImage,
     },
-    /// Input from script output
+    /// Input from script output, not used.
     ToScript,
-    /// Input from script hash output
+    /// Input from script hash output, not used.
     ToScriptHash,
 }
 
-/// Output format, only output to key is used
+/// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
+/// original cryptonote implementation.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum TxOutTarget {
-    /// Output to script
+    /// A script output, not used.
     ToScript {
-        /// Keys
+        /// A list of keys.
         keys: Vec<PublicKey>,
-        /// Script
+        /// The script.
         script: Vec<u8>,
     },
-    /// Output to one-time public key
+    /// A one-time public key output.
     ToKey {
-        /// The one-time public key
+        /// The one-time public key of that output.
         key: PublicKey,
     },
-    /// Output to script hash
+    /// A script hash output, not used.
     ToScriptHash {
-        /// Script hash
+        /// The script hash
         hash: hash::Hash,
     },
 }
 
 impl TxOutTarget {
-    /// Retreive the public keys, if any
+    /// Retreive the public keys, if any.
     pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
         match self {
             TxOutTarget::ToScript { keys, .. } => Some(keys.clone()),
@@ -118,13 +121,13 @@ impl TxOutTarget {
     }
 }
 
-/// A transaction output, can be consumed by an input
+/// A transaction output, can be consumed by a [`TxIn`] input of the matching format.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct TxOut {
-    /// The amount sent to the associated key, can be 0 in case of CT
+    /// The amount sent to the associated key, can be 0 in case of Confidential Transaction (CT).
     pub amount: VarInt,
-    /// The target format
+    /// The output target format.
     pub target: TxOutTarget,
 }
 
@@ -137,7 +140,10 @@ impl TxOut {
     }
 }
 
-/// Transaction ouput that can be redeemed by a key pair at a given index
+/// Transaction ouput that can be redeemed by a private key pair at a given index and are returned
+/// by the [`check_outputs`] method.
+///
+/// [`check_outputs`]: TransactionPrefix::check_outputs
 ///
 /// ```rust
 /// use monero::blockdata::transaction::Transaction;
@@ -179,30 +185,33 @@ impl TxOut {
 ///
 #[derive(Debug)]
 pub struct OwnedTxOut<'a> {
-    /// Index of the output in the transaction
+    /// Index of the output in the transaction.
     pub index: usize,
-    /// The actual redeemable output
+    /// A reference to the actual redeemable output.
     pub out: &'a TxOut,
-    /// Index of the key pair to use, can be 0/0 for main address
+    /// Index of the key pair to use, can be `0/0` for main address.
     pub sub_index: Index,
-    /// The associated transaction public key
+    /// The associated transaction public key.
     pub tx_pubkey: PublicKey,
 }
 
 impl<'a> OwnedTxOut<'a> {
-    /// Retreive the public keys, if any
+    /// Retreive the public keys, if any.
     pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
         self.out.get_pubkeys()
     }
 
-    /// Recover the ephemeral private key for spending the output
+    /// Recover the ephemeral private key for spending the output, this requires access to the
+    /// private spend key.
     pub fn recover_key(&self, keys: &KeyPair) -> PrivateKey {
         let recoverer = KeyRecoverer::new(keys, self.tx_pubkey);
         recoverer.recover(self.index, self.sub_index)
     }
 }
 
-/// Every transaction contains an Extra field, which is a part of transaction prefix
+/// Every transaction contains an extra field, which is a part of transaction prefix and allow
+/// storing extra data inside the transaction. The most common use case is for the transaction
+/// public key.
 ///
 /// Extra field is composed of typed sub fields of variable or fixed length.
 #[derive(Debug, Clone, Default)]
@@ -219,7 +228,7 @@ impl fmt::Display for ExtraField {
 }
 
 impl ExtraField {
-    /// Return the transaction public key, if any, present in extra field
+    /// Return the transaction public key, if any, present in extra field.
     pub fn tx_pubkey(&self) -> Option<PublicKey> {
         self.0.iter().find_map(|x| match x {
             SubField::TxPublicKey(pubkey) => Some(*pubkey),
@@ -227,7 +236,7 @@ impl ExtraField {
         })
     }
 
-    /// Return the additional public keys, if any, present in extra field
+    /// Return the additional public keys, if any, present in extra field.
     pub fn tx_additional_pubkeys(&self) -> Option<Vec<PublicKey>> {
         self.0.iter().find_map(|x| match x {
             SubField::AdditionalPublickKey(pubkeys) => Some(pubkeys.clone()),
@@ -237,22 +246,25 @@ impl ExtraField {
 }
 
 /// Each sub-field contains a sub-field tag followed by sub-field content of fixed or variable
-/// length, in variable length case the length is encoded with a VarInt before the content itself.
+/// length, in variable length case the length is encoded with a [`VarInt`] before the content
+/// itself.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum SubField {
-    /// Transaction public key, fixed length of 32 bytes
+    /// Transaction public key, fixed length of 32 bytes.
     TxPublicKey(PublicKey),
     /// 255 bytes limited nonce, can contain an encrypted or unencrypted payment id, variable
-    /// length
+    /// length.
     Nonce(Vec<u8>),
-    /// Padding size is limited to 255 null bytes, variable length
+    /// Padding size is limited to 255 null bytes, variable length.
     Padding(u8),
-    /// Merge mining infos: `depth` and `merkle_root`, fixed length of one VarInt and 32 bytes hash
+    /// Merge mining infos: `depth` and `merkle_root`, fixed length of one VarInt and 32 bytes
+    /// hash.
     MergeMining(VarInt, hash::Hash),
-    /// Additional public keys for Subaddresses outputs, variable length of `n` additional public keys
+    /// Additional public keys for [`Subaddresses`](crate::cryptonote::subaddress) outputs,
+    /// variable length of `n` additional public keys.
     AdditionalPublickKey(Vec<PublicKey>),
-    /// Mysterious MinerGate, variable length
+    /// Mysterious `MinerGate`, variable length.
     MysteriousMinerGate(String),
 }
 
@@ -280,21 +292,23 @@ impl fmt::Display for SubField {
     }
 }
 
-/// The part of a transaction that contains all the data except signatures.
+/// The part of the transaction that contains all the data except signatures.
 ///
-/// Can generate the transaction prefix hash with `tx_prefix.hash()`
+/// As transaction prefix implements [`hash::Hashable`] it is possible to generate the transaction
+/// prefix hash with `tx_prefix.hash()`.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct TransactionPrefix {
-    /// Transaction format version
+    /// Transaction format version.
     pub version: VarInt,
-    /// UNIX timestamp
+    /// The transaction can not be spend until after a certain number of blocks, or until a certain
+    /// time.
     pub unlock_time: VarInt,
-    /// Array of inputs
+    /// Array of inputs.
     pub inputs: Vec<TxIn>,
-    /// Array of outputs
+    /// Array of outputs.
     pub outputs: Vec<TxOut>,
-    /// Additional data associated with a transaction
+    /// Additional data associated with a transaction.
     pub extra: ExtraField,
 }
 
@@ -316,27 +330,27 @@ impl_consensus_encoding!(
 );
 
 impl TransactionPrefix {
-    /// Return the number of transaction's inputs
+    /// Return the number of transaction's inputs.
     pub fn nb_inputs(&self) -> usize {
         self.inputs.len()
     }
 
-    /// Return the number of transaction's outputs
+    /// Return the number of transaction's outputs.
     pub fn nb_outputs(&self) -> usize {
         self.outputs.len()
     }
 
-    /// Return the transaction public key present in extra field
+    /// Return the transaction public key present in extra field.
     pub fn tx_pubkey(&self) -> Option<PublicKey> {
         self.extra.tx_pubkey()
     }
 
-    /// Return the additional public keys present in extra field
+    /// Return the additional public keys present in extra field.
     pub fn tx_additional_pubkeys(&self) -> Option<Vec<PublicKey>> {
         self.extra.tx_additional_pubkeys()
     }
 
-    /// Iterate over transaction outputs and find outputs related to view pair
+    /// Iterate over transaction outputs and find outputs related to view pair.
     pub fn check_outputs(
         &self,
         pair: &ViewPair,
@@ -403,15 +417,18 @@ impl hash::Hashable for TransactionPrefix {
     }
 }
 
-/// A full transaction containing the prefix and all signing data
+/// A full transaction containing the prefix and all the signing data.
+///
+/// As transaction implements [`hash::Hashable`] it is possible to generate the transaction hash
+/// with `tx.hash()`.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Transaction {
-    /// The transaction prefix
+    /// The transaction prefix.
     pub prefix: TransactionPrefix,
-    /// The signatures
+    /// The signatures.
     pub signatures: Vec<Vec<Signature>>,
-    /// RingCT signatures
+    /// The RingCT signatures.
     pub rct_signatures: RctSig,
 }
 
@@ -428,32 +445,32 @@ impl fmt::Display for Transaction {
 }
 
 impl Transaction {
-    /// Return the transaction prefix
+    /// Return the transaction prefix.
     pub fn prefix(&self) -> &TransactionPrefix {
         &self.prefix
     }
 
-    /// Return the number of transaction's inputs
+    /// Return the number of transaction's inputs.
     pub fn nb_inputs(&self) -> usize {
         self.prefix().inputs.len()
     }
 
-    /// Return the number of transaction's outputs
+    /// Return the number of transaction's outputs.
     pub fn nb_outputs(&self) -> usize {
         self.prefix().outputs.len()
     }
 
-    /// Return the transaction public key present in extra field
+    /// Return the transaction public key present in extra field.
     pub fn tx_pubkey(&self) -> Option<PublicKey> {
         self.prefix().extra.tx_pubkey()
     }
 
-    /// Return the additional public keys present in extra field
+    /// Return the additional public keys present in extra field.
     pub fn tx_additional_pubkeys(&self) -> Option<Vec<PublicKey>> {
         self.prefix().extra.tx_additional_pubkeys()
     }
 
-    /// Iterate over transaction outputs and find outputs related to view pair
+    /// Iterate over transaction outputs and find outputs related to view pair.
     pub fn check_outputs(
         &self,
         pair: &ViewPair,
@@ -463,7 +480,7 @@ impl Transaction {
         self.prefix().check_outputs(pair, major, minor)
     }
 
-    /// Calculate an output's amount
+    /// Calculate an output's amount.
     pub fn get_amount<'a>(
         &self,
         view_pair: &ViewPair,

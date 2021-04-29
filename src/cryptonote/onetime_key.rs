@@ -13,9 +13,9 @@
 // copies or substantial portions of the Software.
 //
 
-//! CryptoNote One-Time Keys protocol
+//! Onetime key generation and recovery helpers and functions.
 //!
-//! Support for CryptoNote one-time keys which the sender derives from random data and the
+//! Support for CryptoNote onetime keys which the sender derives from random data and the
 //! receiver's address. Upon receiving a transaction, user scans all output keys and checks if he
 //! can recover the corresponding secret key. He succeeds if and only if that particular output was
 //! sent to his address.
@@ -64,29 +64,29 @@ use crate::cryptonote::hash;
 use crate::cryptonote::subaddress::{self, get_spend_secret_key, Index};
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
-/// Special factor used in all `vR` and `rV` multiplications
+/// Special factor used in all `vR` and `rV` multiplications.
 pub const MONERO_MUL_FACTOR: u8 = 8;
 
-/// Helper to generate One-Time Public keys (ephemeral keys) in transactions
+/// Helper to generate onetime public keys (ephemeral keys) used in transactions.
 #[derive(Debug, Clone)]
 pub struct KeyGenerator {
-    /// Spend public key `S`
+    /// Spend public key `S`.
     pub spend: PublicKey,
-    /// Intermediate key `v*8*R` or `r*8*V` used during the generation process
+    /// Intermediate key `v*8*R` or `r*8*V` used during the generation process.
     pub rv: PublicKey,
 }
 
 impl KeyGenerator {
-    /// Construct a One-time key generator from public keys and secret random, this is used to
-    /// generate One-time keys for output indexes from an address when sending funds
+    /// Construct a onetime key generator from public keys and secret random, this is used to
+    /// generate onetime keys for output indexes from an address when sending funds.
     pub fn from_random(view: PublicKey, spend: PublicKey, random: PrivateKey) -> Self {
         // Computes r*8*V
         let rv = random * MONERO_MUL_FACTOR * &view;
         KeyGenerator { spend, rv }
     }
 
-    /// Construct a One-time key generator from private keys and public random (tx pubkey), this
-    /// is used to scan if some outputs contains One-time keys owned by the view pair
+    /// Construct a onetime key generator from private keys and public random (tx pubkey), this is
+    /// used to scan if some outputs contains onetime keys owned by the view pair.
     pub fn from_key(keys: &ViewPair, random: PublicKey) -> Self {
         // Computes v*8*R
         let rv = keys.view * MONERO_MUL_FACTOR * &random;
@@ -96,19 +96,19 @@ impl KeyGenerator {
         }
     }
 
-    /// Compute the One-time public key `P = Hn(r*8*V || n)*G + S` for the indexed output `n`
+    /// Compute the onetime public key `P = Hn(r*8*V || n)*G + S` for the indexed output `n`.
     pub fn one_time_key(&self, index: usize) -> PublicKey {
-        // Computes a one-time public key P = Hn(r*8*V || n)*G + S
+        // Computes a onetime public key P = Hn(r*8*V || n)*G + S
         PublicKey::from_private_key(&self.get_rvn_scalar(index)) + self.spend
     }
 
     /// Check if key `P` is equal to indexed key `P'`, if true the output is own by the address,
-    /// used when scanning transaction outputs, if true the One-time key is related to the keys
+    /// used when scanning transaction outputs, if true the onetime key is related to the keys.
     pub fn check(&self, index: usize, key: PublicKey) -> bool {
         key == self.one_time_key(index)
     }
 
-    /// Computes `Hn(v*8*R || n)` and interpret it as a scalar
+    /// Computes `Hn(v*8*R || n)` and interpret it as a scalar.
     pub fn get_rvn_scalar(&self, index: usize) -> PrivateKey {
         // Serializes (v*8*R || n)
         let mut encoder = Cursor::new(vec![]);
@@ -123,21 +123,21 @@ impl KeyGenerator {
     }
 }
 
-/// Helper to check if a One-time sub address public key is related to a view pair
+/// Helper to check if a onetime sub-address public key is related to a view pair.
 ///
-/// Generate a table of sub keys from a view pair given a major range and a minor range. These
+/// Generate a table of sub-keys from a view pair given a major range and a minor range. These
 /// precomputed keys are used to check if an output is owned by the root view pair.
 #[derive(Debug, Clone)]
 pub struct SubKeyChecker<'a> {
-    /// Table of public spend keys and their corresponding indexes
+    /// Table of public spend keys and their corresponding indexes.
     pub table: HashMap<PublicKey, Index>,
-    /// The root view pair `(v, S)`
+    /// The root view pair `(v, S)`.
     pub keys: &'a ViewPair,
 }
 
 impl<'a> SubKeyChecker<'a> {
     /// Generate the table of sub spend keys `K(S) \in major x minor` from a view pair mapped to
-    /// their Sub-address indexes
+    /// their Sub-address indexes.
     pub fn new(keys: &'a ViewPair, major: Range<u32>, minor: Range<u32>) -> Self {
         let mut table = HashMap::new();
         major.for_each(|maj| {
@@ -164,26 +164,26 @@ impl<'a> SubKeyChecker<'a> {
     }
 }
 
-/// Helper to compute One-Time private keys
+/// Helper to compute onetime private keys.
 #[derive(Debug, Clone)]
 pub struct KeyRecoverer<'a> {
-    /// Private key pair `(v, s)`
+    /// Private key pair `(v, s)`.
     pub keys: &'a KeyPair,
-    /// Key generator used to check and generate intermediate values
+    /// Key generator used to check and generate intermediate values.
     pub checker: KeyGenerator,
 }
 
 impl<'a> KeyRecoverer<'a> {
-    /// Construct a One-time key generator from private keys, this is used when scanning
-    /// transaction outputs to recover private One-time keys
+    /// Construct a onetime key generator from private keys, this is used when scanning transaction
+    /// outputs to recover private onetime keys.
     pub fn new(keys: &'a KeyPair, tx_pubkey: PublicKey) -> Self {
         let viewpair = keys.into();
         let checker = KeyGenerator::from_key(&viewpair, tx_pubkey);
         KeyRecoverer { keys, checker }
     }
 
-    /// Recover the One-time private key `p` at address index `i` (major, minor indexes) and
-    /// output index `n`
+    /// Recover the onetime private key `p` at address index `i` (major, minor indexes) and
+    /// output index `n` such as:
     ///
     /// ```text
     /// p = { Hn(v*8*R || n) + s                  i == 0
@@ -191,6 +191,7 @@ impl<'a> KeyRecoverer<'a> {
     /// ```
     ///
     /// See sub-address key derivation for more details on address index handling.
+    ///
     pub fn recover(&self, oindex: usize, aindex: Index) -> PrivateKey {
         // Hn(v*8*R || n)
         let scal = self.checker.get_rvn_scalar(oindex);

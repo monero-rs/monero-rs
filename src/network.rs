@@ -13,36 +13,42 @@
 // copies or substantial portions of the Software.
 //
 
-//! Monero network related types and errors
+//! Monero networks definition and related error types.
 //!
-//! This module defines the different Monero networks and their magic bytes.
+//! This module defines the existing Monero networks and their associated magic bytes.
+//!
 
 use crate::util::address::AddressType;
 use thiserror::Error;
 
-/// Network error types
+/// Potential errors encountered while manipulating Monero networks.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
-    /// Invalid magic network byte
-    #[error("invalid magic byte")]
+    /// Invalid magic network byte.
+    #[error("Invalid magic network byte")]
     InvalidMagicByte,
 }
 
-/// Network type
+/// The list of the existing Monero networks.
+///
+/// Network implements [`Default`] and returns [`Network::Mainnet`].
+///
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Network {
-    /// Monero Mainnet
+    /// Mainnet is the "production" network and blockchain.
     Mainnet,
-    /// Monero Stagenet
+    /// Stagenet is technically equivalent to mainnet, both in terms of features and consensus
+    /// rules.
     Stagenet,
-    /// Monero Testnet
+    /// Testnet is the "experimental" network and blockchain where things get released long before
+    /// mainnet.
     Testnet,
 }
 
 impl Network {
-    /// Get the associated magic byte given an address type
+    /// Get the associated magic byte given an address type.
     ///
-    /// **Same as** [`monero/src/cryptonote_config.h`](https://github.com/monero-project/monero/blob/159c78758af0a0af9df9a4f9ab81888f9322e9be/src/cryptonote_config.h#L190-L239)
+    /// **Source:** [`monero/src/cryptonote_config.h`](https://github.com/monero-project/monero/blob/159c78758af0a0af9df9a4f9ab81888f9322e9be/src/cryptonote_config.h#L190-L239)
     pub fn as_u8(self, addr_type: &AddressType) -> u8 {
         use AddressType::*;
         use Network::*;
@@ -65,9 +71,9 @@ impl Network {
         }
     }
 
-    /// Recover the network type given an address magic byte
+    /// Recover the network type given an address magic byte.
     ///
-    /// **Same as** [`monero/src/cryptonote_config.h`](https://github.com/monero-project/monero/blob/159c78758af0a0af9df9a4f9ab81888f9322e9be/src/cryptonote_config.h#L190-L239)
+    /// **Source:** [`monero/src/cryptonote_config.h`](https://github.com/monero-project/monero/blob/159c78758af0a0af9df9a4f9ab81888f9322e9be/src/cryptonote_config.h#L190-L239)
     pub fn from_u8(byte: u8) -> Result<Network, Error> {
         use Network::*;
         match byte {

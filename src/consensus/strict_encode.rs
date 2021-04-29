@@ -13,7 +13,7 @@
 //
 
 //! Implements `StrictEncode` and `StrictDecode` for a few types that already implement consensus
-//! [Encodable] and [Decodable].
+//! [`Encodable`] and [`Decodable`].
 //!
 //! `strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same
 //! interface.

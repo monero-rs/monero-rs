@@ -13,9 +13,10 @@
 // copies or substantial portions of the Software.
 //
 
-//! Utility functions to manipulate types such as addresses, amounts, or keys
+//! Utility functions to manipulate addresses, amounts, keys, or ringct data types.
 //!
-//! Shared functions needed in different part of the library.
+//! Shared functions needed in different part of the library or utility types for external
+//! integrations.
 //!
 
 pub mod address;
@@ -28,26 +29,25 @@ use crate::blockdata::transaction;
 
 use thiserror::Error;
 
-/// A general error code, other errors should implement conversions to/from this
-/// if appropriate.
+/// A general error code, other errors should implement conversions to/from this if appropriate.
 #[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    /// Monero network error
+    /// Monero network error.
     #[error("Network error: {0}")]
     Network(#[from] network::Error),
-    /// Monero address error
+    /// Monero address error.
     #[error("Address error: {0}")]
     Address(#[from] address::Error),
-    /// Monero key error
+    /// Monero key error.
     #[error("Key error: {0}")]
     Key(#[from] key::Error),
-    /// Monero RingCT error
+    /// Monero RingCT error.
     #[error("RingCT error: {0}")]
     RingCT(#[from] ringct::Error),
-    /// Monero transaction error
+    /// Monero transaction error.
     #[error("Transaction error: {0}")]
     Transaction(#[from] transaction::Error),
-    /// Monero amount error
+    /// Monero amount error.
     #[error("Amount recovery error: {0}")]
     AmountRecovery(#[from] amount::RecoveryError),
 }

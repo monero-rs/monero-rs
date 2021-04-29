@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-//! # Monero public and private keys
+//! # Monero public and private keys.
 //!
 //! Support for (de)serializable and manipulation of Monero public and private keys.
 //!
@@ -79,42 +79,42 @@ use thiserror::Error;
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
-/// Errors that might occur during key decoding
+/// Potential errors encountered during key decoding.
 #[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    /// Invalid input length
-    #[error("invalid length")]
+    /// Invalid input length.
+    #[error("Invalid length")]
     InvalidLength,
-    /// Not a canonical representation of an ed25519 scalar
-    #[error("not a canonical representation of an ed25519 scalar")]
+    /// Not a canonical representation of an curve25519 scalar.
+    #[error("Not a canonical representation of an ed25519 scalar")]
     NotCanonicalScalar,
-    /// Invalid point on the curve
-    #[error("invalid point on the curve")]
+    /// Invalid point on the curve.
+    #[error("Invalid point on the curve")]
     InvalidPoint,
-    /// Hex parsing error
+    /// Hex parsing error.
     #[error("Hex error: {0}")]
     Hex(#[from] hex::FromHexError),
 }
 
-/// Monero private key
+/// A private key, a valid curve25519 scalar.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct PrivateKey {
-    /// The actual Ed25519 scalar
+    /// The actual curve25519 scalar.
     pub scalar: Scalar,
 }
 
 impl PrivateKey {
-    /// Serialize a public key as bytes
+    /// Serialize the private key as bytes.
     pub fn as_bytes(&self) -> &[u8] {
         self.scalar.as_bytes()
     }
 
-    /// Serialize a public key to bytes
+    /// Serialize the private key to bytes.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.scalar.to_bytes()
     }
 
-    /// Deserialize a private key from a slice
+    /// Deserialize a private key from a slice.
     pub fn from_slice(data: &[u8]) -> Result<PrivateKey, Error> {
         if data.len() != 32 {
             return Err(Error::InvalidLength);
@@ -130,7 +130,7 @@ impl PrivateKey {
         Ok(PrivateKey { scalar })
     }
 
-    /// Create a secret key from a raw curve25519 scalar
+    /// Create a secret key from a raw curve25519 scalar.
     pub fn from_scalar(scalar: Scalar) -> PrivateKey {
         PrivateKey { scalar }
     }
@@ -265,26 +265,26 @@ impl Encodable for PrivateKey {
     }
 }
 
-/// Monero public key
+/// A public key, a valid edward point on the curve.
 #[derive(PartialEq, Eq, Copy, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct PublicKey {
-    /// The actual Ed25519 point
+    /// The actual Ed25519 point.
     pub point: CompressedEdwardsY,
 }
 
 impl PublicKey {
-    /// Serialize a public key as bytes
+    /// Serialize a public key as bytes.
     pub fn as_bytes(&self) -> &[u8] {
         self.point.as_bytes()
     }
 
-    /// Serialize a public key to bytes
+    /// Serialize a public key to bytes.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.point.to_bytes()
     }
 
-    /// Deserialize a public key from a slice
+    /// Deserialize a public key from a slice.
     pub fn from_slice(data: &[u8]) -> Result<PublicKey, Error> {
         if data.len() != 32 {
             return Err(Error::InvalidLength);
@@ -299,7 +299,7 @@ impl PublicKey {
         Ok(PublicKey { point })
     }
 
-    /// Generate a public key from the private key
+    /// Generate a public key from the private key.
     pub fn from_private_key(privkey: &PrivateKey) -> PublicKey {
         let point = &privkey.scalar * &ED25519_BASEPOINT_TABLE;
         PublicKey {
@@ -307,7 +307,7 @@ impl PublicKey {
         }
     }
 
-    /// Get the decompressed Edward point of the public key
+    /// Get the decompressed edward point of the public key.
     fn point(&self) -> EdwardsPoint {
         self.point
             .decompress()
@@ -484,28 +484,29 @@ impl hash::Hashable for PublicKey {
 }
 
 /// Alternative generator `H` used for pedersen commitments, as defined in
-/// [rctTypes.h](https://github.com/monero-project/monero/blob/master/src/ringct/rctTypes.h#L555)
+/// [`rctTypes.h`](https://github.com/monero-project/monero/blob/master/src/ringct/rctTypes.h#L555)
+/// in the Monero codebase.
 pub const H: PublicKey = PublicKey {
     point: CompressedEdwardsY(hex!(
         "8b655970153799af2aeadc9ff1add0ea6c7251d54154cfa92c173a0dd39c1f94"
     )),
 };
 
-/// Two Monero private keys, view and spend key
+/// Two private keys representing the view and the spend keys.
 #[derive(Debug)]
 pub struct KeyPair {
-    /// The view key needed to recognize owned outputs
+    /// The private view key needed to recognize owned outputs.
     pub view: PrivateKey,
-    /// The spend key needed to spend outputs
+    /// The private spend key needed to spend owned outputs.
     pub spend: PrivateKey,
 }
 
-/// View pair can scan transaction outputs and retreive amounts, but can't spend outputs
+/// View pair to scan transaction outputs and retreive amounts, but can't spend outputs.
 #[derive(Debug)]
 pub struct ViewPair {
-    /// The private view key
+    /// The private view key needed to recognize owned outputs and amounts.
     pub view: PrivateKey,
-    /// The public spend key
+    /// The public spend key needed to recognize owned outputs and amounts.
     pub spend: PublicKey,
 }
 

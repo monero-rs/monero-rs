@@ -13,9 +13,13 @@
 // copies or substantial portions of the Software.
 //
 
-//! CryptoNote hash structures and functions
+//! Hash functions and types (32-bytes hash and 8-bytes hash) used in [`blockdata`].
 //!
-//! Support for (de)serializable hashes (Keccak 256) and `Hn` (hash to number, or hash to scalar).
+//! Support for (de)serializable hashes (Keccak-256) and [`Hn()`] (hash to number, or hash to
+//! scalar).
+//!
+//! [`blockdata`]: crate::blockdata
+//! [`Hn()`]: Hashable::hash_to_scalar()
 //!
 
 use curve25519_dalek::scalar::Scalar;
@@ -29,39 +33,39 @@ use crate::util::key::PrivateKey;
 use serde::{Deserialize, Serialize};
 
 fixed_hash::construct_fixed_hash!(
-    /// Result of a Keccak-256
+    /// Result of the Keccak-256 hashing function.
     #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
     pub struct Hash(32);
 );
 
 impl Hash {
-    /// Create a null hash with all zeros
+    /// Create a null hash with all zeros.
     pub fn null_hash() -> Hash {
         Hash([0u8; 32])
     }
 
-    /// Hash a stream of bytes with Keccak 256
+    /// Hash a stream of bytes with the Keccak-256 hash function.
     pub fn hash(input: &[u8]) -> Hash {
         let mut out = [0u8; 32];
         keccak_256(input, &mut out);
         Hash(out)
     }
 
-    /// Return the hash value
+    /// Return the 32-bytes hash array.
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
     }
 
-    /// Return the scalar of the hash as a little endian number modulo l (curve order)
+    /// Return the scalar of the hash as a little endian number modulo `l` (curve order).
     pub fn as_scalar(&self) -> PrivateKey {
         PrivateKey::from_scalar(Scalar::from_bytes_mod_order(self.0))
     }
 
-    /// Hash a stream of bytes and return its scalar representation
+    /// Hash a stream of bytes and return its scalar representation.
     ///
-    /// The hash function H is the same Keccak function that is used in CryptoNote. When the
-    /// value of the hash function is interpreted as a scalar, it is converted into a
-    /// little-endian integer and taken modulo l.
+    /// The hash function `H` is the same Keccak function that is used in CryptoNote. When the
+    /// value of the hash function is interpreted as a scalar, it is converted into a little-endian
+    /// integer and taken modulo `l`.
     pub fn hash_to_scalar(input: &[u8]) -> PrivateKey {
         Self::hash(input).as_scalar()
     }
@@ -79,19 +83,22 @@ impl Encodable for Hash {
     }
 }
 
-/// Capacity of an object to hash itself
+/// Capacity of an object to hash itself and return the result as a plain [`struct@Hash`] or as an
+/// interpreted scalar value into [`PrivateKey`].
 pub trait Hashable {
-    /// Return its own hash
+    /// Return its own hash.
     fn hash(&self) -> Hash;
 
-    /// Apply `hash_to_scalar` on itself and return the scalar
+    /// Apply [`hash()`] on itself and return the interpreted scalar returned by the hash result.
+    ///
+    /// [`hash()`]: Hashable::hash()
     fn hash_to_scalar(&self) -> PrivateKey {
         self.hash().as_scalar()
     }
 }
 
 fixed_hash::construct_fixed_hash!(
-    /// 8 bytes hash
+    /// An 8-bytes hash result.
     #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
     pub struct Hash8(8);
 );

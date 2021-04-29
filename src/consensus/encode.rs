@@ -13,15 +13,15 @@
 // copies or substantial portions of the Software.
 //
 
-//! Consensus-encodable types
+//! Consensus-encodable types and errors.
 //!
 //! This represent the core logic for (de)serializing object to conform to Monero consensus.
 //! Essentially, anything that must go on the -disk- or -network- must be encoded using the
-//! Encodable trait, since this data must be the same for all systems.
+//! [`Encodable`] trait, since this data must be the same for all systems.
 //!
-//! The major change with `rust-bitcoin` implementation is `VarInt` that use the 7 least
-//! significant bits to encode the number and the most significant as a flag if an other byte
-//! is following.
+//! The major change with `rust-bitcoin` implementation is [`VarInt`] that use the 7 least
+//! significant bits to encode the number and the most significant as a flag if an other byte is
+//! following.
 //!
 
 use hex::encode as hex_encode;
@@ -39,27 +39,27 @@ use crate::util::{key, ringct};
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
-/// Encoding error
+/// Errors encountered when encoding or decoding data.
 #[derive(Error, Debug)]
 pub enum Error {
-    /// And I/O error
+    /// And I/O error.
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
-    /// Key error
+    /// Key error.
     #[error("Key error: {0}")]
     Key(#[from] key::Error),
-    /// Transaction error
+    /// Transaction error.
     #[error("Transaction error: {0}")]
     Transaction(#[from] transaction::Error),
-    /// RingCT error
+    /// RingCT error.
     #[error("RingCT error: {0}")]
     RingCT(#[from] ringct::Error),
-    /// Parsing error
+    /// A generic parsing error.
     #[error("Parsing error: {0}")]
     ParseFailed(&'static str),
 }
 
-/// Encode an object into a vector
+/// Encode an object into a vector of byte.
 pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
     let mut encoder = Vec::new();
     let len = data.consensus_encode(&mut encoder).unwrap();
@@ -67,13 +67,13 @@ pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
     encoder
 }
 
-/// Encode an object into a hex-encoded string
+/// Encode an object into a hex-encoded string.
 pub fn serialize_hex<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> String {
     hex_encode(serialize(data))
 }
 
-/// Deserialize an object from a vector, will error if said deserialization
-/// doesn't consume the entire vector.
+/// Deserialize an object from a byte vector, will error if said deserialization doesn't consume
+/// the entire vector.
 pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
     let (rv, consumed) = deserialize_partial(data)?;
 
@@ -97,57 +97,57 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
     Ok((rv, consumed))
 }
 
-/// Extensions of `Write` to encode data as per Monero consensus
+/// Extensions of [`Write`] to encode data as per Monero consensus.
 pub trait WriteExt {
-    /// Output a 64-bit uint
+    /// Output a 64-bit uint.
     fn emit_u64(&mut self, v: u64) -> Result<(), io::Error>;
-    /// Output a 32-bit uint
+    /// Output a 32-bit uint.
     fn emit_u32(&mut self, v: u32) -> Result<(), io::Error>;
-    /// Output a 16-bit uint
+    /// Output a 16-bit uint.
     fn emit_u16(&mut self, v: u16) -> Result<(), io::Error>;
-    /// Output a 8-bit uint
+    /// Output a 8-bit uint.
     fn emit_u8(&mut self, v: u8) -> Result<(), io::Error>;
 
-    /// Output a 64-bit int
+    /// Output a 64-bit int.
     fn emit_i64(&mut self, v: i64) -> Result<(), io::Error>;
-    /// Output a 32-bit int
+    /// Output a 32-bit int.
     fn emit_i32(&mut self, v: i32) -> Result<(), io::Error>;
-    /// Output a 16-bit int
+    /// Output a 16-bit int.
     fn emit_i16(&mut self, v: i16) -> Result<(), io::Error>;
-    /// Output a 8-bit int
+    /// Output a 8-bit int.
     fn emit_i8(&mut self, v: i8) -> Result<(), io::Error>;
 
-    /// Output a boolean
+    /// Output a boolean.
     fn emit_bool(&mut self, v: bool) -> Result<(), io::Error>;
 
-    /// Output a byte slice
+    /// Output a byte slice.
     fn emit_slice(&mut self, v: &[u8]) -> Result<(), io::Error>;
 }
 
-/// Extensions of `Read` to decode data as per Bitcoin consensus
+/// Extensions of [`Read`] to decode data as per Monero consensus.
 pub trait ReadExt {
-    /// Read a 64-bit uint
+    /// Read a 64-bit uint.
     fn read_u64(&mut self) -> Result<u64, Error>;
-    /// Read a 32-bit uint
+    /// Read a 32-bit uint.
     fn read_u32(&mut self) -> Result<u32, Error>;
-    /// Read a 16-bit uint
+    /// Read a 16-bit uint.
     fn read_u16(&mut self) -> Result<u16, Error>;
-    /// Read a 8-bit uint
+    /// Read a 8-bit uint.
     fn read_u8(&mut self) -> Result<u8, Error>;
 
-    /// Read a 64-bit int
+    /// Read a 64-bit int.
     fn read_i64(&mut self) -> Result<i64, Error>;
-    /// Read a 32-bit int
+    /// Read a 32-bit int.
     fn read_i32(&mut self) -> Result<i32, Error>;
-    /// Read a 16-bit int
+    /// Read a 16-bit int.
     fn read_i16(&mut self) -> Result<i16, Error>;
-    /// Read a 8-bit int
+    /// Read a 8-bit int.
     fn read_i8(&mut self) -> Result<i8, Error>;
 
-    /// Read a boolean
+    /// Read a boolean.
     fn read_bool(&mut self) -> Result<bool, Error>;
 
-    /// Read a byte slice
+    /// Read a byte slice.
     fn read_slice(&mut self, slice: &mut [u8]) -> Result<(), Error>;
 }
 
@@ -233,22 +233,22 @@ impl<R: Read> ReadExt for R {
     }
 }
 
-/// Data which can be encoded in a consensus-consistent way
+/// Data which can be encoded in a consensus-consistent way.
 pub trait Encodable {
-    /// Encode an object with a well-defined format, should only ever error if
-    /// the underlying Encoder errors.
+    /// Encode an object with a well-defined format, should only ever error if the underlying
+    /// Encoder errors.
     ///
     /// The only errors returned are errors propagated from the writer.
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error>;
 }
 
-/// Data which can be encoded in a consensus-consistent way
+/// Data which can be decoded in a consensus-consistent way.
 pub trait Decodable: Sized {
-    /// Decode an object with a well-defined format
+    /// Decode an object with a well-defined format.
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error>;
 }
 
-/// A variable-length unsigned integer
+/// A variable-length unsigned integer type as defined by the Monero codebase.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Default)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct VarInt(pub u64);
@@ -389,36 +389,6 @@ impl Decodable for String {
             .map_err(|_| self::Error::ParseFailed("String was not valid UTF8"))
     }
 }
-//// Booleans
-//impl<S: Encoder> Encodable<S> for bool {
-//    #[inline]
-//    fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
-//        s.emit_u8(if *self { 1 } else { 0 })
-//    }
-//}
-//
-//impl<D: Decoder> Decodable<D> for bool {
-//    #[inline]
-//    fn consensus_decode(d: &mut D) -> Result<bool, self::Error> {
-//        d.read_u8().map(|n| n != 0)
-//    }
-//}
-//
-//// Strings
-//impl<S: Encoder> Encodable<S> for String {
-//    #[inline]
-//    fn consensus_encode(&self, s: &mut S) -> Result<(), self::Error> {
-//        self.as_bytes().consensus_encode(s)
-//    }
-//}
-//
-//impl<D: Decoder> Decodable<D> for String {
-//    #[inline]
-//    fn consensus_decode(d: &mut D) -> Result<String, self::Error> {
-//        String::from_utf8(Decodable::consensus_decode(d)?)
-//            .map_err(|_| self::Error::ParseFailed("String was not valid UTF8"))
-//    }
-//}
 
 // Arrays
 macro_rules! impl_array {

@@ -13,11 +13,13 @@
 // copies or substantial portions of the Software.
 //
 
-//! CryptoNote sub-address protocol
+//! Sub-address index structure and key calculation helper functions for [`address`].
 //!
-//! Sub-addresses are grouped with index of subaddresses as a pair of indices `(i,j)` with `i`, the
-//! major index, representing a group of subaddresses (called an _account_) and `j`, the minor
-//! index, representing a particular subaddress within that account.
+//! Sub-addresses are grouped with index of sub-addresses as a pair of indices `(i,j)` with `i`,
+//! the major index, representing a group of sub-addresses (called an _account_) and `j`, the minor
+//! index, representing a particular sub-address within that account.
+//!
+//! [`address`]: crate::util::address
 //!
 
 use std::fmt;
@@ -29,18 +31,21 @@ use crate::network::Network;
 use crate::util::address::Address;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
-/// A subaddress index with `major` and `minor` indexes
+/// A sub-address index with `major` and `minor` indexes, primary address is `0/0`.
+///
+/// Index implements [`Default`] and returns `0/0`.
+///
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Index {
-    /// The major index, also account
+    /// The major index, also account.
     pub major: u32,
-    /// The minor index, the actual subaddress index
+    /// The minor index, the actual sub-address index.
     pub minor: u32,
 }
 
 impl Index {
-    /// Return `true` if major and minor indexes are both equal to 0, the zero case is a special
-    /// case
+    /// Return `true` if major and minor indexes are both equal to `0`, the zero case is a special
+    /// case.
     pub fn is_zero(self) -> bool {
         self.major == 0 && self.minor == 0
     }
@@ -58,8 +63,8 @@ impl Default for Index {
     }
 }
 
-/// Compute the scalar `m = Hn("SubAddr" || v || major_index || minor_index)` at index `i` from
-/// the view secret key `v`
+/// Compute the scalar `m = Hn("SubAddr" || v || major_index || minor_index)` at index `i` from the
+/// view secret key `v`.
 pub fn get_secret_scalar(view: &PrivateKey, index: Index) -> PrivateKey {
     // x = a || account_index || minor_index
     let mut encoder = Cursor::new(vec![]);
@@ -74,7 +79,7 @@ pub fn get_secret_scalar(view: &PrivateKey, index: Index) -> PrivateKey {
 }
 
 /// Compute the private spend key `s' = s + m` where `m` is computed with `get_secret_scalar` based
-/// on `v`
+/// on `v`.
 pub fn get_spend_secret_key(keys: &KeyPair, index: Index) -> PrivateKey {
     // If index is equal to 0, then return s as s'
     if index.is_zero() {
@@ -84,7 +89,7 @@ pub fn get_spend_secret_key(keys: &KeyPair, index: Index) -> PrivateKey {
     keys.spend + get_secret_scalar(&keys.view, index)
 }
 
-/// Compute the private view key `v' = v * s'` where `s'` is computed with `get_spend_secret_key`
+/// Compute the private view key `v' = v * s'` where `s'` is computed with `get_spend_secret_key`.
 pub fn get_view_secret_key(keys: &KeyPair, index: Index) -> PrivateKey {
     // If index is equal to 0, then return v as v'
     if index.is_zero() {
@@ -94,16 +99,17 @@ pub fn get_view_secret_key(keys: &KeyPair, index: Index) -> PrivateKey {
     keys.view * get_spend_secret_key(keys, index)
 }
 
-/// Compute a subkey pair `(v', s')` from a root keypair `(v, s)` for index `i`
+/// Compute a subkey pair `(v', s')` from a root keypair `(v, s)` for index `i`.
 pub fn get_secret_keys(keys: &KeyPair, index: Index) -> KeyPair {
     let view = get_view_secret_key(keys, index);
     let spend = get_spend_secret_key(keys, index);
     KeyPair { view, spend }
 }
 
-/// Compute the spend public key `S' = mG + S` at index `i` from the view pair `(v, S)`
+/// Compute the spend public key `S' = mG + S` at index `i` from the view pair `(v, S)`.
 ///
-/// If index is equal to zero return `S` as `S'`
+/// If index is equal to zero return `S` as `S'`.
+///
 pub fn get_spend_public_key(keys: &ViewPair, index: Index) -> PublicKey {
     // If index is equal to 0, then return S as S'
     if index.is_zero() {
@@ -117,9 +123,10 @@ pub fn get_spend_public_key(keys: &ViewPair, index: Index) -> PublicKey {
 }
 
 /// Compute the view public key and spend public key `(V', S')` at index `i` from view pair `(v, S)`
-/// where `V' = v*S'` and `S' = mG + S`
+/// where `V' = v*S'` and `S' = mG + S`.
 ///
-/// If index is equal to zero return `(v, S)` as `(V', S')`
+/// If index is equal to zero return `(v, S)` as `(V', S')`.
+///
 pub fn get_public_keys(keys: &ViewPair, index: Index) -> (PublicKey, PublicKey) {
     // If index is equal to 0, then return (V, S) as (V', S')
     if index.is_zero() {
@@ -135,7 +142,11 @@ pub fn get_public_keys(keys: &ViewPair, index: Index) -> (PublicKey, PublicKey) 
     (view, spend)
 }
 
-/// Compute the subaddress at index `i` valid on the given network (by default mainnet)
+/// Compute the sub-address at index `i` valid on the given network (by default
+/// [`Network::Mainnet`]).
+///
+/// [`Network::Mainnet`]: crate::network::Network::Mainnet
+///
 pub fn get_subaddress(keys: &ViewPair, index: Index, network: Option<Network>) -> Address {
     let net = network.unwrap_or_else(Network::default);
     let (view, spend) = get_public_keys(keys, index);

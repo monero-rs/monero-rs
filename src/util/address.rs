@@ -13,35 +13,26 @@
 // copies or substantial portions of the Software.
 //
 
-//! # Addresses and Payment Ids
+//! Monero addresses types and helper functions.
 //!
-//! Support for (de)serializable Monero addresses in Monero base58 format.
+//! Support for (de)serializable Monero addresses in Monero `base58` format (not equivalent to
+//! Bitcoin `base58` format).
 //!
 //! ## Parsing an address
 //!
 //! ```rust
 //! use std::str::FromStr;
-//! use monero::Address;
-//! use monero::util::address::Error;
+//! use monero::{Address, Network};
+//! use monero::util::address::{AddressType, Error};
 //!
-//! let address = Address::from_str("4ADT1BtbxqEWeMKp9GgPr2NeyJXXtNxvoDawpyA4WpzFcGcoHUvXeijE66DNfohE9r1bQYaBiQjEtKE7CtkTdLwiDznFzra")?;
+//! let addr = "4ADT1BtbxqEWeMKp9GgPr2NeyJXXtNxvoDawpyA4WpzFcGcoHUvXeijE66DNfohE9r1bQYaBiQjEtKE7CtkTdLwiDznFzra";
+//! let address = Address::from_str(addr)?;
+//!
+//! assert_eq!(address.network, Network::Mainnet);
+//! assert_eq!(address.addr_type, AddressType::Standard);
 //!
 //! let public_spend_key = address.public_spend;
 //! let public_view_key = address.public_view;
-//! # Ok::<(), Error>(())
-//! ```
-//!
-//! ## Payment Id
-//!
-//! ```rust
-//! use std::str::FromStr;
-//! use monero::Address;
-//! use monero::util::address::{AddressType, Error, PaymentId};
-//!
-//! let address = Address::from_str("4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV")?;
-//!
-//! let payment_id = PaymentId([88, 118, 184, 183, 41, 150, 255, 151]);
-//! assert_eq!(address.addr_type, AddressType::Integrated(payment_id));
 //! # Ok::<(), Error>(())
 //! ```
 //!
@@ -57,42 +48,44 @@ use crate::util::key::{KeyPair, PublicKey, ViewPair};
 
 use thiserror::Error;
 
-/// Possible errors when manipulating addresses
+/// Potential errors encountered when manipulating addresses.
 #[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    /// Invalid address magic byte
-    #[error("invalid magic byte")]
+    /// Invalid address magic byte.
+    #[error("Invalid magic byte")]
     InvalidMagicByte,
-    /// Invalid payment id
-    #[error("invalid payment ID")]
+    /// Invalid payment id.
+    #[error("Invalid payment ID")]
     InvalidPaymentId,
-    /// Missmatch checksums
-    #[error("invalid checksum")]
+    /// Missmatch address checksums.
+    #[error("Invalid checksum")]
     InvalidChecksum,
-    /// Invalid format
-    #[error("invalid format")]
+    /// Generic invalid format.
+    #[error("Invalid format")]
     InvalidFormat,
-    /// Monero base58 error
+    /// Monero base58 error.
     #[error("Base58 error: {0}")]
     Base58(#[from] base58::Error),
-    /// Network error
+    /// Network error.
     #[error("Network error: {0}")]
     Network(#[from] network::Error),
 }
 
-/// Address type: standard, integrated, or sub address
+/// Address type: standard, integrated, or sub-address.
+///
+/// AddressType implements [`Default`] and returns [`AddressType::Standard`].
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum AddressType {
-    /// Standard address
+    /// Standard address.
     Standard,
-    /// Address with 8 bytes payment id
+    /// Address with a short 8 bytes payment id.
     Integrated(PaymentId),
-    /// Subaddress
+    /// Sub-address.
     SubAddress,
 }
 
 impl AddressType {
-    /// Recover the address type given an address bytes and the network
+    /// Recover the address type given an address bytes and the network.
     pub fn from_slice(bytes: &[u8], net: Network) -> Result<AddressType, Error> {
         let byte = bytes[0];
         use AddressType::*;
@@ -146,25 +139,25 @@ impl fmt::Display for AddressType {
 }
 
 fixed_hash::construct_fixed_hash! {
-    /// Payment Id for integrated address
+    /// Short Payment Id for integrated address, a fixed 8-bytes array.
     pub struct PaymentId(8);
 }
 
-/// A generic Monero address
+/// A complete Monero typed address valid for a specific network.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Address {
-    /// The network on which the address is valid
+    /// The network on which the address is valid and should be used.
     pub network: Network,
-    /// The address type
+    /// The address type.
     pub addr_type: AddressType,
-    /// The address spend public key
+    /// The address spend public key.
     pub public_spend: PublicKey,
-    /// The address view public key
+    /// The address view public key.
     pub public_view: PublicKey,
 }
 
 impl Address {
-    /// Create a standard address which is valid on the given network
+    /// Create a standard address which is valid on the given network.
     pub fn standard(network: Network, public_spend: PublicKey, public_view: PublicKey) -> Address {
         Address {
             network,
@@ -174,7 +167,7 @@ impl Address {
         }
     }
 
-    /// Create a sub-address which is valid on the given network
+    /// Create a sub-address which is valid on the given network.
     pub fn subaddress(
         network: Network,
         public_spend: PublicKey,
@@ -188,7 +181,7 @@ impl Address {
         }
     }
 
-    /// Create an address with an integrated payment id which is valid on the given network
+    /// Create an address with an integrated payment id which is valid on the given network.
     pub fn integrated(
         network: Network,
         public_spend: PublicKey,
@@ -203,7 +196,7 @@ impl Address {
         }
     }
 
-    /// Create a standard address from a view pair which is valid on the given network
+    /// Create a standard address from a view pair which is valid on the given network.
     pub fn from_viewpair(network: Network, keys: &ViewPair) -> Address {
         let public_view = PublicKey::from_private_key(&keys.view);
         Address {
@@ -214,7 +207,7 @@ impl Address {
         }
     }
 
-    /// Create a standard address from a key pair which is valid on the given network
+    /// Create a standard address from a key pair which is valid on the given network.
     pub fn from_keypair(network: Network, keys: &KeyPair) -> Address {
         let public_spend = PublicKey::from_private_key(&keys.spend);
         let public_view = PublicKey::from_private_key(&keys.view);
@@ -227,7 +220,7 @@ impl Address {
     }
 
     /// Parse an address from a vector of bytes, fail if the magic byte is incorrect, if public
-    /// keys are not valid points, if payment id is invalid, and if checksums missmatch
+    /// keys are not valid points, if payment id is invalid, and if checksums missmatch.
     pub fn from_bytes(bytes: &[u8]) -> Result<Address, Error> {
         let network = Network::from_u8(bytes[0])?;
         let addr_type = AddressType::from_slice(&bytes, network)?;
@@ -254,7 +247,7 @@ impl Address {
         })
     }
 
-    /// Serialize the address as a vector of bytes
+    /// Serialize the address as a vector of bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![self.network.as_u8(&self.addr_type)];
         bytes.extend_from_slice(self.public_spend.as_bytes());
@@ -269,7 +262,7 @@ impl Address {
         bytes
     }
 
-    /// Serialize the address as an hexadecimal string
+    /// Serialize the address as an hexadecimal string.
     pub fn as_hex(&self) -> String {
         hex::encode(self.as_bytes())
     }
@@ -318,7 +311,7 @@ mod serde_impl {
 mod tests {
     use std::str::FromStr;
 
-    use super::{base58, Address, Network, PaymentId, PublicKey};
+    use super::{base58, Address, AddressType, Network, PaymentId, PublicKey};
 
     #[test]
     fn deserialize_address() {
@@ -394,6 +387,14 @@ mod tests {
             Ok(Address::subaddress(Network::Mainnet, pub_spend, pub_view)),
             add
         );
+    }
+
+    #[test]
+    fn deserialize_address_with_paymentid() {
+        let address = "4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV";
+        let addr = Address::from_str(address).unwrap();
+        let payment_id = PaymentId([88, 118, 184, 183, 41, 150, 255, 151]);
+        assert_eq!(addr.addr_type, AddressType::Integrated(payment_id));
     }
 
     #[test]

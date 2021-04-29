@@ -19,7 +19,8 @@
 //! designed for Rust programs built to work with the Monero ecosystem.
 //!
 //! The library currently focuses on manipulating types such as addresses, transactions, blocks and
-//! public keys, but do **not** implementat transaction signing.
+//! public keys, but do **NOT** implementat transaction signing. There is no immediate plan to add
+//! such support.
 //!
 //! ## Default features
 //!
@@ -32,8 +33,8 @@
 //! ## `strict_encoding` Support
 //!
 //! The `strict_encoding_support` feature enables `StrictEncode` and `StrictDecode` trait
-//! implementation for a few types that implements [consensus::Encodable] and
-//! [consensus::Decodable].
+//! implementation for a few types that implements [`consensus::Encodable`] and
+//! [`consensus::Decodable`].
 //!
 //! `strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same
 //! interface, i.e. `StrictEncode` and `StrictDecode`.

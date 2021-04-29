@@ -13,9 +13,11 @@
 // copies or substantial portions of the Software.
 //
 
-//! Block and block header
+//! Block and block header structures.
 //!
-//! This module defines structures of blocks.
+//! This module defines structures for manipulating Monero blocks. A block is composed of an
+//! [`Header`](BlockHeader), the miner [`Transaction`], and a list of transactions'
+//! [`Hash`](hash::Hash) included in the block.
 //!
 
 use crate::blockdata::transaction::Transaction;
@@ -25,19 +27,20 @@ use crate::cryptonote::hash;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Monero block header
+/// A block header containing the version, the mining timestamp, the previous block hash and the
+/// nonce.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct BlockHeader {
-    /// Major version, defines the consensus rules
+    /// Major version, defines the consensus rules.
     pub major_version: VarInt,
-    /// Minor version, also used to vote
+    /// Minor version, also used to vote.
     pub minor_version: VarInt,
-    /// Block timestamp
+    /// Block mining timestamp.
     pub timestamp: VarInt,
-    /// Previous block hash
+    /// Previous block hash.
     pub prev_id: hash::Hash,
-    /// Nonce
+    /// The nonce used for the proof of work.
     pub nonce: u32,
 }
 
@@ -60,15 +63,16 @@ impl_consensus_encoding!(
     nonce
 );
 
-/// Monero block with all transaction hashes
+/// A full block with the mining transaction and the commitments (hash) to all included
+/// transaction.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Block {
-    /// The block header
+    /// The block header.
     pub header: BlockHeader,
-    /// Coinbase transaction
+    /// The coinbase transaction (mining transaction).
     pub miner_tx: Transaction,
-    /// List of included transactions
+    /// List of included transactions within this block, only hashes are store.
     pub tx_hashes: Vec<hash::Hash>,
 }
 

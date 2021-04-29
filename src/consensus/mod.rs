@@ -13,13 +13,15 @@
 // copies or substantial portions of the Software.
 //
 
-//! Consensus encoding decoding Monero format
+//! Consensus encoding and decoding as defined by the Monero format.
 //!
-//! This module defines traits and functions which are needed to conform to Monero consensus.
+//! This module defines traits and functions which are needed to conform to Monero consensus
+//! encoding.
 //!
 //! ## Encode module
 //!
-//! The `encode` module is based on Andrew Poelstra work in `rust-bitcoin` library.
+//! The [`encode`] module is based on Andrew Poelstra and contributors work in the
+//! [`rust-bitcoin`](https://github.com/rust-bitcoin/rust-bitcoin) library.
 //!
 
 #[macro_use]
