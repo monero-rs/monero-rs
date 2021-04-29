@@ -59,11 +59,11 @@
 //! ```
 //!
 
+use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Mul, Sub};
 use std::str::FromStr;
 use std::{fmt, io, ops};
-use std::convert::TryFrom;
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};

@@ -64,9 +64,7 @@ impl_consensus_encoding!(Key, key);
 
 impl From<[u8; 32]> for Key {
     fn from(key: [u8; 32]) -> Self {
-        Self {
-            key
-        }
+        Self { key }
     }
 }
 
@@ -86,9 +84,7 @@ impl_consensus_encoding!(Key64, key);
 
 impl From<[u8; 64]> for Key64 {
     fn from(key: [u8; 64]) -> Self {
-        Self {
-            key
-        }
+        Self { key }
     }
 }
 
