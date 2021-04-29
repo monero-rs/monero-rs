@@ -63,6 +63,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Add, Mul, Sub};
 use std::str::FromStr;
 use std::{fmt, io, ops};
+use std::convert::TryFrom;
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
@@ -132,6 +133,22 @@ impl PrivateKey {
     /// Create a secret key from a raw curve25519 scalar
     pub fn from_scalar(scalar: Scalar) -> PrivateKey {
         PrivateKey { scalar }
+    }
+}
+
+impl TryFrom<[u8; 32]> for PrivateKey {
+    type Error = Error;
+
+    fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
+        Self::from_slice(&value)
+    }
+}
+
+impl TryFrom<&[u8]> for PrivateKey {
+    type Error = Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_slice(value)
     }
 }
 
@@ -295,6 +312,22 @@ impl PublicKey {
         self.point
             .decompress()
             .expect("PublicKey Can only be created if a valid point is found. QED")
+    }
+}
+
+impl TryFrom<[u8; 32]> for PublicKey {
+    type Error = Error;
+
+    fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
+        Self::from_slice(&value)
+    }
+}
+
+impl TryFrom<&[u8]> for PublicKey {
+    type Error = Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_slice(value)
     }
 }
 
