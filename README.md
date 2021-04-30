@@ -1,4 +1,8 @@
-[![Build Status](https://travis-ci.com/monero-rs/monero-rs.svg?branch=master)](https://travis-ci.com/monero-rs/monero-rs) [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/) [![Crates.io](https://img.shields.io/crates/v/monero.svg)](https://crates.io/crates/monero) [![Documentation](https://docs.rs/monero/badge.svg)](https://docs.rs/monero) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/github/workflow/status/monero-rs/monero-rs/CI/main)](https://github.com/monero-rs/monero-rs/actions/workflows/ci.yml)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
+[![Crates.io](https://img.shields.io/crates/v/monero.svg)](https://crates.io/crates/monero)
+[![Documentation](https://docs.rs/monero/badge.svg)](https://docs.rs/monero)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Rust Monero Library
 ===
