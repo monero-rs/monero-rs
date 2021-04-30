@@ -566,8 +566,7 @@ impl hash::Hashable for Transaction {
         match *self.prefix.version {
             1 => hash::Hash::hash(&serialize(self)),
             _ => {
-                let mut hashes: Vec<hash::Hash> = vec![];
-                hashes.push(self.prefix.hash());
+                let mut hashes: Vec<hash::Hash> = vec![self.prefix.hash()];
                 if let Some(sig_base) = &self.rct_signatures.sig {
                     hashes.push(sig_base.hash());
                     if sig_base.rct_type == RctType::Null {

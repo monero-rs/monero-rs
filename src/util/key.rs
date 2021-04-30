@@ -241,7 +241,7 @@ impl FromStr for PrivateKey {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = hex::decode(s)?;
-        Ok(Self::from_slice(&bytes[..])?)
+        Self::from_slice(&bytes[..])
     }
 }
 
@@ -453,7 +453,7 @@ impl FromStr for PublicKey {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = hex::decode(s)?;
-        Ok(Self::from_slice(&bytes[..])?)
+        Self::from_slice(&bytes[..])
     }
 }
 
