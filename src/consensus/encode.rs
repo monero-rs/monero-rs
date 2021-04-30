@@ -51,9 +51,9 @@ pub enum Error {
     /// Transaction error.
     #[error("Transaction error: {0}")]
     Transaction(#[from] transaction::Error),
-    /// RingCT error.
-    #[error("RingCT error: {0}")]
-    RingCT(#[from] ringct::Error),
+    /// RingCt error.
+    #[error("RingCt error: {0}")]
+    RingCt(#[from] ringct::Error),
     /// A generic parsing error.
     #[error("Parsing error: {0}")]
     ParseFailed(&'static str),
