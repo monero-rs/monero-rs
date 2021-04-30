@@ -47,7 +47,10 @@ pub enum Error {
     /// Monero transaction error.
     #[error("Transaction error: {0}")]
     Transaction(#[from] transaction::Error),
-    /// Monero amount error.
+    /// Monero amount recovery error.
     #[error("Amount recovery error: {0}")]
     AmountRecovery(#[from] amount::RecoveryError),
+    /// Monero amount parsing error.
+    #[error("Amount parsing error: {0}")]
+    AmountParsing(#[from] amount::ParsingError),
 }
