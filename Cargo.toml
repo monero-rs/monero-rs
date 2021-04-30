@@ -19,7 +19,7 @@ edition = "2018"
 
 [features]
 default = ["full"]
-full = ["fixed-hash/std", "fixed-hash/rand"]
+full = ["fixed-hash/std", "fixed-hash/rand", "rand/std"]
 serde_support = ["serde", "serde-big-array"]
 strict_encoding_support = ["strict_encoding"]
 
@@ -27,16 +27,28 @@ strict_encoding_support = ["strict_encoding"]
 hex = "0.4.3"
 hex-literal = "0.3.1"
 keccak-hash = "0.7.0"
+# TODO: We can use keccak-hash instead and not "introduce" another dependency.
+tiny-keccak = { version = "2", features = ["keccak"] }
 base58-monero = { version = "0.3", default-features = false }
 serde = { version = "1.0.124", features = ["derive"], optional = true }
 serde-big-array = { version = "0.3.2", optional = true }
 curve25519-dalek = { version = "3.0.2", features = ["serde"] }
 thiserror = "1.0.24"
 strict_encoding = { version = "1.2", optional = true }
+subtle = { version = "2", default-features = false }
+hash_edwards_to_edwards = { git = "https://github.com/comit-network/hash_edwards_to_edwards" }
+integer-encoding = "3"
+rand = { version = "0.7", optional = true }
+rand_core = { version = "0.5", default-features = false, features = ["alloc"] }
+lazy_static = "1"
+clear_on_drop = { version = "0.2", default-features = false }
 
 [dependencies.fixed-hash]
 version = "0.7.0"
 default-features = false
+
+[dev-dependencies]
+rand = { version = "0.7", features = ["std"] }
 
 [badges]
 travis-ci = { repository = "monero-rs/monero-rs", branch = "master" }

@@ -64,6 +64,7 @@ mod internal_macros;
 #[macro_use]
 pub mod consensus;
 pub mod blockdata;
+pub mod bulletproof;
 pub mod cryptonote;
 pub mod network;
 pub mod util;

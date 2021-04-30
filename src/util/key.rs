@@ -59,11 +59,11 @@
 //! ```
 //!
 
+use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Mul, Sub};
 use std::str::FromStr;
 use std::{fmt, io, ops};
-use std::convert::TryFrom;
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
@@ -549,11 +549,10 @@ mod tests {
 
     #[test]
     fn parse_public_key() {
-        assert!(
-            true,
-            PublicKey::from_str("eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3")
-                .is_ok()
-        );
+        assert!(PublicKey::from_str(
+            "eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3"
+        )
+        .is_ok());
     }
 
     #[test]
