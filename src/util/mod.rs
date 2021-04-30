@@ -41,9 +41,9 @@ pub enum Error {
     /// Monero key error.
     #[error("Key error: {0}")]
     Key(#[from] key::Error),
-    /// Monero RingCT error.
-    #[error("RingCT error: {0}")]
-    RingCT(#[from] ringct::Error),
+    /// Monero RingCt error.
+    #[error("RingCt error: {0}")]
+    RingCt(#[from] ringct::Error),
     /// Monero transaction error.
     #[error("Transaction error: {0}")]
     Transaction(#[from] transaction::Error),
