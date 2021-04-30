@@ -481,13 +481,9 @@ impl Transaction {
     }
 
     /// Calculate an output's amount.
-    pub fn get_amount<'a>(
-        &self,
-        view_pair: &ViewPair,
-        out: &OwnedTxOut,
-    ) -> Result<u64, RecoveryError> {
+    pub fn get_amount(&self, view_pair: &ViewPair, out: &OwnedTxOut) -> Result<u64, RecoveryError> {
         if out.index >= self.prefix.outputs.len() {
-            Err(RecoveryError::IndexOutOfRange)?;
+            return Err(RecoveryError::IndexOutOfRange);
         }
 
         let sig = self
@@ -558,7 +554,7 @@ impl Transaction {
         let actual_commitment = PublicKey::from_slice(&sig.out_pk[out.index].mask.key);
 
         if actual_commitment != Ok(expected_commitment) {
-            Err(RecoveryError::InvalidCommitment)?;
+            return Err(RecoveryError::InvalidCommitment);
         }
 
         Ok(amount)

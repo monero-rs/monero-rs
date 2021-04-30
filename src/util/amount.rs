@@ -898,6 +898,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn floating_point() {
         use super::Denomination as D;
         let f = Amount::from_float_in;
@@ -986,7 +987,7 @@ mod tests {
         );
         assert_eq!(
             p("1234567.123456789123", xmr),
-            Ok(Amount::from_pico(12_345_67__123_456_789_123))
+            Ok(Amount::from_pico(1_234_567_123_456_789_123))
         );
 
         // make sure Piconero > i64::max_value() is checked.
