@@ -38,9 +38,6 @@ strict_encoding = { version = "1.2", optional = true }
 version = "0.7.0"
 default-features = false
 
-[badges]
-travis-ci = { repository = "monero-rs/monero-rs", branch = "master" }
-
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
