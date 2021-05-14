@@ -22,6 +22,7 @@
 
 use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
+use crate::cryptonote::hash::{keccak_256, Hashable};
 use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
@@ -540,6 +541,96 @@ impl Transaction {
         self.prefix()
             .check_outputs(pair, major, minor, self.rct_signatures.sig.as_ref())
     }
+
+    /// Compute the message to be signed by the CLSAG signature algorithm.
+    ///
+    /// The message consists of three parts:
+    ///
+    /// 1. The hash of the transaction prefix.
+    /// 2. The hash of a consensus-encoded [`RctSigBase`].
+    /// 3. The hash of all bulletproofs.
+    pub fn signature_hash(&self) -> Result<hash::Hash, SignatureHashError> {
+        use tiny_keccak::Hasher as _;
+
+        let mut keccak = tiny_keccak::Keccak::v256();
+        keccak.update(&self.transaction_prefix_hash());
+        keccak.update(&self.rct_sig_base_hash()?);
+        keccak.update(&self.bulletproof_hash()?);
+
+        let mut hash = [0u8; 32];
+        keccak.finalize(&mut hash);
+
+        Ok(hash::Hash(hash))
+    }
+
+    fn transaction_prefix_hash(&self) -> [u8; 32] {
+        self.prefix.hash().to_bytes()
+    }
+
+    fn rct_sig_base_hash(&self) -> Result<[u8; 32], SignatureHashError> {
+        let rct_sig_base = self
+            .rct_signatures
+            .sig
+            .as_ref()
+            .ok_or(SignatureHashError::MissingRctSigBase)?;
+        let bytes = crate::consensus::serialize(rct_sig_base);
+
+        Ok(keccak_256(&bytes))
+    }
+
+    fn bulletproof_hash(&self) -> Result<[u8; 32], SignatureHashError> {
+        use tiny_keccak::Hasher as _;
+
+        let bulletproofs = self
+            .rct_signatures
+            .p
+            .as_ref()
+            .ok_or(SignatureHashError::NoBulletproofs)?
+            .bulletproofs
+            .as_slice();
+        if bulletproofs.is_empty() {
+            return Err(SignatureHashError::NoBulletproofs);
+        }
+
+        let mut keccak = tiny_keccak::Keccak::v256();
+
+        for bp in bulletproofs {
+            keccak.update(&bp.A.key);
+            keccak.update(&bp.S.key);
+            keccak.update(&bp.T1.key);
+            keccak.update(&bp.T2.key);
+            keccak.update(&bp.taux.key);
+            keccak.update(&bp.mu.key);
+
+            for i in &bp.L {
+                keccak.update(&i.key);
+            }
+
+            for i in &bp.R {
+                keccak.update(&i.key);
+            }
+
+            keccak.update(&bp.a.key);
+            keccak.update(&bp.b.key);
+            keccak.update(&bp.t.key);
+        }
+
+        let mut hash = [0u8; 32];
+        keccak.finalize(&mut hash);
+
+        Ok(hash)
+    }
+}
+
+/// Possible errors when calculating the signature hash of a transaction.
+#[derive(Debug, thiserror::Error)]
+pub enum SignatureHashError {
+    /// [`RctSigBase`] was not set in [`Transaction`]
+    #[error("`RctSigBase` is required for computing the signature hash")]
+    MissingRctSigBase,
+    /// Either all of [`RctSigPrunable`] was not set within [`Transaction`] or the list of bulletproofs was empty.
+    #[error("bulletproofs are required for computing the signature hash")]
+    NoBulletproofs,
 }
 
 impl hash::Hashable for Transaction {
