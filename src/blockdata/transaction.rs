@@ -22,19 +22,19 @@
 
 use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
-use crate::cryptonote::onetime_key::{KeyGenerator, KeyRecoverer, SubKeyChecker};
+use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::amount::RecoveryError;
-use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair, H};
-use crate::util::ringct::{EcdhInfo, RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
+use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
+use crate::util::ringct::{RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
-use curve25519_dalek::scalar::Scalar;
 use hex::encode as hex_encode;
 use thiserror::Error;
 
-use std::convert::TryInto;
 use std::ops::Range;
 use std::{fmt, io};
+
+use curve25519_dalek::edwards::CompressedEdwardsY;
 
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
@@ -501,65 +501,13 @@ impl Transaction {
             .get(out.index)
             .ok_or(RecoveryError::IndexOutOfRange)?;
 
-        let shared_key = KeyGenerator::from_key(view_pair, out.tx_pubkey).get_rvn_scalar(out.index);
+        let commitment = CompressedEdwardsY(sig.out_pk[out.index].mask.key)
+            .decompress()
+            .ok_or(RecoveryError::InvalidCommitment)?;
 
-        let (commitment_mask, amount) = match ecdh_info {
-            // ecdhDecode in rctOps.cpp else
-            EcdhInfo::Standard { mask, amount } => {
-                let shared_sec1 = hash::Hash::hash(shared_key.as_bytes()).to_bytes();
-                let shared_sec2 = hash::Hash::hash(&shared_sec1).to_bytes();
-                let mask_scalar = Scalar::from_bytes_mod_order(mask.key)
-                    - Scalar::from_bytes_mod_order(shared_sec1);
-
-                let amount_scalar = Scalar::from_bytes_mod_order(amount.key)
-                    - Scalar::from_bytes_mod_order(shared_sec2);
-                // get first 64 bits (d2b in rctTypes.cpp)
-                let amount_significant_bytes = amount_scalar.to_bytes()[0..8]
-                    .try_into()
-                    .expect("Can't fail");
-                let amount = u64::from_le_bytes(amount_significant_bytes);
-                (mask_scalar, amount)
-            }
-            // ecdhDecode in rctOps.cpp if (v2)
-            EcdhInfo::Bulletproof { amount } => {
-                // genCommitmentMask in .cpp
-                let mut commitment_key = "commitment_mask".as_bytes().to_vec();
-                commitment_key.extend(shared_key.as_bytes());
-                // yt in Z2M p 53
-                let mask_scalar = Scalar::from_bytes_mod_order(
-                    hash::Hash::hash(&commitment_key).to_fixed_bytes(),
-                );
-                // ecdhHash in .cpp
-                let mut amount_key = "amount".as_bytes().to_vec();
-                amount_key.extend(shared_key.as_bytes());
-
-                // Hn("amount", Hn(rKbv,t))
-                let hash_shared_key = hash::Hash::hash(&amount_key).to_fixed_bytes();
-                let hash_shared_key_significant_bytes = hash_shared_key[0..8]
-                    .try_into()
-                    .expect("hash_shared_key create above has 32 bytes");
-
-                // bt in Z2M and masked.amount in .cpp
-                let masked_amount = amount.0; // 8 bytes
-
-                // amount_t = bt XOR Hn("amount", Hn("amount", Hn(rKbv,t)))
-                // xor8(masked.amount, ecdhHash(sharedSec)); in .cpp
-                let amount = u64::from_le_bytes(masked_amount)
-                    ^ u64::from_le_bytes(hash_shared_key_significant_bytes);
-
-                (mask_scalar, amount)
-            }
-        };
-
-        let blinding_factor =
-            PublicKey::from_private_key(&PrivateKey::from_scalar(commitment_mask));
-        let committed_amount = H * &PrivateKey::from_scalar(Scalar::from(amount));
-        let expected_commitment = blinding_factor + committed_amount;
-        let actual_commitment = PublicKey::from_slice(&sig.out_pk[out.index].mask.key);
-
-        if actual_commitment != Ok(expected_commitment) {
-            return Err(RecoveryError::InvalidCommitment);
-        }
+        let (amount, _) = ecdh_info
+            .open_commitment(view_pair, &out.tx_pubkey, out.index, &commitment)
+            .ok_or(RecoveryError::InvalidCommitment)?;
 
         Ok(amount)
     }
