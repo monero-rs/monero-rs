@@ -28,23 +28,6 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
-/// Potential errors encountered when recovering the amount of an [`OwnedTxOut`].
-///
-/// [`OwnedTxOut`]: crate::blockdata::transaction::OwnedTxOut
-///
-#[derive(Error, Debug, PartialEq)]
-pub enum RecoveryError {
-    /// Index of output is out of range.
-    #[error("The index is out of range")]
-    IndexOutOfRange,
-    /// Missing signature for the output.
-    #[error("Missing signature for the output")]
-    MissingSignature,
-    /// Invalid commitment.
-    #[error("Invalid commitment")]
-    InvalidCommitment,
-}
-
 /// A set of denominations in which amounts can be expressed.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Denomination {

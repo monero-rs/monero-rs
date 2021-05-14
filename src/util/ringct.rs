@@ -169,7 +169,7 @@ impl EcdhInfo {
         tx_pubkey: &PublicKey,
         index: usize,
         candidate_commitment: &EdwardsPoint,
-    ) -> Option<(u64, Scalar)> {
+    ) -> Option<Opening> {
         let shared_key = KeyGenerator::from_key(view_pair, *tx_pubkey).get_rvn_scalar(index);
 
         let (amount, blinding_factor) = match self {
@@ -207,8 +207,23 @@ impl EcdhInfo {
             return None;
         }
 
-        Some((amount, blinding_factor))
+        Some(Opening {
+            amount,
+            blinding_factor,
+            commitment: expected_commitment,
+        })
     }
+}
+
+/// The result of opening the commitment inside the transaction.
+#[derive(Debug)]
+pub struct Opening {
+    /// The original amount of the output.
+    pub amount: u64,
+    /// The blinding factor used to blind the amount.
+    pub blinding_factor: Scalar,
+    /// The commitment used to verify the blinded amount.
+    pub commitment: EdwardsPoint,
 }
 
 fn xor_amount(amount: [u8; 8], shared_key: Scalar) -> [u8; 8] {
