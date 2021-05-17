@@ -185,17 +185,33 @@ impl TxOut {
 ///
 #[derive(Debug)]
 pub struct OwnedTxOut<'a> {
-    /// Index of the output in the transaction.
-    pub index: usize,
-    /// A reference to the actual redeemable output.
-    pub out: &'a TxOut,
-    /// Index of the key pair to use, can be `0/0` for main address.
-    pub sub_index: Index,
-    /// The associated transaction public key.
-    pub tx_pubkey: PublicKey,
+    index: usize,
+    out: &'a TxOut,
+    sub_index: Index,
+    tx_pubkey: PublicKey,
 }
 
 impl<'a> OwnedTxOut<'a> {
+    /// Returns the index of this output in the transaction
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Returns a reference to the actual redeemable output.
+    pub fn out(&self) -> &'a TxOut {
+        &self.out
+    }
+
+    /// Returns the index of the key pair to use, can be `0/0` for main address.
+    pub fn sub_index(&self) -> Index {
+        self.sub_index
+    }
+
+    /// Returns the associated transaction public key.
+    pub fn tx_pubkey(&self) -> PublicKey {
+        self.tx_pubkey
+    }
+
     /// Retreive the public keys, if any.
     pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
         self.out.get_pubkeys()
