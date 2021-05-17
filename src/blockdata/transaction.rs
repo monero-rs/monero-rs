@@ -221,7 +221,7 @@ impl<'a> OwnedTxOut<'a> {
     }
 
     /// Retreive the public keys, if any.
-    pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
+    pub fn pubkeys(&self) -> Option<Vec<PublicKey>> {
         self.out.get_pubkeys()
     }
 
