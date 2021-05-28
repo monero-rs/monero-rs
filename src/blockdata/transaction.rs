@@ -22,20 +22,19 @@
 
 use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
-use crate::cryptonote::onetime_key::{KeyGenerator, KeyRecoverer, SubKeyChecker};
+use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
-use crate::util::amount::RecoveryError;
-use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair, H};
-use crate::util::ringct::{EcdhInfo, RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
+use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
+use crate::util::ringct::{Opening, RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
-use curve25519_dalek::scalar::Scalar;
 use hex::encode as hex_encode;
 use thiserror::Error;
 
-use std::convert::TryInto;
 use std::ops::Range;
 use std::{fmt, io};
 
+use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
+use curve25519_dalek::scalar::Scalar;
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +47,15 @@ pub enum Error {
     /// Scripts input/output are not supported.
     #[error("Script not supported")]
     ScriptNotSupported,
+    /// Missing ECDH info for the output.
+    #[error("Missing ECDH info for the output")]
+    MissingEcdhInfo,
+    /// Invalid commitment.
+    #[error("Invalid commitment")]
+    InvalidCommitment,
+    /// Missing commitment.
+    #[error("Missing commitment")]
+    MissingCommitment,
 }
 
 /// The key image used in transaction inputs [`TxIn`] to commit to the use of an output one-time
@@ -111,12 +119,20 @@ pub enum TxOutTarget {
 }
 
 impl TxOutTarget {
-    /// Retreive the public keys, if any.
+    /// Retrieve the public keys, if any.
     pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
         match self {
             TxOutTarget::ToScript { keys, .. } => Some(keys.clone()),
             TxOutTarget::ToKey { key } => Some(vec![*key]),
             TxOutTarget::ToScriptHash { .. } => None,
+        }
+    }
+
+    /// Returns the one-time public key if this is a [`TxOutTarget::ToKey`] and `None` otherwise.
+    pub fn as_one_time_key(&self) -> Option<&PublicKey> {
+        match self {
+            TxOutTarget::ToKey { key } => Some(key),
+            _ => None,
         }
     }
 }
@@ -175,7 +191,7 @@ impl TxOut {
 /// let view_pair = ViewPair { view: secret_view, spend };
 ///
 /// // Get all owned output for sub-addresses in range of 0-1 major index and 0-2 minor index
-/// let owned_outputs = tx.prefix.check_outputs(&view_pair, 0..2, 0..3).unwrap();
+/// let owned_outputs = tx.check_outputs(&view_pair, 0..2, 0..3).unwrap();
 ///
 /// for out in owned_outputs {
 ///     // Recover the ephemeral private spend key
@@ -185,19 +201,57 @@ impl TxOut {
 ///
 #[derive(Debug)]
 pub struct OwnedTxOut<'a> {
-    /// Index of the output in the transaction.
-    pub index: usize,
-    /// A reference to the actual redeemable output.
-    pub out: &'a TxOut,
-    /// Index of the key pair to use, can be `0/0` for main address.
-    pub sub_index: Index,
-    /// The associated transaction public key.
-    pub tx_pubkey: PublicKey,
+    index: usize,
+    out: &'a TxOut,
+    sub_index: Index,
+    tx_pubkey: PublicKey,
+    opening: Option<Opening>,
 }
 
 impl<'a> OwnedTxOut<'a> {
+    /// Returns the index of this output in the transaction
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Returns a reference to the actual redeemable output.
+    pub fn out(&self) -> &'a TxOut {
+        &self.out
+    }
+
+    /// Returns the index of the key pair to use, can be `0/0` for main address.
+    pub fn sub_index(&self) -> Index {
+        self.sub_index
+    }
+
+    /// Returns the associated transaction public key.
+    pub fn tx_pubkey(&self) -> PublicKey {
+        self.tx_pubkey
+    }
+
+    /// Returns the unblinded amount of this output.
+    ///
+    /// None if we didn't have enough information to unblind the output.
+    pub fn amount(&self) -> Option<u64> {
+        self.opening.as_ref().map(|o| o.amount)
+    }
+
+    /// Returns the original blinding factor of this output.
+    ///
+    /// None if we didn't have enough information to unblind the output.
+    pub fn blinding_factor(&self) -> Option<Scalar> {
+        self.opening.as_ref().map(|o| o.blinding_factor)
+    }
+
+    /// Returns the original commitment of this output.
+    ///
+    /// None if we didn't have enough information to unblind the output.
+    pub fn commitment(&self) -> Option<EdwardsPoint> {
+        self.opening.as_ref().map(|o| o.commitment)
+    }
+
     /// Retreive the public keys, if any.
-    pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
+    pub fn pubkeys(&self) -> Option<Vec<PublicKey>> {
         self.out.get_pubkeys()
     }
 
@@ -356,55 +410,63 @@ impl TransactionPrefix {
         pair: &ViewPair,
         major: Range<u32>,
         minor: Range<u32>,
+        rct_sig_base: Option<&RctSigBase>,
     ) -> Result<Vec<OwnedTxOut>, Error> {
-        match self.tx_additional_pubkeys() {
-            Some(tx_additional_pubkeys) => {
-                let checker = SubKeyChecker::new(&pair, major, minor);
-                Ok((0..)
-                    .zip(self.outputs.iter())
-                    .zip(tx_additional_pubkeys.iter())
-                    .filter_map(|((i, out), tx_pubkey)| {
-                        match out.target {
-                            TxOutTarget::ToKey { key } => {
-                                checker
-                                    .check(i, &key, tx_pubkey)
-                                    .map(|sub_index| OwnedTxOut {
-                                        index: i,
-                                        out,
-                                        sub_index: *sub_index,
-                                        tx_pubkey: *tx_pubkey,
-                                    })
-                            }
-                            // Reject all non-toKey outputs
-                            _ => None,
-                        }
-                    })
-                    .collect())
+        let tx_pubkeys = match self.tx_additional_pubkeys() {
+            Some(additional_keys) => additional_keys,
+            None => {
+                let tx_pubkey = self.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
+
+                // if we don't have additional_pubkeys, we check every output against the single `tx_pubkey`
+                vec![tx_pubkey; self.outputs.len()]
             }
-            None => match self.tx_pubkey() {
-                Some(tx_pubkey) => {
-                    let checker = SubKeyChecker::new(&pair, major, minor);
-                    Ok((0..)
-                        .zip(self.outputs.iter())
-                        .filter_map(|(i, out)| {
-                            match out.target {
-                                TxOutTarget::ToKey { key } => checker
-                                    .check(i, &key, &tx_pubkey)
-                                    .map(|sub_index| OwnedTxOut {
-                                        index: i,
-                                        out,
-                                        sub_index: *sub_index,
-                                        tx_pubkey,
-                                    }),
-                                // Reject all non-toKey outputs
-                                _ => None,
-                            }
-                        })
-                        .collect())
-                }
-                None => Err(Error::NoTxPublicKey),
-            },
-        }
+        };
+        let checker = SubKeyChecker::new(&pair, major, minor);
+
+        let owned_txouts = self
+            .outputs
+            .iter()
+            .enumerate()
+            .zip(tx_pubkeys.iter())
+            .filter_map(|((i, out), tx_pubkey)| {
+                let key = out.target.as_one_time_key()?;
+                let sub_index = checker.check(i, &key, tx_pubkey)?;
+
+                Some((i, out, sub_index, tx_pubkey))
+            })
+            .map(|(i, out, sub_index, tx_pubkey)| {
+                let opening = match rct_sig_base {
+                    Some(rct_sig_base) => {
+                        let ecdh_info = rct_sig_base
+                            .ecdh_info
+                            .get(i)
+                            .ok_or(Error::MissingEcdhInfo)?;
+                        let actual_commitment =
+                            rct_sig_base.out_pk.get(i).ok_or(Error::MissingCommitment)?;
+                        let actual_commitment = CompressedEdwardsY(actual_commitment.mask.key)
+                            .decompress()
+                            .ok_or(Error::InvalidCommitment)?;
+
+                        let opening = ecdh_info
+                            .open_commitment(pair, tx_pubkey, i, &actual_commitment)
+                            .ok_or(Error::InvalidCommitment)?;
+
+                        Some(opening)
+                    }
+                    None => None,
+                };
+
+                Ok(OwnedTxOut {
+                    index: i,
+                    out,
+                    sub_index: *sub_index,
+                    tx_pubkey: *tx_pubkey,
+                    opening,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(owned_txouts)
     }
 }
 
@@ -475,87 +537,8 @@ impl Transaction {
         major: Range<u32>,
         minor: Range<u32>,
     ) -> Result<Vec<OwnedTxOut>, Error> {
-        self.prefix().check_outputs(pair, major, minor)
-    }
-
-    /// Calculate an output's amount.
-    pub fn get_amount(&self, view_pair: &ViewPair, out: &OwnedTxOut) -> Result<u64, RecoveryError> {
-        if out.index >= self.prefix.outputs.len() {
-            return Err(RecoveryError::IndexOutOfRange);
-        }
-
-        let sig = self
-            .rct_signatures
-            .sig
-            .as_ref()
-            .ok_or(RecoveryError::MissingSignature)?;
-
-        let ecdh_info = sig
-            .ecdh_info
-            .get(out.index)
-            .ok_or(RecoveryError::IndexOutOfRange)?;
-
-        let shared_key = KeyGenerator::from_key(view_pair, out.tx_pubkey).get_rvn_scalar(out.index);
-
-        let (commitment_mask, amount) = match ecdh_info {
-            // ecdhDecode in rctOps.cpp else
-            EcdhInfo::Standard { mask, amount } => {
-                let shared_sec1 = hash::Hash::hash(shared_key.as_bytes()).to_bytes();
-                let shared_sec2 = hash::Hash::hash(&shared_sec1).to_bytes();
-                let mask_scalar = Scalar::from_bytes_mod_order(mask.key)
-                    - Scalar::from_bytes_mod_order(shared_sec1);
-
-                let amount_scalar = Scalar::from_bytes_mod_order(amount.key)
-                    - Scalar::from_bytes_mod_order(shared_sec2);
-                // get first 64 bits (d2b in rctTypes.cpp)
-                let amount_significant_bytes = amount_scalar.to_bytes()[0..8]
-                    .try_into()
-                    .expect("Can't fail");
-                let amount = u64::from_le_bytes(amount_significant_bytes);
-                (mask_scalar, amount)
-            }
-            // ecdhDecode in rctOps.cpp if (v2)
-            EcdhInfo::Bulletproof { amount } => {
-                // genCommitmentMask in .cpp
-                let mut commitment_key = "commitment_mask".as_bytes().to_vec();
-                commitment_key.extend(shared_key.as_bytes());
-                // yt in Z2M p 53
-                let mask_scalar = Scalar::from_bytes_mod_order(
-                    hash::Hash::hash(&commitment_key).to_fixed_bytes(),
-                );
-                // ecdhHash in .cpp
-                let mut amount_key = "amount".as_bytes().to_vec();
-                amount_key.extend(shared_key.as_bytes());
-
-                // Hn("amount", Hn(rKbv,t))
-                let hash_shared_key = hash::Hash::hash(&amount_key).to_fixed_bytes();
-                let hash_shared_key_significant_bytes = hash_shared_key[0..8]
-                    .try_into()
-                    .expect("hash_shared_key create above has 32 bytes");
-
-                // bt in Z2M and masked.amount in .cpp
-                let masked_amount = amount.0; // 8 bytes
-
-                // amount_t = bt XOR Hn("amount", Hn("amount", Hn(rKbv,t)))
-                // xor8(masked.amount, ecdhHash(sharedSec)); in .cpp
-                let amount = u64::from_le_bytes(masked_amount)
-                    ^ u64::from_le_bytes(hash_shared_key_significant_bytes);
-
-                (mask_scalar, amount)
-            }
-        };
-
-        let blinding_factor =
-            PublicKey::from_private_key(&PrivateKey::from_scalar(commitment_mask));
-        let committed_amount = H * &PrivateKey::from_scalar(Scalar::from(amount));
-        let expected_commitment = blinding_factor + committed_amount;
-        let actual_commitment = PublicKey::from_slice(&sig.out_pk[out.index].mask.key);
-
-        if actual_commitment != Ok(expected_commitment) {
-            return Err(RecoveryError::InvalidCommitment);
-        }
-
-        Ok(amount)
+        self.prefix()
+            .check_outputs(pair, major, minor, self.rct_signatures.sig.as_ref())
     }
 }
 
@@ -947,7 +930,10 @@ mod tests {
             "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
             format!("{:02x}", tx.hash())
         );
-        assert_eq!(true, tx.check_outputs(&viewpair, 0..1, 0..200).is_ok());
+        assert_eq!(
+            true,
+            tx.check_outputs(&viewpair, 0..1, 0..200, None).is_ok()
+        );
         assert_eq!(hex, serialize(&tx));
 
         let tx = deserialize::<Transaction>(&hex[..]);

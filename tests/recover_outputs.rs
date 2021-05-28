@@ -33,7 +33,7 @@ fn recover_output_and_amount() {
     };
 
     // Get all owned output for sub-addresses in range of 0-1 major index and 0-2 minor index
-    let owned_outputs = tx.prefix.check_outputs(&view_pair, 0..2, 0..3).unwrap();
+    let owned_outputs = tx.check_outputs(&view_pair, 0..2, 0..3).unwrap();
 
     assert_eq!(owned_outputs.len(), 1);
     let out = owned_outputs.get(0).unwrap();
@@ -49,7 +49,7 @@ fn recover_output_and_amount() {
         format!("{}", PublicKey::from_private_key(&private_key))
     );
 
-    let amount = tx.get_amount(&view_pair, &out);
-    assert!(amount.is_ok());
+    let amount = out.amount();
+    assert!(amount.is_some());
     assert_eq!(amount.unwrap(), 7000000000);
 }
