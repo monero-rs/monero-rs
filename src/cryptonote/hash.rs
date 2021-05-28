@@ -23,7 +23,7 @@
 //!
 
 use curve25519_dalek::scalar::Scalar;
-use keccak_hash::keccak_256;
+use tiny_keccak::{Hasher, Keccak};
 
 use std::io;
 
@@ -46,9 +46,7 @@ impl Hash {
 
     /// Hash a stream of bytes with the Keccak-256 hash function.
     pub fn hash(input: &[u8]) -> Hash {
-        let mut out = [0u8; 32];
-        keccak_256(input, &mut out);
-        Hash(out)
+        Hash(keccak_256(input))
     }
 
     /// Return the 32-bytes hash array.
@@ -113,4 +111,15 @@ impl Encodable for Hash8 {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.0.consensus_encode(s)
     }
+}
+
+/// Compute the Keccak256 hash of the provided byte-slice.
+pub fn keccak_256(input: &[u8]) -> [u8; 32] {
+    let mut keccak = Keccak::v256();
+
+    let mut out = [0u8; 32];
+    keccak.update(input);
+    keccak.finalize(&mut out);
+
+    out
 }

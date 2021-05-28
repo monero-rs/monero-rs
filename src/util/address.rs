@@ -41,8 +41,8 @@ use std::fmt;
 use std::str::FromStr;
 
 use base58_monero::base58;
-use keccak_hash::keccak_256;
 
+use crate::cryptonote::hash::keccak_256;
 use crate::network::{self, Network};
 use crate::util::key::{KeyPair, PublicKey, ViewPair};
 
@@ -229,12 +229,11 @@ impl Address {
         let public_view =
             PublicKey::from_slice(&bytes[33..65]).map_err(|_| Error::InvalidFormat)?;
 
-        let mut verify_checksum = [0u8; 32];
         let (checksum_bytes, checksum) = match addr_type {
             AddressType::Standard | AddressType::SubAddress => (&bytes[0..65], &bytes[65..69]),
             AddressType::Integrated(_) => (&bytes[0..73], &bytes[73..77]),
         };
-        keccak_256(checksum_bytes, &mut verify_checksum);
+        let verify_checksum = keccak_256(checksum_bytes);
         if &verify_checksum[0..4] != checksum {
             return Err(Error::InvalidChecksum);
         }
@@ -256,8 +255,7 @@ impl Address {
             bytes.extend_from_slice(&payment_id.0);
         }
 
-        let mut checksum = [0u8; 32];
-        keccak_256(bytes.as_slice(), &mut checksum);
+        let checksum = keccak_256(bytes.as_slice());
         bytes.extend_from_slice(&checksum[0..4]);
         bytes
     }
