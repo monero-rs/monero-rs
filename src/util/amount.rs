@@ -235,7 +235,7 @@ fn fmt_piconero_in(
 /// conversion to various denominations.
 ///
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Amount(u64);
+pub struct Amount(pub u64);
 
 impl Amount {
     /// The zero amount.
