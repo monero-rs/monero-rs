@@ -45,7 +45,7 @@ jobs:
         override: true
         profile: minimal
 
-    - uses: Swatinem/rust-cache@v1.2.0
+    - uses: Swatinem/rust-cache@v1.3.0
 
     - name: Build
       run: cargo build --verbose
@@ -80,6 +80,6 @@ jobs:
         override: true
         profile: minimal
 
-    - uses: Swatinem/rust-cache@v1.2.0
+    - uses: Swatinem/rust-cache@v1.3.0
 
     - run: cargo test --verbose --all-features
