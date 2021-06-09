@@ -542,6 +542,7 @@ impl Transaction {
     }
 
     #[cfg(feature = "experimental")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
     /// Compute the message to be signed by the CLSAG signature algorithm.
     ///
     /// The message consists of three parts:
@@ -642,6 +643,7 @@ impl Transaction {
 
 /// Possible errors when calculating the signature hash of a transaction.
 #[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 #[derive(Debug, Error)]
 pub enum SignatureHashError {
     /// [`RctSigBase`] was not set in [`Transaction`]
