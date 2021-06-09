@@ -27,14 +27,14 @@ use crate::cryptonote::subaddress::Index;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 use crate::util::ringct::{Opening, RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
+use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
+use curve25519_dalek::scalar::Scalar;
 use hex::encode as hex_encode;
 use thiserror::Error;
 
 use std::ops::Range;
 use std::{fmt, io};
 
-use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
-use curve25519_dalek::scalar::Scalar;
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
