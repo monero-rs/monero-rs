@@ -22,7 +22,6 @@
 
 use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
-use crate::cryptonote::hash::{keccak_256, Hashable};
 use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
@@ -542,6 +541,7 @@ impl Transaction {
             .check_outputs(pair, major, minor, self.rct_signatures.sig.as_ref())
     }
 
+    #[cfg(feature = "experimental")]
     /// Compute the message to be signed by the CLSAG signature algorithm.
     ///
     /// The message consists of three parts:
@@ -550,6 +550,17 @@ impl Transaction {
     /// 2. The hash of a consensus-encoded [`RctSigBase`].
     /// 3. The hash of all bulletproofs.
     pub fn signature_hash(&self) -> Result<hash::Hash, SignatureHashError> {
+        let rct_type = self
+            .rct_signatures
+            .sig
+            .as_ref()
+            .ok_or(SignatureHashError::MissingRctSigBase)?
+            .rct_type;
+
+        if rct_type != RctType::Clsag {
+            return Err(SignatureHashError::UnsupportedRctType(rct_type));
+        }
+
         use tiny_keccak::Hasher as _;
 
         let mut keccak = tiny_keccak::Keccak::v256();
@@ -563,11 +574,17 @@ impl Transaction {
         Ok(hash::Hash(hash))
     }
 
+    #[cfg(feature = "experimental")]
     fn transaction_prefix_hash(&self) -> [u8; 32] {
+        use crate::cryptonote::hash::Hashable as _;
+
         self.prefix.hash().to_bytes()
     }
 
+    #[cfg(feature = "experimental")]
     fn rct_sig_base_hash(&self) -> Result<[u8; 32], SignatureHashError> {
+        use crate::cryptonote::hash::keccak_256;
+
         let rct_sig_base = self
             .rct_signatures
             .sig
@@ -578,6 +595,7 @@ impl Transaction {
         Ok(keccak_256(&bytes))
     }
 
+    #[cfg(feature = "experimental")]
     fn bulletproof_hash(&self) -> Result<[u8; 32], SignatureHashError> {
         use tiny_keccak::Hasher as _;
 
@@ -623,14 +641,18 @@ impl Transaction {
 }
 
 /// Possible errors when calculating the signature hash of a transaction.
-#[derive(Debug, thiserror::Error)]
+#[cfg(feature = "experimental")]
+#[derive(Debug, Error)]
 pub enum SignatureHashError {
     /// [`RctSigBase`] was not set in [`Transaction`]
     #[error("`RctSigBase` is required for computing the signature hash")]
     MissingRctSigBase,
     /// Either all of [`RctSigPrunable`] was not set within [`Transaction`] or the list of bulletproofs was empty.
-    #[error("bulletproofs are required for computing the signature hash")]
+    #[error("Bulletproofs are required for computing the signature hash")]
     NoBulletproofs,
+    /// The transaction's [`RctType`] is not supported.
+    #[error("Computing the signature hash for RctType {0} is not supported")]
+    UnsupportedRctType(RctType),
 }
 
 impl hash::Hashable for Transaction {
