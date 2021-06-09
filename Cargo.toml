@@ -22,6 +22,7 @@ default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
 serde_support = ["serde", "serde-big-array"]
 strict_encoding_support = ["strict_encoding"]
+experimental = [ ]
 
 [dependencies]
 hex = "0.4.3"
