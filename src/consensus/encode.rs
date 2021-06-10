@@ -59,12 +59,21 @@ pub enum Error {
     ParseFailed(&'static str),
 }
 
-/// Encode an object into a vector of byte.
-pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
+/// Encode an object into a vector of byte, returning an error if the underlying `Encodable` impl fails.
+pub fn try_serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Result<Vec<u8>, Error> {
     let mut encoder = Vec::new();
-    let len = data.consensus_encode(&mut encoder).unwrap();
+    let len = data.consensus_encode(&mut encoder)?;
     debug_assert_eq!(len, encoder.len());
-    encoder
+    Ok(encoder)
+}
+
+/// Encode an object into a vector of byte.
+///
+/// ## Panics
+///
+/// Panics if the underlying `Encodable` implementation fails
+pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
+    try_serialize(data).unwrap()
 }
 
 /// Encode an object into a hex-encoded string.
@@ -499,8 +508,9 @@ impl<T: Decodable> Decodable for Box<[T]> {
 
 #[cfg(test)]
 mod tests {
-    use super::VarInt;
-    use super::{deserialize, serialize};
+    use super::{deserialize, serialize, Error, VarInt};
+    use crate::consensus::encode::try_serialize;
+    use crate::TxIn;
 
     #[test]
     fn deserialize_varint() {
@@ -516,5 +526,12 @@ mod tests {
         assert_eq!(vec![0b000_0001], serialize(&VarInt(1)));
         assert_eq!(vec![0b1010_1100, 0b0000_0010], serialize(&VarInt(300)));
         assert_eq!("80e497d012", hex::encode(serialize(&VarInt(5000000000))));
+    }
+
+    #[test]
+    fn try_serialize_tx_in_failure() {
+        // This test relies on TxIn::ToScript not being supported
+        let err = try_serialize(&TxIn::ToScript).unwrap_err();
+        assert!(matches!(err, Error::Io(_)))
     }
 }
