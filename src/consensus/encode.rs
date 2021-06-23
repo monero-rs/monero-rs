@@ -26,6 +26,7 @@
 
 use hex::encode as hex_encode;
 
+use std::convert::TryFrom;
 use std::io::{Cursor, Read, Write};
 use std::ops::Deref;
 use std::{fmt, io, mem, u32};
@@ -448,8 +449,19 @@ impl<T: Encodable> Encodable for Vec<T> {
 impl<T: Decodable> Decodable for Vec<T> {
     #[inline]
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
-        let len = VarInt::consensus_decode(d)?.0;
-        let mut ret = Vec::with_capacity(len as usize);
+        const MAX_VEC_ALLOC_SIZE: usize = 4 * 1024 * 1024;
+        let len = usize::try_from(*VarInt::consensus_decode(d)?)
+            .map_err(|_| self::Error::ParseFailed("VarInt overflows usize"))?;
+
+        // Prevent allocations larger than 4 MiB
+        let layout_size = mem::size_of::<T>().saturating_mul(len);
+        if layout_size > MAX_VEC_ALLOC_SIZE {
+            return Err(self::Error::ParseFailed(
+                "length exceeds maximum allocatable bytes (4 MiB)",
+            ));
+        }
+
+        let mut ret = Vec::with_capacity(len);
         for _ in 0..len {
             ret.push(Decodable::consensus_decode(d)?);
         }
@@ -499,8 +511,8 @@ impl<T: Decodable> Decodable for Box<[T]> {
 
 #[cfg(test)]
 mod tests {
-    use super::VarInt;
-    use super::{deserialize, serialize};
+    use super::{deserialize, serialize, Error, VarInt};
+    use crate::{Block, TxIn};
 
     #[test]
     fn deserialize_varint() {
@@ -509,6 +521,11 @@ mod tests {
 
         let int: VarInt = deserialize(&[0b1010_1100, 0b0000_0010]).unwrap();
         assert_eq!(VarInt(300), int);
+
+        let max = VarInt(u64::MAX);
+        let data = serialize(&max);
+        let int: VarInt = deserialize(&data).unwrap();
+        assert_eq!(max, int);
     }
 
     #[test]
@@ -516,5 +533,61 @@ mod tests {
         assert_eq!(vec![0b000_0001], serialize(&VarInt(1)));
         assert_eq!(vec![0b1010_1100, 0b0000_0010], serialize(&VarInt(300)));
         assert_eq!("80e497d012", hex::encode(serialize(&VarInt(5000000000))));
+    }
+
+    #[test]
+    fn deserialize_vec() {
+        // First byte is len = 8
+        let vec = [0x08u8, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
+        let data = deserialize::<Vec<u8>>(&vec).unwrap();
+        assert_eq!(data, vec[1..]);
+
+        let tx_in = serialize(&TxIn::Gen { height: VarInt(1) });
+        let mut vec = vec![0x08u8];
+        for _ in 0..8 {
+            vec.extend(tx_in.clone());
+        }
+        let tx_ins = deserialize::<Vec<TxIn>>(&vec).unwrap();
+        assert!(tx_ins.iter().all(|t| *t == TxIn::Gen { height: VarInt(1) }));
+    }
+    #[test]
+    fn deserialize_vec_max_allocation() {
+        let len = VarInt(((4 * 1024 * 1024) / 64) + 1);
+        let data = serialize(&len);
+        let err = deserialize::<Vec<[u8; 64]>>(&data).unwrap_err();
+        assert!(matches!(err, Error::ParseFailed(_)));
+    }
+
+    #[test]
+    fn deserialize_vec_overflow_does_not_panic() {
+        let overflow_len = VarInt((isize::MAX as u64 / 64) + 1);
+        let data = serialize(&overflow_len);
+        let err = deserialize::<Vec<[u8; 64]>>(&data).unwrap_err();
+        assert!(matches!(err, Error::ParseFailed(_)));
+    }
+
+    #[test]
+    fn deserialize_string_overflow_does_not_panic() {
+        let overflow_len = VarInt(isize::MAX as u64 + 1);
+        let data = serialize(&overflow_len);
+        let err = deserialize::<String>(&data).unwrap_err();
+        assert!(matches!(err, Error::ParseFailed(_)));
+    }
+
+    #[test]
+    fn panic_alloc_capacity_overflow_moneroblock_deserialize() {
+        // Reproducer for https://github.com/monero-rs/monero-rs/issues/46
+        let data = [
+            0x0f, 0x9e, 0xa5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x04, 0x00, 0x08, 0x9e, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+            0x04, 0x9e, 0x9e, 0x9e, 0x9e, 0x9e, 0x9e, 0x9e, 0x9e, 0x9e, 0xe7, 0xaa, 0xfd, 0x8b,
+            0x47, 0x06, 0x8d, 0xed, 0xe3, 0x00, 0xed, 0x44, 0xfc, 0x77, 0xd6, 0x58, 0xf6, 0xf2,
+            0x69, 0x06, 0x8d, 0xed, 0xe3, 0x00, 0xed, 0x44, 0xfc, 0x77, 0xd6, 0x58, 0xf6, 0xf2,
+            0x69, 0x62, 0x38, 0xdb, 0x5e, 0x4d, 0x6d, 0x9c, 0x94, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x0f, 0x00, 0x8f, 0x74, 0x3c, 0xb3, 0x1b, 0x6e, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00,
+        ];
+        let _ = deserialize::<Block>(&data);
     }
 }

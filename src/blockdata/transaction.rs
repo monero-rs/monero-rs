@@ -60,7 +60,7 @@ pub enum Error {
 
 /// The key image used in transaction inputs [`TxIn`] to commit to the use of an output one-time
 /// public key as in [`TxOutTarget::ToKey`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct KeyImage {
     /// The actual key image data.
@@ -71,7 +71,7 @@ impl_consensus_encoding!(KeyImage, image);
 
 /// A transaction input, either a coinbase spend or a one-time key spend which defines the ring
 /// size and the key image to avoid double spend.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum TxIn {
     /// A coinbase input.
