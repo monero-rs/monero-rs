@@ -720,11 +720,11 @@ impl Decodable for ExtraField {
 
 impl Encodable for ExtraField {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
-        let mut encoder = io::Cursor::new(vec![]);
+        let mut buffer = Vec::new();
         for field in self.0.iter() {
-            field.consensus_encode(&mut encoder)?;
+            field.consensus_encode(&mut buffer)?;
         }
-        encoder.into_inner().consensus_encode(s)
+        buffer.consensus_encode(s)
     }
 }
 
