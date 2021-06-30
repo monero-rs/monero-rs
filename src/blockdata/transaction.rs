@@ -88,10 +88,6 @@ pub enum TxIn {
         /// The corresponding key image of the output.
         k_image: KeyImage,
     },
-    /// Input from script output, not used.
-    ToScript,
-    /// Input from script hash output, not used.
-    ToScriptHash,
 }
 
 /// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
@@ -839,10 +835,6 @@ impl Encodable for TxIn {
                 len += key_offsets.consensus_encode(s)?;
                 Ok(len + k_image.consensus_encode(s)?)
             }
-            _ => Err(io::Error::new(
-                io::ErrorKind::Interrupted,
-                Error::ScriptNotSupported,
-            )),
         }
     }
 }
