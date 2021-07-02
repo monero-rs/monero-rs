@@ -110,7 +110,7 @@ impl PrivateKey {
     }
 
     /// Serialize the private key to bytes.
-    pub fn to_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(self) -> [u8; 32] {
         self.scalar.to_bytes()
     }
 
@@ -280,7 +280,7 @@ impl PublicKey {
     }
 
     /// Serialize a public key to bytes.
-    pub fn to_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(self) -> [u8; 32] {
         self.point.to_bytes()
     }
 

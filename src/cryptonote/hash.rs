@@ -50,7 +50,7 @@ impl Hash {
     }
 
     /// Return the 32-bytes hash array.
-    pub fn to_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(self) -> [u8; 32] {
         self.0
     }
 
