@@ -20,7 +20,7 @@ edition = "2018"
 [features]
 default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
-serde_support = ["serde", "serde-big-array"]
+serde_support = ["serde", "serde-big-array", "curve25519-dalek/serde"]
 strict_encoding_support = ["strict_encoding"]
 experimental = [ ]
 
@@ -31,7 +31,7 @@ tiny-keccak = { version = "2", features = ["keccak"] }
 base58-monero = { version = "0.3", default-features = false }
 serde = { version = "1.0.124", features = ["derive"], optional = true }
 serde-big-array = { version = "0.3.2", optional = true }
-curve25519-dalek = { version = "3.0.2", features = ["serde"] }
+curve25519-dalek = { version = "3.0.2" }
 thiserror = "1.0.24"
 strict_encoding = { version = "1.2", optional = true }
 
