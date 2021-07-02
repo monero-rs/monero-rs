@@ -31,6 +31,7 @@ use std::io::{Cursor, Read, Write};
 use std::ops::Deref;
 use std::{fmt, io, mem, u32};
 
+use sealed::sealed;
 use thiserror::Error;
 
 use super::endian;
@@ -235,6 +236,12 @@ impl<R: Read> ReadExt for R {
 }
 
 /// Data which can be encoded in a consensus-consistent way.
+///
+/// ## Sealed trait
+/// This trait is sealed and cannot be implemented for types outside of `monero` crate. This is
+/// done to ensure implementations will not fail inconsistently and so unwrapping in [`serialize`]
+/// is safe.
+#[sealed(pub(crate))]
 pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever error if the underlying
     /// Encoder errors.
@@ -283,6 +290,7 @@ macro_rules! impl_int_encodable {
                 ReadExt::$meth_dec(d).map($ty::from_le)
             }
         }
+        #[sealed]
         impl Encodable for $ty {
             #[inline]
             fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -302,6 +310,7 @@ impl_int_encodable!(i16, read_i16, emit_i16);
 impl_int_encodable!(i32, read_i32, emit_i32);
 impl_int_encodable!(i64, read_i64, emit_i64);
 
+#[sealed]
 impl Encodable for VarInt {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -357,6 +366,7 @@ impl Decodable for VarInt {
 }
 
 // Booleans
+#[sealed]
 impl Encodable for bool {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -373,6 +383,7 @@ impl Decodable for bool {
 }
 
 // Strings
+#[sealed]
 impl Encodable for String {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -394,6 +405,7 @@ impl Decodable for String {
 // Arrays
 macro_rules! impl_array {
     ( $size:expr ) => {
+        #[sealed]
         impl<T: Encodable> Encodable for [T; $size] {
             #[inline]
             fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -425,6 +437,7 @@ impl_array!(32);
 impl_array!(64);
 
 // Encode a slice
+#[sealed]
 impl<T: Encodable> Encodable for [T] {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -439,6 +452,7 @@ impl<T: Encodable> Encodable for [T] {
 // Cannot decode a slice
 
 // Vectors
+#[sealed]
 impl<T: Encodable> Encodable for Vec<T> {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -489,6 +503,7 @@ macro_rules! encode_sized_vec {
     }};
 }
 
+#[sealed]
 impl<T: Encodable> Encodable for Box<[T]> {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {

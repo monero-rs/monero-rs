@@ -36,6 +36,7 @@ use serde_big_array_unchecked_docs::*;
 use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
+use sealed::sealed;
 use thiserror::Error;
 
 use std::convert::TryInto;
@@ -288,7 +289,8 @@ impl EcdhInfo {
     }
 }
 
-impl Encodable for EcdhInfo {
+#[sealed]
+impl crate::consensus::encode::Encodable for EcdhInfo {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         match self {
@@ -330,7 +332,8 @@ pub struct MgSig {
     pub cc: Key,
 }
 
-impl Encodable for MgSig {
+#[sealed]
+impl crate::consensus::encode::Encodable for MgSig {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         for ss in self.ss.iter() {
@@ -355,7 +358,8 @@ pub struct Clsag {
     pub D: Key,
 }
 
-impl Encodable for Clsag {
+#[sealed]
+impl crate::consensus::encode::Encodable for Clsag {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         // Encode the vector without prefix lenght
@@ -493,7 +497,8 @@ impl RctSigBase {
     }
 }
 
-impl Encodable for RctSigBase {
+#[sealed]
+impl crate::consensus::encode::Encodable for RctSigBase {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         len += self.rct_type.consensus_encode(s)?;
@@ -580,7 +585,8 @@ impl Decodable for RctType {
     }
 }
 
-impl Encodable for RctType {
+#[sealed]
+impl crate::consensus::encode::Encodable for RctType {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             RctType::Null => 0u8.consensus_encode(s),

@@ -71,9 +71,10 @@ use curve25519_dalek::scalar::Scalar;
 
 use hex_literal::hex;
 
-use crate::consensus::encode::{self, Decodable, Encodable};
+use crate::consensus::encode::{self, Decodable};
 use crate::cryptonote::hash;
 
+use sealed::sealed;
 use thiserror::Error;
 
 #[cfg(feature = "serde_support")]
@@ -259,7 +260,8 @@ impl Decodable for PrivateKey {
     }
 }
 
-impl Encodable for PrivateKey {
+#[sealed]
+impl crate::consensus::encode::Encodable for PrivateKey {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.to_bytes().consensus_encode(s)
     }
@@ -471,7 +473,8 @@ impl Decodable for PublicKey {
     }
 }
 
-impl Encodable for PublicKey {
+#[sealed]
+impl crate::consensus::encode::Encodable for PublicKey {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.to_bytes().consensus_encode(s)
     }

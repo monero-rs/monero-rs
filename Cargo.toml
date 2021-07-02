@@ -34,6 +34,7 @@ serde-big-array = { version = "0.3.2", optional = true }
 curve25519-dalek = { version = "3.0.2" }
 thiserror = "1.0.24"
 strict_encoding = { version = "1.2", optional = true }
+sealed = "0.3"
 
 [dependencies.fixed-hash]
 version = "0.7.0"
