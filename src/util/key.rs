@@ -110,7 +110,7 @@ impl PrivateKey {
     }
 
     /// Serialize the private key to bytes.
-    pub fn to_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(self) -> [u8; 32] {
         self.scalar.to_bytes()
     }
 
@@ -280,7 +280,7 @@ impl PublicKey {
     }
 
     /// Serialize a public key to bytes.
-    pub fn to_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(self) -> [u8; 32] {
         self.point.to_bytes()
     }
 
@@ -550,11 +550,10 @@ mod tests {
 
     #[test]
     fn parse_public_key() {
-        assert_eq!(
-            true,
-            PublicKey::from_str("eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3")
-                .is_ok()
-        );
+        assert!(PublicKey::from_str(
+            "eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3"
+        )
+        .is_ok());
     }
 
     #[test]

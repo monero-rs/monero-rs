@@ -240,9 +240,9 @@ mod tests {
 
         let generator = KeyGenerator::from_key(&viewpair, tx_pubkey);
 
-        assert_eq!(false, generator.check(0, one_time_pk));
-        assert_eq!(true, generator.check(1, one_time_pk));
-        assert_eq!(false, generator.check(2, one_time_pk));
+        assert!(!generator.check(0, one_time_pk));
+        assert!(generator.check(1, one_time_pk));
+        assert!(!generator.check(2, one_time_pk));
     }
 
     #[test]
