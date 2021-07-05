@@ -19,6 +19,7 @@
 
 macro_rules! impl_consensus_encoding {
     ( $thing:ident, $($field:ident),+ ) => (
+        #[sealed::sealed]
         impl $crate::consensus::encode::Encodable for $thing {
             #[inline]
             fn consensus_encode<S: ::std::io::Write>(

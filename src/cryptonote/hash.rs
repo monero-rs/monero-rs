@@ -23,11 +23,12 @@
 //!
 
 use curve25519_dalek::scalar::Scalar;
+use sealed::sealed;
 use tiny_keccak::{Hasher, Keccak};
 
 use std::io;
 
-use crate::consensus::encode::{self, Decodable, Encodable};
+use crate::consensus::encode::{self, Decodable};
 use crate::util::key::PrivateKey;
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
@@ -75,7 +76,8 @@ impl Decodable for Hash {
     }
 }
 
-impl Encodable for Hash {
+#[sealed]
+impl crate::consensus::encode::Encodable for Hash {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.0.consensus_encode(s)
     }
@@ -107,7 +109,8 @@ impl Decodable for Hash8 {
     }
 }
 
-impl Encodable for Hash8 {
+#[sealed]
+impl crate::consensus::encode::Encodable for Hash8 {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         self.0.consensus_encode(s)
     }

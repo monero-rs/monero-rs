@@ -20,7 +20,7 @@
 //! private view key and public spend key (view key-pair: [`ViewPair`]).
 //!
 
-use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
+use crate::consensus::encode::{self, serialize, Decodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
@@ -30,6 +30,7 @@ use crate::util::ringct::{Opening, RctSig, RctSigBase, RctSigPrunable, RctType, 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::scalar::Scalar;
 use hex::encode as hex_encode;
+use sealed::sealed;
 use thiserror::Error;
 
 use std::ops::Range;
@@ -88,10 +89,6 @@ pub enum TxIn {
         /// The corresponding key image of the output.
         k_image: KeyImage,
     },
-    /// Input from script output, not used.
-    ToScript,
-    /// Input from script hash output, not used.
-    ToScriptHash,
 }
 
 /// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
@@ -718,7 +715,8 @@ impl Decodable for ExtraField {
     }
 }
 
-impl Encodable for ExtraField {
+#[sealed]
+impl crate::consensus::encode::Encodable for ExtraField {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut buffer = Vec::new();
         for field in self.0.iter() {
@@ -768,7 +766,8 @@ impl Decodable for SubField {
     }
 }
 
-impl Encodable for SubField {
+#[sealed]
+impl crate::consensus::encode::Encodable for SubField {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         match *self {
@@ -822,7 +821,8 @@ impl Decodable for TxIn {
     }
 }
 
-impl Encodable for TxIn {
+#[sealed]
+impl crate::consensus::encode::Encodable for TxIn {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             TxIn::Gen { height } => {
@@ -839,10 +839,6 @@ impl Encodable for TxIn {
                 len += key_offsets.consensus_encode(s)?;
                 Ok(len + k_image.consensus_encode(s)?)
             }
-            _ => Err(io::Error::new(
-                io::ErrorKind::Interrupted,
-                Error::ScriptNotSupported,
-            )),
         }
     }
 }
@@ -859,7 +855,8 @@ impl Decodable for TxOutTarget {
     }
 }
 
-impl Encodable for TxOutTarget {
+#[sealed]
+impl crate::consensus::encode::Encodable for TxOutTarget {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             TxOutTarget::ToKey { key } => {
@@ -950,7 +947,8 @@ impl Decodable for Transaction {
     }
 }
 
-impl Encodable for Transaction {
+#[sealed]
+impl crate::consensus::encode::Encodable for Transaction {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = self.prefix.consensus_encode(s)?;
         match *self.prefix.version {
