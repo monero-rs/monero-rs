@@ -9,37 +9,37 @@ N/A
 
 ## [0.14.0] - 2021-08-17
 ### Added
-- Function for computing the signature hash of a transaction (https://github.com/monero-rs/monero-rs/pull/41)
-- Length bounds check before allocating `Vec` by [@sdbondi](https://github.com/sdbondi) (https://github.com/monero-rs/monero-rs/pull/47)
+- Function for computing the signature hash of a transaction ([#41](https://github.com/monero-rs/monero-rs/pull/41))
+- Length bounds check before allocating `Vec` ([#47](https://github.com/monero-rs/monero-rs/pull/47))
 
 ### Changed
-- Don't use `io::Cursor` for implementing `Encodable` on `ExtraField` by [@thomaseizinger](https://github.com/thomaseizinger) (https://github.com/monero-rs/monero-rs/pull/49)
+- Don't use `io::Cursor` for implementing `Encodable` on `ExtraField` ([#49](https://github.com/monero-rs/monero-rs/pull/49))
 
 ### Fixed
-- Activation of curve25519-dalek's serde feature (https://github.com/monero-rs/monero-rs/pull/52)
-- Clippy errors (https://github.com/monero-rs/monero-rs/pull/53)
+- Activation of curve25519-dalek's serde feature ([#52](https://github.com/monero-rs/monero-rs/pull/52))
+- Clippy errors ([#53](https://github.com/monero-rs/monero-rs/pull/53))
 
 ### Removed
-- Unused `TxIn` variants and seal `Encodable` trait (https://github.com/monero-rs/monero-rs/pull/50)
+- Unused `TxIn` variants and seal `Encodable` trait ([#50](https://github.com/monero-rs/monero-rs/pull/50))
 
 ## [0.13.0] - 2021-06-02
 ### Added
-- `Amount` structure, based on rust-bitcoin implementation (https://github.com/monero-rs/monero-rs/pull/33)
+- `Amount` structure, based on rust-bitcoin implementation ([#33](https://github.com/monero-rs/monero-rs/pull/33))
 
 ### Changed
-- Replace `keccak-hash` with `tiny-keccak` (https://github.com/monero-rs/monero-rs/pull/40) by [@thomaseizinger](https://github.com/thomaseizinger)
-- New `check_output` API (https://github.com/monero-rs/monero-rs/pull/42) by [@thomaseizinger](https://github.com/thomaseizinger)
+- Replace `keccak-hash` with `tiny-keccak` ([#40](https://github.com/monero-rs/monero-rs/pull/40))
+- New `check_output` API ([#42](https://github.com/monero-rs/monero-rs/pull/42))
 - Switch CI from Travis to GitHub Actions
 
 ## [0.12.0] - 2021-04-29
 ### Added
-- More types under `strict_encoding` wrapper (https://github.com/monero-rs/monero-rs/commit/2dba2daee9e8bcc90079009279c17ae743794185)
-- Add `TryFrom` impl. on keys and more `derive` on some types by [@thomaseizinger](https://github.com/thomaseizinger) (https://github.com/monero-rs/monero-rs/commit/dd9f1d9e52c31f56edddb111718285a786123bfa, https://github.com/monero-rs/monero-rs/commit/06ed856c1c898ec8ca0f3153a730234c98dfb8c4)
+- More types under `strict_encoding` wrapper ([`2dba2da`](https://github.com/monero-rs/monero-rs/commit/2dba2daee9e8bcc90079009279c17ae743794185))
+- Add `TryFrom` impl. on keys and more `derive` on some types ([`dd9f1d9`](https://github.com/monero-rs/monero-rs/commit/dd9f1d9e52c31f56edddb111718285a786123bfa), [`06ed856`](https://github.com/monero-rs/monero-rs/commit/06ed856c1c898ec8ca0f3153a730234c98dfb8c4))
 
 ### Changed
-- Update `base58` dependency to `0.3.0` (https://github.com/monero-rs/monero-rs/commit/56c7a0a517b0331a80103f0ccc7c1659ec4a6686)
-- Change `pub use` over the library (https://github.com/monero-rs/monero-rs/commit/0020a6eadff66c9b677d606868832cfd3944a804)
-- Improve overall documentation (https://github.com/monero-rs/monero-rs/commit/43c4926b3492fa59f6564e15f9a7014e34b80ce1)
+- Update `base58` dependency to `0.3.0` ([`56c7a0a`](https://github.com/monero-rs/monero-rs/commit/56c7a0a517b0331a80103f0ccc7c1659ec4a6686))
+- Change `pub use` over the library ([`0020a6e`](https://github.com/monero-rs/monero-rs/commit/0020a6eadff66c9b677d606868832cfd3944a804))
+- Improve overall documentation ([`43c4926`](https://github.com/monero-rs/monero-rs/commit/43c4926b3492fa59f6564e15f9a7014e34b80ce1))
 
 ## [0.11.2] - 2021-03-30
 ### Fixed
@@ -51,7 +51,7 @@ N/A
 
 ## [0.11.0] - 2021-03-29
 ### Added
-- Amount recovery for `OwnedTxOut` with `ViewPair` (https://github.com/monero-rs/monero-rs/issues/7)
+- Amount recovery for `OwnedTxOut` with `ViewPair` ([#7](https://github.com/monero-rs/monero-rs/issues/7))
 - New feature `strict_encoding_support`, disabled by default, which wraps some Encodable and Decodable types
 
 ### Changed
@@ -62,7 +62,7 @@ N/A
 
 ## [0.10.0] - 2020-10-16
 ### Added
-- Support for transaction de/serialization with CLSAG signature (https://github.com/monero-rs/monero-rs/issues/21)
+- Support for transaction de/serialization with CLSAG signature ([#21](https://github.com/monero-rs/monero-rs/issues/21))
 
 ### Changed
 - Rename `EcdhInfo::Bulletproof2` into `EcdhInfo::Bulletproof`
@@ -70,11 +70,11 @@ N/A
 
 ## [0.9.1] - 2020-09-10
 ### Added
-- Implement `Display` trait for principal structures by [@SWvheerden ](https://github.com/SWvheerden) (https://github.com/monero-rs/monero-rs/commit/5d9716fbdb08e5e6d37103e7fe2b4a45e4c5322b)
+- Implement `Display` trait for principal structures ([`5d9716f`](https://github.com/monero-rs/monero-rs/commit/5d9716fbdb08e5e6d37103e7fe2b4a45e4c5322b))
 
 ## [0.9.0] - 2020-09-04
 ### Changed
-- Removed the deprecated `failure` crate in favour of `thiserror` by [@delta1](https://github.com/delta1) (https://github.com/monero-rs/monero-rs/issues/19)
+- Removed the deprecated `failure` crate in favour of `thiserror` ([#20](https://github.com/monero-rs/monero-rs/pull/20))
 
 ## [0.8.1] - 2020-07-20
 ### Fixed
@@ -85,7 +85,7 @@ N/A
 - Replaced `std::error::Error` by `Failure` crate by [@sedddn](https://github.com/sedddn)
 
 ### Fixed
-- Block (de)serialization by [@SWvheerden ](https://github.com/SWvheerden) (https://github.com/monero-rs/monero-rs/commit/db80e61443b430e6da48d0e24f6afd0ef74b79ae)
+- Block (de)serialization by ([`db80e61`](https://github.com/monero-rs/monero-rs/commit/db80e61443b430e6da48d0e24f6afd0ef74b79ae))
 
 ## [0.7.0] - 2020-03-29
 ### Changed
@@ -99,11 +99,11 @@ N/A
 
 ## [0.6.0] - 2020-03-22
 ### Added
-- Methods to recover public and private keys on `OwnedTxOut` (https://github.com/monero-rs/monero-rs/commit/c7b5e11a0b6ec4c6fecde8e2c4628d9b894edd5b)
+- Methods to recover public and private keys on `OwnedTxOut` ([`c7b5e11`](https://github.com/monero-rs/monero-rs/commit/c7b5e11a0b6ec4c6fecde8e2c4628d9b894edd5b))
 
 ### Fixed
-- Testnet and Stagenet magic bytes (https://github.com/monero-rs/monero-rs/commit/aea9bc0f5edd5981544e67b98c6f4211b7958eff)
-- One-time key computation, thanks to [@gtklocker](https://github.com/gtklocker) and [@ladislavdubravsky](https://github.com/ladislavdubravsky) (https://github.com/monero-rs/monero-rs/commit/c7b5e11a0b6ec4c6fecde8e2c4628d9b894edd5b)
+- Testnet and Stagenet magic bytes ([`aea9bc0`](https://github.com/monero-rs/monero-rs/commit/aea9bc0f5edd5981544e67b98c6f4211b7958eff))
+- One-time key computation, thanks to [@gtklocker](https://github.com/gtklocker) and [@ladislavdubravsky](https://github.com/ladislavdubravsky) ([`c7b5e11`](https://github.com/monero-rs/monero-rs/commit/c7b5e11a0b6ec4c6fecde8e2c4628d9b894edd5b))
 
 ## [0.5.0] - 2020-01-16
 ### Changed
@@ -112,7 +112,7 @@ N/A
 - Improved documentation and code examples
 
 ### Removed
-- `cdlyb` and `rlib` attributes (https://github.com/monero-rs/monero-rs/commit/28db20c690753e1beac7aaefec20542f042ab276)
+- `cdlyb` and `rlib` attributes ([`28db20c`](https://github.com/monero-rs/monero-rs/commit/28db20c690753e1beac7aaefec20542f042ab276))
 
 ## [0.4.0] - 2019-12-04
 ### Added
