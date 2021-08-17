@@ -12,6 +12,7 @@ readme = "README.md"
 include = [
     "src/*",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
 ]
 
