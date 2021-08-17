@@ -14,13 +14,14 @@ N/A
 
 ### Changed
 - Don't use `io::Cursor` for implementing `Encodable` on `ExtraField` ([#49](https://github.com/monero-rs/monero-rs/pull/49))
+- Trait `Encodable` is now sealed and cannot be implemented outside of the library to guarentee a correct, non-failable, implementation ([#50](https://github.com/monero-rs/monero-rs/pull/50))
 
 ### Fixed
 - Activation of curve25519-dalek's serde feature ([#52](https://github.com/monero-rs/monero-rs/pull/52))
 - Clippy errors ([#53](https://github.com/monero-rs/monero-rs/pull/53))
 
 ### Removed
-- Unused `TxIn` variants and seal `Encodable` trait ([#50](https://github.com/monero-rs/monero-rs/pull/50))
+- Unused `TxIn` variants ([#50](https://github.com/monero-rs/monero-rs/pull/50))
 
 ## [0.13.0] - 2021-06-02
 ### Added
