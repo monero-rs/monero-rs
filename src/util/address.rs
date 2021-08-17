@@ -223,7 +223,7 @@ impl Address {
     /// keys are not valid points, if payment id is invalid, and if checksums missmatch.
     pub fn from_bytes(bytes: &[u8]) -> Result<Address, Error> {
         let network = Network::from_u8(bytes[0])?;
-        let addr_type = AddressType::from_slice(&bytes, network)?;
+        let addr_type = AddressType::from_slice(bytes, network)?;
         let public_spend =
             PublicKey::from_slice(&bytes[1..33]).map_err(|_| Error::InvalidFormat)?;
         let public_view =

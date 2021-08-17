@@ -389,7 +389,7 @@ impl Encodable for String {
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         let b = self.as_bytes();
         let vi_len = VarInt(b.len() as u64).consensus_encode(s)?;
-        s.emit_slice(&b)?;
+        s.emit_slice(b)?;
         Ok(vi_len + b.len())
     }
 }

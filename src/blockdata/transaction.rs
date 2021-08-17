@@ -213,7 +213,7 @@ impl<'a> OwnedTxOut<'a> {
 
     /// Returns a reference to the actual redeemable output.
     pub fn out(&self) -> &'a TxOut {
-        &self.out
+        self.out
     }
 
     /// Returns the index of the key pair to use, can be `0/0` for main address.
@@ -418,7 +418,7 @@ impl TransactionPrefix {
                 vec![tx_pubkey; self.outputs.len()]
             }
         };
-        let checker = SubKeyChecker::new(&pair, major, minor);
+        let checker = SubKeyChecker::new(pair, major, minor);
 
         let owned_txouts = self
             .outputs
@@ -427,7 +427,7 @@ impl TransactionPrefix {
             .zip(tx_pubkeys.iter())
             .filter_map(|((i, out), tx_pubkey)| {
                 let key = out.target.as_one_time_key()?;
-                let sub_index = checker.check(i, &key, tx_pubkey)?;
+                let sub_index = checker.check(i, key, tx_pubkey)?;
 
                 Some((i, out, sub_index, tx_pubkey))
             })
