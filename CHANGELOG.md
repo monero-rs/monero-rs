@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as described in [The Cargo Book](https://doc.rust-lang.org/cargo/reference/manifest.html#the-version-field).
 
 ## [Unreleased]
+N/A
+
+## [0.14.0] - 2021-08-17
 ### Added
 - Function for computing the signature hash of a transaction (https://github.com/monero-rs/monero-rs/pull/41)
 - Length bounds check before allocating `Vec` by [@sdbondi](https://github.com/sdbondi) (https://github.com/monero-rs/monero-rs/pull/47)
@@ -137,7 +140,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Address and subaddress creation, de/serialization and validation
 - Private keys and one-time keys creation, de/serialization and validation
 
-[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/monero-rs/monero-rs/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/monero-rs/monero-rs/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/monero-rs/monero-rs/compare/v0.11.2...v0.12.0
 [0.11.2]: https://github.com/monero-rs/monero-rs/compare/v0.11.1...v0.11.2
