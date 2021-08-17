@@ -37,7 +37,17 @@ Contributing
 
 Contributions are generally welcome. If you intend to make larger changes please discuss them in an issue before PRing them to avoid duplicate work and architectural mismatches.
 
+Release Notes
+===
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 About
 ===
 
 This started as a research project sponsored by TrueLevel SA, it is now developed and maintained by h4sh3d and member's of the community and NOT by the Monero Core Team.
+
+Licensing
+===
+
+The code in this project is licensed under the [MIT License](LICENSE)
