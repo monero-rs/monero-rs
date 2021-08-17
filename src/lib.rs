@@ -22,7 +22,11 @@
 //! public keys, but do **NOT** implementat transaction signing. There is no immediate plan to add
 //! such support.
 //!
-//! ## Default features
+//! ## Features
+//!
+//! To enable additional functionalities please see the following documentation about features.
+//!
+//! ### Default features
 //!
 //! The default feature `full` enables the `std` and `rand` features for the `fixed-hash`
 //! dependency.
@@ -30,7 +34,17 @@
 //! It is worth noting that `std` is widely used all over the library and no `no_std` support is
 //! planned at the moment.
 //!
-//! ## `strict_encoding` Support
+//! ### `serde_support`
+//!
+//! The `serde_support` feature enables implementation of `serde` on serializable types.
+//!
+//! ### `experimental`
+//!
+//! The `experimental` feature enable the method [`Transaction::signature_hash`], the method
+//! computes the message to be signed by the CLSAG signature algorithm. This method is featured as
+//! experimental at the moment because it lacks reviews and tests.
+//!
+//! ### `strict_encoding_support`
 //!
 //! The `strict_encoding_support` feature enables `StrictEncode` and `StrictDecode` trait
 //! implementation for a few types that implements [`consensus::Encodable`] and
@@ -38,10 +52,6 @@
 //!
 //! `strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same
 //! interface, i.e. `StrictEncode` and `StrictDecode`.
-//!
-//! ## `serde` Support
-//!
-//! The `serde_support` feature enables implementation of `serde` on serializable types.
 //!
 //! ## Caution
 //!

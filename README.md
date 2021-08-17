@@ -18,19 +18,25 @@ Supports (or should support)
  * Serde support on most structures with feature `serde_support`
  * Strict encoding support on most structures with feature `strict_encoding_support`
 
-### `serde` Support
+## Documentation
 
-The `serde_support` feature enables implementation of `serde` on serializable types.
+Currently can be found on [docs.rs/monero](https://docs.rs/monero). Patches to add usage examples and to expand on existing docs would be extremely appreciated.
 
-### `strict_encoding` Support
+## Features
+
+### `serde_support`
+
+The `serde_support` feature enables implementation of `serde` on serializable types across the library.
+
+### `experimental`
+
+The `experimental` feature enable the method `signature_hash` in `Transaction`, the method computes the message to be signed by the CLSAG signature algorithm. This method is featured as experimental at the moment because it lacks reviews and tests.
+
+### `strict_encoding_support`
 
 The `strict_encoding_support` feature enables `StrictEncode` and `StrictDecode` trait implementation for a few types that implements `consensus::Encodable` and `consensus::Decodable`.
 
 `strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same interface, i.e. `StrictEncode` and `StrictDecode`.
-
-## Documentation
-
-Currently the documentation is very sparse. Patches to add usage examples and to expand on existing docs would be extremely appreciated.
 
 Contributing
 ===
