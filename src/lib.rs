@@ -43,6 +43,12 @@
 //!
 //! The `serde_support` feature enables implementation of `serde` on serializable types.
 //!
+//! ## `experimental` Feature
+//!
+//! The `experimental` feature enable the method [`Transaction::signature_hash`], the method
+//! computes the message to be signed by the CLSAG signature algorithm. This method is featured as
+//! experimental at the moment because it lacks reviews and tests.
+//!
 //! ## Caution
 //!
 //! The Software is provided “as is”, without warranty of any kind, express or implied, including

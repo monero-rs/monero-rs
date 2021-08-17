@@ -28,9 +28,13 @@ The `strict_encoding_support` feature enables `StrictEncode` and `StrictDecode` 
 
 `strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same interface, i.e. `StrictEncode` and `StrictDecode`.
 
+### `experimental` Feature
+
+The `experimental` feature enable the method `signature_hash` in `Transaction`, the method computes the message to be signed by the CLSAG signature algorithm. This method is featured as experimental at the moment because it lacks reviews and tests.
+
 ## Documentation
 
-Currently the documentation is very sparse. Patches to add usage examples and to expand on existing docs would be extremely appreciated.
+Currently can be found on docs.rs/monero. Patches to add usage examples and to expand on existing docs would be extremely appreciated.
 
 Contributing
 ===
