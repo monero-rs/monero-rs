@@ -98,7 +98,7 @@ pub enum Error {
 }
 
 /// A private key, a valid curve25519 scalar.
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct PrivateKey {
     /// The actual curve25519 scalar.
     pub scalar: Scalar,
