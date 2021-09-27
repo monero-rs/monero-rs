@@ -176,8 +176,8 @@ impl EcdhInfo {
         let (amount, blinding_factor) = match self {
             // ecdhDecode in rctOps.cpp else
             EcdhInfo::Standard { mask, amount } => {
-                let shared_sec1 = hash::Hash::hash(shared_key.as_bytes()).to_bytes();
-                let shared_sec2 = hash::Hash::hash(&shared_sec1).to_bytes();
+                let shared_sec1 = hash::Hash::new(shared_key.as_bytes()).to_bytes();
+                let shared_sec2 = hash::Hash::new(&shared_sec1).to_bytes();
                 let mask_scalar = Scalar::from_bytes_mod_order(mask.key)
                     - Scalar::from_bytes_mod_order(shared_sec1);
 
@@ -233,7 +233,7 @@ fn xor_amount(amount: [u8; 8], shared_key: Scalar) -> [u8; 8] {
     amount_key.extend(shared_key.as_bytes());
 
     // Hn("amount", Hn(rKbv,t))
-    let hash_shared_key = hash::Hash::hash(&amount_key).to_fixed_bytes();
+    let hash_shared_key = hash::Hash::new(&amount_key).to_fixed_bytes();
     let hash_shared_key_significant_bytes = hash_shared_key[0..8]
         .try_into()
         .expect("hash_shared_key create above has 32 bytes");
@@ -523,7 +523,7 @@ impl crate::consensus::encode::Encodable for RctSigBase {
 
 impl hash::Hashable for RctSigBase {
     fn hash(&self) -> hash::Hash {
-        hash::Hash::hash(&serialize(self))
+        hash::Hash::new(&serialize(self))
     }
 }
 

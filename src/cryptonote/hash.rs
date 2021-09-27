@@ -41,13 +41,13 @@ fixed_hash::construct_fixed_hash!(
 
 impl Hash {
     /// Create a null hash with all zeros.
-    pub fn null_hash() -> Hash {
+    pub fn null() -> Hash {
         Hash([0u8; 32])
     }
 
     /// Hash a stream of bytes with the Keccak-256 hash function.
-    pub fn hash(input: &[u8]) -> Hash {
-        Hash(keccak_256(input))
+    pub fn new(input: impl AsRef<[u8]>) -> Hash {
+        Hash(keccak_256(input.as_ref()))
     }
 
     /// Return the 32-bytes hash array.
@@ -65,8 +65,8 @@ impl Hash {
     /// The hash function `H` is the same Keccak function that is used in CryptoNote. When the
     /// value of the hash function is interpreted as a scalar, it is converted into a little-endian
     /// integer and taken modulo `l`.
-    pub fn hash_to_scalar(input: &[u8]) -> PrivateKey {
-        Self::hash(input).as_scalar()
+    pub fn hash_to_scalar(input: impl AsRef<[u8]>) -> PrivateKey {
+        Self::new(input).as_scalar()
     }
 }
 
