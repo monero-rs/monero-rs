@@ -482,7 +482,7 @@ impl crate::consensus::encode::Encodable for PublicKey {
 
 impl hash::Hashable for PublicKey {
     fn hash(&self) -> hash::Hash {
-        hash::Hash::hash(self.as_bytes())
+        hash::Hash::new(self.as_bytes())
     }
 }
 
