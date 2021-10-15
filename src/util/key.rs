@@ -496,7 +496,7 @@ pub const H: PublicKey = PublicKey {
 };
 
 /// Two private keys representing the view and the spend keys.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct KeyPair {
     /// The private view key needed to recognize owned outputs.
     pub view: PrivateKey,
@@ -505,7 +505,7 @@ pub struct KeyPair {
 }
 
 /// View pair to scan transaction outputs and retreive amounts, but can't spend outputs.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct ViewPair {
     /// The private view key needed to recognize owned outputs and amounts.
     pub view: PrivateKey,
