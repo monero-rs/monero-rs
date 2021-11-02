@@ -1,20 +1,20 @@
 [package]
 name = "monero"
-description = "Rust Monero Library."
-keywords = ["monero"]
 version = "0.15.0"
 authors = ["Monero Rust Contributors", "h4sh3d <h4sh3d@protonmail.com>"]
-license = "MIT"
-homepage = "https://github.com/monero-rs/monero-rs"
-repository = "https://github.com/monero-rs/monero-rs"
 documentation = "https://docs.rs/monero"
-readme = "README.md"
+homepage = "https://github.com/monero-rs/monero-rs"
 include = [
-    "src/*",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
+  "src/*",
+  "README.md",
+  "CHANGELOG.md",
+  "LICENSE",
 ]
+keywords = ["monero"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/monero-rs/monero-rs"
+description = "Rust Monero Library."
 
 edition = "2018"
 
@@ -23,19 +23,19 @@ default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
 serde_support = ["serde", "serde-big-array", "curve25519-dalek/serde"]
 strict_encoding_support = ["strict_encoding"]
-experimental = [ ]
+experimental = []
 
 [dependencies]
+base58-monero = { version = "0.3", default-features = false }
+curve25519-dalek = { version = "3.0.2" }
 hex = "0.4.3"
 hex-literal = "0.3.1"
-tiny-keccak = { version = "2", features = ["keccak"] }
-base58-monero = { version = "0.3", default-features = false }
+sealed = "0.3"
 serde = { version = "1.0.124", features = ["derive"], optional = true }
 serde-big-array = { version = "0.3.2", optional = true }
-curve25519-dalek = { version = "3.0.2" }
-thiserror = "1.0.24"
 strict_encoding = { version = "1.2", optional = true }
-sealed = "0.3"
+thiserror = "1.0.24"
+tiny-keccak = { version = "2", features = ["keccak"] }
 
 [dependencies.fixed-hash]
 version = "0.7.0"

@@ -5,19 +5,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![MSRV](https://img.shields.io/badge/MSRV-1.51.0-blue)
 
-Rust Monero Library
-===
+# Rust Monero Library
 
 Library with support for de/serialization on block data structures and key/address generation and scanning related to Monero cryptocurrency.
 
 Supports (or should support)
 
- * De/serialization of Monero blocks and transactions (consensus encoding)
- * Address and subaddress creation, de/serialization and validation
- * Private keys and one-time keys creation, de/serialization and validation
- * Transaction owned output detection and amount recovery with view keypair
- * Serde support on most structures with feature `serde_support`
- * Strict encoding support on most structures with feature `strict_encoding_support`
+- De/serialization of Monero blocks and transactions (consensus encoding)
+- Address and subaddress creation, de/serialization and validation
+- Private keys and one-time keys creation, de/serialization and validation
+- Transaction owned output detection and amount recovery with view keypair
+- Serde support on most structures with feature `serde_support`
+- Strict encoding support on most structures with feature `strict_encoding_support`
 
 ## Documentation
 
