@@ -1,0 +1,16 @@
+name: Draft new release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The new version in major.minor.patch format.'
+        required: true
+
+jobs:
+  draft-new-release:
+    name: Draft a new release
+    uses: monero-rs/workflows/.github/workflows/draft-new-release.yml@v1.1.0
+    with:
+      version: ${{ github.event.inputs.version }}
+

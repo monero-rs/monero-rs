@@ -12,9 +12,8 @@ env:
 jobs:
 
   static_analysis:
-
+    name: Static Analysis
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
 
@@ -25,7 +24,7 @@ jobs:
       run: cargo clippy --workspace --all-targets -- -D warnings
 
   build:
-
+    name: Build
     strategy:
       matrix:
         rust: [
@@ -33,9 +32,7 @@ jobs:
           stable,
           nightly
         ]
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
 
@@ -61,16 +58,14 @@ jobs:
       run: cargo build --verbose --all-features
 
   test:
-
+    name: Test
     strategy:
       matrix:
         rust: [
           stable,
           nightly
         ]
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
 
