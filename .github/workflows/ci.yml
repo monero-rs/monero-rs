@@ -23,6 +23,18 @@ jobs:
     - name: Run Clippy
       run: cargo clippy --workspace --all-targets -- -D warnings
 
+  mdtomlfmt:
+    name: Generic format (md,toml)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Run dprint
+      run: |
+        curl -fsSL https://dprint.dev/install.sh | sh
+        /home/runner/.dprint/bin/dprint check
+
   build:
     name: Build
     strategy:
