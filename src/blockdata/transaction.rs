@@ -409,6 +409,17 @@ impl TransactionPrefix {
         minor: Range<u32>,
         rct_sig_base: Option<&RctSigBase>,
     ) -> Result<Vec<OwnedTxOut>, Error> {
+        let checker = SubKeyChecker::new(pair, major, minor);
+        self.check_outputs_with(&checker, rct_sig_base)
+    }
+
+    /// Iterate over transaction outputs using the provided [`SubKeyChecker`] to find outputs
+    /// related to the `SubKeyChecker`'s view pair.
+    pub fn check_outputs_with(
+        &self,
+        checker: &SubKeyChecker,
+        rct_sig_base: Option<&RctSigBase>,
+    ) -> Result<Vec<OwnedTxOut>, Error> {
         let tx_pubkeys = match self.tx_additional_pubkeys() {
             Some(additional_keys) => additional_keys,
             None => {
@@ -418,7 +429,6 @@ impl TransactionPrefix {
                 vec![tx_pubkey; self.outputs.len()]
             }
         };
-        let checker = SubKeyChecker::new(pair, major, minor);
 
         let owned_txouts = self
             .outputs
@@ -445,7 +455,7 @@ impl TransactionPrefix {
                             .ok_or(Error::InvalidCommitment)?;
 
                         let opening = ecdh_info
-                            .open_commitment(pair, tx_pubkey, i, &actual_commitment)
+                            .open_commitment(checker.keys, tx_pubkey, i, &actual_commitment)
                             .ok_or(Error::InvalidCommitment)?;
 
                         Some(opening)
@@ -536,6 +546,13 @@ impl Transaction {
     ) -> Result<Vec<OwnedTxOut>, Error> {
         self.prefix()
             .check_outputs(pair, major, minor, self.rct_signatures.sig.as_ref())
+    }
+
+    /// Iterate over transaction outputs using the provided [`SubKeyChecker`] to find outputs
+    /// related to the `SubKeyChecker`'s view pair.
+    pub fn check_outputs_with(&self, checker: &SubKeyChecker) -> Result<Vec<OwnedTxOut>, Error> {
+        self.prefix()
+            .check_outputs_with(checker, self.rct_signatures.sig.as_ref())
     }
 
     #[cfg(feature = "experimental")]
@@ -975,12 +992,15 @@ mod tests {
     use std::str::FromStr;
 
     use super::{ExtraField, Transaction, TransactionPrefix};
-    use crate::blockdata::transaction::{SubField, TxIn, TxOutTarget};
     use crate::consensus::encode::{deserialize, deserialize_partial, serialize, VarInt};
     use crate::cryptonote::hash::Hashable;
     use crate::util::key::{PrivateKey, PublicKey, ViewPair};
     use crate::util::ringct::{RctSig, RctSigBase, RctType};
     use crate::TxOut;
+    use crate::{
+        blockdata::transaction::{SubField, TxIn, TxOutTarget},
+        cryptonote::onetime_key::SubKeyChecker,
+    };
 
     #[test]
     fn deserialize_transaction_prefix() {
@@ -1053,6 +1073,34 @@ mod tests {
             "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
             format!("{:02x}", tx.hash())
         );
+    }
+
+    #[test]
+    fn find_outputs_with_checker() {
+        let view = PrivateKey::from_str(
+            "77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404",
+        )
+        .unwrap();
+        let b = PrivateKey::from_str(
+            "8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09",
+        )
+        .unwrap();
+        let spend = PublicKey::from_private_key(&b);
+        let viewpair = ViewPair { view, spend };
+
+        let hex = hex::decode("01f18d0601ffb58d0605efefead70202eb72f82bd8bdda51e0bdc25f04e99ffb90c6214e11b455abca7b116c7857738880e497d01202e87c65a22b78f4b7686ef3a30113674659a4fe769a7ded73d60e6f7c556a19858090dfc04a022ee52dca8845438995eb6d7af985ca07186cc34a7eb696937f78fc0fd9008e2280c0f9decfae0102cec392ffdcae05a370dc3c447465798d3688677f4a5937f1fef9661df99ac2fb80c0caf384a30202e2b6ce11475c2312d2de5c9f26fbd88b7fcac0dbbb7b31f49abe9bd631ed49e42b0104d46cf1a204ae727c14473d67ea95da3e97b250f3c63e0997198bfc812d7a81020800000000d8111b25").unwrap();
+        let tx = deserialize::<Transaction>(&hex[..]);
+        assert!(tx.is_ok());
+        let tx = tx.unwrap();
+        assert_eq!(
+            "3bc7ff015b227e7313cc2e8668bfbb3f3acbee274a9c201d6211cf681b5f6bb1",
+            format!("{:02x}", tx.hash())
+        );
+
+        let checker = SubKeyChecker::new(&viewpair, 0..1, 0..200);
+
+        assert!(tx.check_outputs_with(&checker).is_ok());
+        assert_eq!(hex, serialize(&tx));
     }
 
     #[test]
