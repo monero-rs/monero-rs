@@ -29,9 +29,6 @@ pub mod encode;
 #[doc(hidden)]
 #[macro_use]
 pub mod endian;
-#[cfg(feature = "strict_encoding_support")]
-#[cfg_attr(docsrs, doc(cfg(feature = "strict_encoding_support")))]
-pub mod strict_encode;
 
 pub use self::encode::{
     deserialize, serialize, serialize_hex, Decodable, Encodable, ReadExt, WriteExt,

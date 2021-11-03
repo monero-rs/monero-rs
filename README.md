@@ -17,7 +17,6 @@ Supports (or should support)
 - Private keys and one-time keys creation, de/serialization and validation
 - Transaction owned output detection and amount recovery with view keypair
 - Serde support on most structures with feature `serde_support`
-- Strict encoding support on most structures with feature `strict_encoding_support`
 
 ## Documentation
 
@@ -32,12 +31,6 @@ The `serde_support` feature enables implementation of `serde` on serializable ty
 ### `experimental`
 
 The `experimental` feature enable the method `signature_hash` in `Transaction`, the method computes the message to be signed by the CLSAG signature algorithm. This method is featured as experimental at the moment because it lacks reviews and tests.
-
-### `strict_encoding_support`
-
-The `strict_encoding_support` feature enables `StrictEncode` and `StrictDecode` trait implementation for a few types that implements `consensus::Encodable` and `consensus::Decodable`.
-
-`strict_encoding` is a wrapper that allows multiple consensus encoding to work under the same interface, i.e. `StrictEncode` and `StrictDecode`.
 
 ## Contributing
 

@@ -63,9 +63,6 @@ jobs:
     - name: Build with feature 'serde_support'
       run: cargo build --verbose --features serde_support
 
-    - name: Build with feature 'strict_encoding_support'
-      run: cargo build --verbose --features strict_encoding_support
-
     - name: Build wasm with all features
       run: cargo build --verbose --all-features
 

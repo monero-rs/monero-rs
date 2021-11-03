@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Method to check outputs with existing `SubKeyChecker` by [@busyboredom](https://github.com/busyboredom) ([#64](https://github.com/monero-rs/monero-rs/pull/64))
 
+### Removed
+
+- Remove the strict encoding support feature, this should be handled by crates using it ([#67](https://github.com/monero-rs/monero-rs/pull/67))
+
 ## [0.15.0] - 2021-09-27
 
 ### Added
