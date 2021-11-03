@@ -148,7 +148,7 @@ pub fn get_public_keys(keys: &ViewPair, index: Index) -> (PublicKey, PublicKey) 
 /// [`Network::Mainnet`]: crate::network::Network::Mainnet
 ///
 pub fn get_subaddress(keys: &ViewPair, index: Index, network: Option<Network>) -> Address {
-    let net = network.unwrap_or_else(Network::default);
+    let net = network.unwrap_or_default();
     let (view, spend) = get_public_keys(keys, index);
     Address::subaddress(net, spend, view)
 }

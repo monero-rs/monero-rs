@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Method to check outputs with existing `SubKeyChecker` by [@busyboredom](https://github.com/busyboredom) ([#64](https://github.com/monero-rs/monero-rs/pull/64))
+
 ## [0.15.0] - 2021-09-27
 
 ### Added
