@@ -1,6 +1,6 @@
 [package]
 name = "monero"
-version = "0.15.0"
+version = "0.16.0"
 authors = ["Monero Rust Contributors", "h4sh3d <h4sh3d@protonmail.com>"]
 documentation = "https://docs.rs/monero"
 homepage = "https://github.com/monero-rs/monero-rs"

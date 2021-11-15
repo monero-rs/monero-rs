@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2021-11-15
+
 ### Added
 
 - Method to check outputs with existing `SubKeyChecker` by [@busyboredom](https://github.com/busyboredom) ([#64](https://github.com/monero-rs/monero-rs/pull/64))
@@ -77,13 +79,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- docs.rs compilation errors, add `feature(doc_cfg)` when building on https://doc.rs
+- docs.rs compilation errors, add `feature(doc_cfg)` when building on <https://doc.rs>
 
 ## [0.11.1] - 2021-03-30
 
 ### Added
 
-- Package metadata for generated documentation on https://doc.rs to enable feature badges
+- Package metadata for generated documentation on <https://doc.rs> to enable feature badges
 
 ## [0.11.0] - 2021-03-29
 
@@ -210,7 +212,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Address and subaddress creation, de/serialization and validation
 - Private keys and one-time keys creation, de/serialization and validation
 
-[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/monero-rs/monero-rs/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/monero-rs/monero-rs/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/monero-rs/monero-rs/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/monero-rs/monero-rs/compare/v0.12.0...v0.13.0
