@@ -42,10 +42,12 @@ use std::str::FromStr;
 
 use base58_monero::base58;
 
+use crate::consensus::encode::{self, Decodable};
 use crate::cryptonote::hash::keccak_256;
 use crate::network::{self, Network};
 use crate::util::key::{KeyPair, PublicKey, ViewPair};
 
+use sealed::sealed;
 use thiserror::Error;
 
 /// Potential errors encountered when manipulating addresses.
@@ -305,8 +307,23 @@ mod serde_impl {
     }
 }
 
+impl Decodable for Address {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Address, encode::Error> {
+        let address: Vec<u8> = Decodable::consensus_decode(d)?;
+        Ok(Address::from_bytes(&address)?)
+    }
+}
+
+#[sealed]
+impl crate::consensus::encode::Encodable for Address {
+    fn consensus_encode<S: std::io::Write>(&self, s: &mut S) -> Result<usize, std::io::Error> {
+        self.as_bytes().consensus_encode(s)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::consensus::encode::{Decodable, Encodable};
     use std::str::FromStr;
 
     use super::{base58, Address, AddressType, Network, PaymentId, PublicKey};
@@ -337,6 +354,13 @@ mod tests {
             Ok(Address::standard(Network::Mainnet, pub_spend, pub_view)),
             add
         );
+
+        let full_address = add.unwrap();
+        let mut encoder = Vec::new();
+        full_address.clone().consensus_encode(&mut encoder).unwrap();
+        let mut res = std::io::Cursor::new(encoder);
+        let addr_decoded = Address::consensus_decode(&mut res).unwrap();
+        assert_eq!(full_address, addr_decoded);
     }
 
     #[test]

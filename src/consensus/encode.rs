@@ -36,7 +36,7 @@ use thiserror::Error;
 
 use super::endian;
 use crate::blockdata::transaction;
-use crate::util::{key, ringct};
+use crate::util::{address, key, ringct};
 
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
@@ -56,6 +56,9 @@ pub enum Error {
     /// RingCt error.
     #[error("RingCt error: {0}")]
     RingCt(#[from] ringct::Error),
+    /// Address error.
+    #[error("Address error: {0}")]
+    Address(#[from] address::Error),
     /// A generic parsing error.
     #[error("Parsing error: {0}")]
     ParseFailed(&'static str),
