@@ -79,13 +79,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- docs.rs compilation errors, add `feature(doc_cfg)` when building on <https://doc.rs>
+- docs.rs compilation errors, add `feature(doc_cfg)` when building on [doc.rs](https://doc.rs)
 
 ## [0.11.1] - 2021-03-30
 
 ### Added
 
-- Package metadata for generated documentation on <https://doc.rs> to enable feature badges
+- Package metadata for generated documentation on [doc.rs](https://doc.rs) to enable feature badges
 
 ## [0.11.0] - 2021-03-29
 
