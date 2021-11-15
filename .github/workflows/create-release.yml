@@ -1,4 +1,4 @@
-name: Create and publish release
+name: Create release
 
 on:
   pull_request:

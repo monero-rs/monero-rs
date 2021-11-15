@@ -17,11 +17,23 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Run Rustfmt
-      run: cargo fmt -- --check
+    - name: Install Rust Stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
 
-    - name: Run Clippy
-      run: cargo clippy --workspace --all-targets -- -D warnings
+    - name: Run format
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: -- --check
+
+    - name: Run clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: --workspace --all-targets -- -D warnings
 
   mdtomlfmt:
     name: Generic format (md,toml)
@@ -57,14 +69,29 @@ jobs:
 
     - uses: Swatinem/rust-cache@v1.3.0
 
-    - name: Build
-      run: cargo build --verbose
+    - name: Build (default)
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --verbose
 
-    - name: Build with feature 'serde_support'
-      run: cargo build --verbose --features serde_support
+    - name: Build (serde_support)
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --verbose --no-default-features --features serde_support
 
-    - name: Build wasm with all features
-      run: cargo build --verbose --all-features
+    - name: Build (experimental)
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --verbose --no-default-features --features experimental
+
+    - name: Build (all features)
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --verbose --all-features
 
   test:
     name: Test
@@ -87,4 +114,8 @@ jobs:
 
     - uses: Swatinem/rust-cache@v1.3.0
 
-    - run: cargo test --verbose --all-features
+    - name: Run tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose --all-features
