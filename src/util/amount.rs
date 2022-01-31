@@ -814,11 +814,245 @@ impl FromStr for SignedAmount {
     }
 }
 
+#[cfg(any(feature = "serde", feature = "serde_support"))]
+mod serde_impl {
+    //! This module adds serde serialization and deserialization support for Amounts.
+    //! Since there is not a default way to serialize and deserialize Amounts, multiple
+    //! ways are supported and it's up to the user to decide which serialiation to use.
+    //! The provided modules can be used as follows:
+    //!
+    //! ```rust,ignore
+    //! use serde::{Serialize, Deserialize};
+    //! use monero::Amount;
+    //!
+    //! #[derive(Serialize, Deserialize)]
+    //! pub struct HasAmount {
+    //!     #[serde(with = "monero::util::amount::serde_impl::as_xmr")]
+    //!     pub amount: Amount,
+    //! }
+    //! ```
+    //!
+    //! Notabene that due to the limits of floating point precission, ::as_xmr
+    //! serializes amounts as strings.  
+
+    use super::{Amount, Denomination, SignedAmount};
+    use sealed::sealed;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[sealed]
+    pub trait SerdeAmount: Copy + Sized {
+        fn ser_pico<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+        fn des_pico<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error>;
+        fn ser_xmr<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+        fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error>;
+    }
+
+    #[sealed]
+    pub trait SerdeAmountForOpt: Copy + Sized + SerdeAmount {
+        fn type_prefix() -> &'static str;
+        fn ser_pico_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+        fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+    }
+
+    #[sealed]
+    impl SerdeAmount for Amount {
+        fn ser_pico<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            u64::serialize(&self.as_pico(), s)
+        }
+        fn des_pico<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
+            Ok(Amount::from_pico(u64::deserialize(d)?))
+        }
+        fn ser_xmr<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            String::serialize(&self.to_string_in(Denomination::Monero), s)
+        }
+        fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
+            use serde::de::Error;
+            Ok(
+                Amount::from_str_in(&String::deserialize(d)?, Denomination::Monero)
+                    .map_err(D::Error::custom)?,
+            )
+        }
+    }
+
+    #[sealed]
+    impl SerdeAmountForOpt for Amount {
+        fn type_prefix() -> &'static str {
+            "u"
+        }
+        fn ser_pico_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            s.serialize_some(&self.as_pico())
+        }
+        fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            s.serialize_some(&self.to_string_in(Denomination::Monero))
+        }
+    }
+
+    #[sealed]
+    impl SerdeAmount for SignedAmount {
+        fn ser_pico<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            i64::serialize(&self.as_pico(), s)
+        }
+        fn des_pico<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
+            Ok(SignedAmount::from_pico(i64::deserialize(d)?))
+        }
+        fn ser_xmr<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            String::serialize(&self.to_string_in(Denomination::Monero), s)
+        }
+        fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
+            use serde::de::Error;
+            Ok(
+                SignedAmount::from_str_in(&String::deserialize(d)?, Denomination::Monero)
+                    .map_err(D::Error::custom)?,
+            )
+        }
+    }
+
+    #[sealed]
+    impl SerdeAmountForOpt for SignedAmount {
+        fn type_prefix() -> &'static str {
+            "i"
+        }
+        fn ser_pico_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            s.serialize_some(&self.as_pico())
+        }
+        fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            s.serialize_some(&self.to_string_in(Denomination::Monero))
+        }
+    }
+
+    pub mod as_pico {
+        //! Serialize and deserialize [Amount] as real numbers denominated in piconero.
+        //! Use with `#[serde(with = "amount::serde_impl::as_pico")]`.
+
+        use super::SerdeAmount;
+        use serde::{Deserializer, Serializer};
+
+        pub fn serialize<A: SerdeAmount, S: Serializer>(a: &A, s: S) -> Result<S::Ok, S::Error> {
+            a.ser_pico(s)
+        }
+        pub fn deserialize<'d, A: SerdeAmount, D: Deserializer<'d>>(d: D) -> Result<A, D::Error> {
+            A::des_pico(d)
+        }
+
+        pub mod opt {
+            use super::super::SerdeAmountForOpt;
+            use core::fmt;
+            use core::marker::PhantomData;
+            use serde::{de, Deserializer, Serializer};
+
+            pub fn serialize<A: SerdeAmountForOpt, S: Serializer>(
+                a: &Option<A>,
+                s: S,
+            ) -> Result<S::Ok, S::Error> {
+                match *a {
+                    Some(a) => a.ser_pico_opt(s),
+                    None => s.serialize_none(),
+                }
+            }
+
+            pub fn deserialize<'d, A: SerdeAmountForOpt, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Option<A>, D::Error> {
+                struct VisitOptAmt<X>(PhantomData<X>);
+
+                impl<'de, X: SerdeAmountForOpt> de::Visitor<'de> for VisitOptAmt<X> {
+                    type Value = Option<X>;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        write!(formatter, "An Option<{}64>", X::type_prefix())
+                    }
+
+                    fn visit_none<E>(self) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        Ok(None)
+                    }
+                    fn visit_some<D>(self, d: D) -> Result<Self::Value, D::Error>
+                    where
+                        D: Deserializer<'de>,
+                    {
+                        Ok(Some(X::des_pico(d)?))
+                    }
+                }
+                d.deserialize_option(VisitOptAmt::<A>(PhantomData))
+            }
+        }
+    }
+
+    pub mod as_xmr {
+        //! Serialize and deserialize [Amount] as JSON strings denominated in XMR.
+        //! Use with `#[serde(with = "amount::serde_impl::as_xmr")]`.
+
+        use super::SerdeAmount;
+        use serde::{Deserializer, Serializer};
+
+        pub fn serialize<A: SerdeAmount, S: Serializer>(a: &A, s: S) -> Result<S::Ok, S::Error> {
+            a.ser_xmr(s)
+        }
+
+        pub fn deserialize<'d, A: SerdeAmount, D: Deserializer<'d>>(d: D) -> Result<A, D::Error> {
+            A::des_xmr(d)
+        }
+
+        pub mod opt {
+            //! Serialize and deserialize [Option<Amount>] as JSON numbers denominated in XMR.
+            //! Use with `#[serde(default, with = "amount::serde::as_xmr::opt")]`.
+
+            use super::super::SerdeAmountForOpt;
+            use core::fmt;
+            use core::marker::PhantomData;
+            use serde::{de, Deserializer, Serializer};
+
+            pub fn serialize<A: SerdeAmountForOpt, S: Serializer>(
+                a: &Option<A>,
+                s: S,
+            ) -> Result<S::Ok, S::Error> {
+                match *a {
+                    Some(a) => a.ser_xmr_opt(s),
+                    None => s.serialize_none(),
+                }
+            }
+
+            pub fn deserialize<'d, A: SerdeAmountForOpt, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Option<A>, D::Error> {
+                struct VisitOptAmt<X>(PhantomData<X>);
+
+                impl<'de, X: SerdeAmountForOpt> de::Visitor<'de> for VisitOptAmt<X> {
+                    type Value = Option<X>;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        write!(formatter, "An Option<String>")
+                    }
+
+                    fn visit_none<E>(self) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        Ok(None)
+                    }
+                    fn visit_some<D>(self, d: D) -> Result<Self::Value, D::Error>
+                    where
+                        D: Deserializer<'de>,
+                    {
+                        Ok(Some(X::des_xmr(d)?))
+                    }
+                }
+                d.deserialize_option(VisitOptAmt::<A>(PhantomData))
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::panic;
     use std::str::FromStr;
+
+    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    use serde_test;
 
     #[test]
     fn add_sub_mul_div() {
@@ -1201,5 +1435,164 @@ mod tests {
             SignedAmount::from_str("-42 piconero XMR"),
             Err(ParsingError::InvalidFormat)
         );
+    }
+
+    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[test]
+    fn serde_as_pico() {
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        struct T {
+            #[serde(with = "super::serde_impl::as_pico")]
+            pub amt: Amount,
+            #[serde(with = "super::serde_impl::as_pico")]
+            pub samt: SignedAmount,
+        }
+        serde_test::assert_tokens(
+            &T {
+                amt: Amount::from_pico(123456789),
+                samt: SignedAmount::from_pico(-123456789),
+            },
+            &[
+                serde_test::Token::Struct { name: "T", len: 2 },
+                serde_test::Token::Str("amt"),
+                serde_test::Token::U64(123456789),
+                serde_test::Token::Str("samt"),
+                serde_test::Token::I64(-123456789),
+                serde_test::Token::StructEnd,
+            ],
+        );
+    }
+
+    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[test]
+    fn serde_as_pico_opt() {
+        use serde::{Deserialize, Serialize};
+        use serde_json;
+
+        #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
+        struct T {
+            #[serde(default, with = "super::serde_impl::as_pico::opt")]
+            pub amt: Option<Amount>,
+            #[serde(default, with = "super::serde_impl::as_pico::opt")]
+            pub samt: Option<SignedAmount>,
+        }
+
+        let with = T {
+            amt: Some(Amount::from_pico(2__500_000_000_000)),
+            samt: Some(SignedAmount::from_pico(-2__500_000_000_000)),
+        };
+        let without = T {
+            amt: None,
+            samt: None,
+        };
+
+        // Test Roundtripping
+        for s in [&with, &without].iter() {
+            let v = serde_json::to_string(s).unwrap();
+            let w: T = serde_json::from_str(&v).unwrap();
+            assert_eq!(w, **s);
+        }
+
+        let t: T =
+            serde_json::from_str("{\"amt\": 2500000000000, \"samt\": -2500000000000}").unwrap();
+        assert_eq!(t, with);
+
+        let t: T = serde_json::from_str("{}").unwrap();
+        assert_eq!(t, without);
+
+        let value_with: serde_json::Value =
+            serde_json::from_str("{\"amt\": 2500000000000, \"samt\": -2500000000000}").unwrap();
+        assert_eq!(with, serde_json::from_value(value_with).unwrap());
+
+        let value_without: serde_json::Value = serde_json::from_str("{}").unwrap();
+        assert_eq!(without, serde_json::from_value(value_without).unwrap());
+    }
+
+    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[test]
+    fn serde_as_xmr() {
+        use serde::{Deserialize, Serialize};
+        use serde_json;
+
+        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        struct T {
+            #[serde(with = "super::serde_impl::as_xmr")]
+            pub amt: Amount,
+            #[serde(with = "super::serde_impl::as_xmr")]
+            pub samt: SignedAmount,
+        }
+
+        let orig = T {
+            amt: Amount::from_pico(9_000_000__000_000_000_001),
+            samt: SignedAmount::from_pico(-9_000_000__000_000_000_001),
+        };
+
+        let json = "{\"amt\": \"9000000.000000000001\", \
+                   \"samt\": \"-9000000.000000000001\"}";
+        let t: T = serde_json::from_str(&json).unwrap();
+        assert_eq!(t, orig);
+
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(t, serde_json::from_value(value).unwrap());
+
+        // errors
+        let t: Result<T, serde_json::Error> =
+            serde_json::from_str("{\"amt\": \"1000000.0000000000001\", \"samt\": \"1\"}");
+        assert!(t
+            .unwrap_err()
+            .to_string()
+            .contains(&ParsingError::TooPrecise.to_string()));
+        let t: Result<T, serde_json::Error> =
+            serde_json::from_str("{\"amt\": \"-1\", \"samt\": \"1\"}");
+        assert!(t
+            .unwrap_err()
+            .to_string()
+            .contains(&ParsingError::Negative.to_string()));
+    }
+
+    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[test]
+    fn serde_as_xmr_opt() {
+        use serde::{Deserialize, Serialize};
+        use serde_json;
+
+        #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
+        struct T {
+            #[serde(default, with = "super::serde_impl::as_xmr::opt")]
+            pub amt: Option<Amount>,
+            #[serde(default, with = "super::serde_impl::as_xmr::opt")]
+            pub samt: Option<SignedAmount>,
+        }
+
+        let with = T {
+            amt: Some(Amount::from_pico(2__500_000_000_000)),
+            samt: Some(SignedAmount::from_pico(-2__500_000_000_000)),
+        };
+        let without = T {
+            amt: None,
+            samt: None,
+        };
+
+        // Test Roundtripping
+        for s in [&with, &without].iter() {
+            let v = serde_json::to_string(s).unwrap();
+            let w: T = serde_json::from_str(&v).unwrap();
+            assert_eq!(w, **s);
+        }
+
+        let t: T = serde_json::from_str("{\"amt\": \"2.5\", \"samt\": \"-2.5\"}").unwrap();
+        assert_eq!(t, with);
+
+        let t: T = serde_json::from_str("{}").unwrap();
+        assert_eq!(t, without);
+
+        let value_with: serde_json::Value =
+            serde_json::from_str("{\"amt\": \"2.5\", \"samt\": \"-2.5\"}").unwrap();
+        assert_eq!(with, serde_json::from_value(value_with).unwrap());
+
+        let value_without: serde_json::Value = serde_json::from_str("{}").unwrap();
+        assert_eq!(without, serde_json::from_value(value_without).unwrap());
     }
 }
