@@ -35,7 +35,7 @@ use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 ///
 /// Index implements [`Default`] and returns `0/0`.
 ///
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Index {
     /// The major index, also account.
     pub major: u32,
@@ -54,12 +54,6 @@ impl Index {
 impl fmt::Display for Index {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}/{}", self.major, self.minor)
-    }
-}
-
-impl Default for Index {
-    fn default() -> Index {
-        Index { major: 0, minor: 0 }
     }
 }
 
