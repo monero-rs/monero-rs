@@ -814,8 +814,9 @@ impl FromStr for SignedAmount {
     }
 }
 
-#[cfg(any(feature = "serde", feature = "serde_support"))]
-mod serde_impl {
+#[cfg(feature = "serde_support")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_support")))]
+pub mod serde_impl {
     //! This module adds serde serialization and deserialization support for Amounts.
     //! Since there is not a default way to serialize and deserialize Amounts, multiple
     //! ways are supported and it's up to the user to decide which serialiation to use.
@@ -833,24 +834,34 @@ mod serde_impl {
     //! ```
     //!
     //! Notabene that due to the limits of floating point precission, ::as_xmr
-    //! serializes amounts as strings.  
+    //! serializes amounts as strings.
 
     use super::{Amount, Denomination, SignedAmount};
     use sealed::sealed;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     #[sealed]
+    /// This trait is used only to avoid code duplication and naming collisions of the different
+    /// serde serialization crates.
     pub trait SerdeAmount: Copy + Sized {
+        /// Serialize with [`Serializer`] the amount as piconero.
         fn ser_pico<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+        /// Deserialize with [`Deserializer`] an amount in piconero.
         fn des_pico<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error>;
+        /// Serialize with [`Serializer`] the amount as monero.
         fn ser_xmr<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+        /// Deserialize with [`Deserializer`] an amount in monero.
         fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error>;
     }
 
     #[sealed]
+    /// This trait is only for internal Amount type serialization/deserialization.
     pub trait SerdeAmountForOpt: Copy + Sized + SerdeAmount {
+        /// Return the type prefix (`i` or `u`) used to sign or not the amount.
         fn type_prefix() -> &'static str;
+        /// Serialize with [`Serializer`] an optional amount as piconero.
         fn ser_pico_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+        /// Serialize with [`Serializer`] an optional amount as monero.
         fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
     }
 
@@ -921,8 +932,13 @@ mod serde_impl {
     }
 
     pub mod as_pico {
-        //! Serialize and deserialize [Amount] as real numbers denominated in piconero.
+        // methods are implementation of a standardized serde-specific signature
+        #![allow(missing_docs)]
+
+        //! Serialize and deserialize [`Amount`] as real numbers denominated in piconero.
         //! Use with `#[serde(with = "amount::serde_impl::as_pico")]`.
+        //!
+        //! [`Amount`]: crate::util::amount::Amount
 
         use super::SerdeAmount;
         use serde::{Deserializer, Serializer};
@@ -935,6 +951,9 @@ mod serde_impl {
         }
 
         pub mod opt {
+            //! Serialize and deserialize [Option] as JSON numbers denominated in piconero.
+            //! Use with `#[serde(default, with = "amount::serde::as_pico::opt")]`.
+
             use super::super::SerdeAmountForOpt;
             use core::fmt;
             use core::marker::PhantomData;
@@ -981,8 +1000,13 @@ mod serde_impl {
     }
 
     pub mod as_xmr {
-        //! Serialize and deserialize [Amount] as JSON strings denominated in XMR.
+        // methods are implementation of a standardized serde-specific signature
+        #![allow(missing_docs)]
+
+        //! Serialize and deserialize [`Amount`] as JSON strings denominated in XMR.
         //! Use with `#[serde(with = "amount::serde_impl::as_xmr")]`.
+        //!
+        //! [`Amount`]: crate::util::amount::Amount
 
         use super::SerdeAmount;
         use serde::{Deserializer, Serializer};
@@ -996,7 +1020,7 @@ mod serde_impl {
         }
 
         pub mod opt {
-            //! Serialize and deserialize [Option<Amount>] as JSON numbers denominated in XMR.
+            //! Serialize and deserialize [Option] as JSON numbers denominated in XMR.
             //! Use with `#[serde(default, with = "amount::serde::as_xmr::opt")]`.
 
             use super::super::SerdeAmountForOpt;
@@ -1051,7 +1075,7 @@ mod tests {
     use std::panic;
     use std::str::FromStr;
 
-    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[cfg(feature = "serde_support")]
     use serde_test;
 
     #[test]
@@ -1437,7 +1461,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[cfg(feature = "serde_support")]
     #[test]
     fn serde_as_pico() {
         use serde::{Deserialize, Serialize};
@@ -1465,7 +1489,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[cfg(feature = "serde_support")]
     #[test]
     fn serde_as_pico_opt() {
         use serde::{Deserialize, Serialize};
@@ -1510,7 +1534,7 @@ mod tests {
         assert_eq!(without, serde_json::from_value(value_without).unwrap());
     }
 
-    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[cfg(feature = "serde_support")]
     #[test]
     fn serde_as_xmr() {
         use serde::{Deserialize, Serialize};
@@ -1552,7 +1576,7 @@ mod tests {
             .contains(&ParsingError::Negative.to_string()));
     }
 
-    #[cfg(any(feature = "serde", feature = "serde_support"))]
+    #[cfg(feature = "serde_support")]
     #[test]
     fn serde_as_xmr_opt() {
         use serde::{Deserialize, Serialize};
