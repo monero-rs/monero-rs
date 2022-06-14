@@ -1131,14 +1131,12 @@ mod tests {
                         .unwrap(),
                     },
                 }],
-                extra: ExtraField {
-                    0: vec![
-                        SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),
-                        SubField::Nonce(vec![
-                            196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                        ]),
-                    ],
-                },
+                extra: ExtraField(vec![
+                    SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),
+                    SubField::Nonce(vec![
+                        196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    ]),
+                ]),
             },
             signatures: vec![],
             rct_signatures: RctSig {
@@ -1154,9 +1152,7 @@ mod tests {
         };
         assert_eq!(
             tx.as_bytes().to_vec(),
-            hex::encode(transaction.hash().0.to_vec())
-                .as_bytes()
-                .to_vec()
+            hex::encode(transaction.hash().0).as_bytes().to_vec()
         );
     }
 
@@ -1189,23 +1185,19 @@ mod tests {
                         .unwrap(),
                     },
                 }],
-                extra: ExtraField {
-                    0: vec![
-                        SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),
-                        SubField::Nonce(vec![
-                            196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                        ]),
-                    ],
-                },
+                extra: ExtraField(vec![
+                    SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),
+                    SubField::Nonce(vec![
+                        196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    ]),
+                ]),
             },
             signatures: vec![],
             rct_signatures: RctSig { sig: None, p: None },
         };
         assert_eq!(
             tx.as_bytes().to_vec(),
-            hex::encode(transaction.hash().0.to_vec())
-                .as_bytes()
-                .to_vec()
+            hex::encode(transaction.hash().0).as_bytes().to_vec()
         );
     }
 }
