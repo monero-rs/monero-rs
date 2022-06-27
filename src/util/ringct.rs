@@ -71,6 +71,14 @@ impl_hex_display!(Key, key);
 
 impl_consensus_encoding!(Key, key);
 
+impl Key {
+    fn new() -> Key {
+        Key{
+            key: [0; 32]
+        }
+    }
+}
+
 impl From<[u8; 32]> for Key {
     fn from(key: [u8; 32]) -> Self {
         Self { key }
@@ -78,22 +86,59 @@ impl From<[u8; 32]> for Key {
 }
 
 // ====================================================================
-/// Raw 64 bytes key.
-#[derive(Clone, Copy, PartialEq, Hash)]
+/// An array of 64 32-byte keys.
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Key64 {
     /// The actual key.
     #[cfg_attr(feature = "serde_support", serde(with = "BigArray"))]
-    pub key: [u8; 64],
+    pub keys: [Key; 64],
 }
 
-impl_hex_display!(Key64, key);
+impl Key64 {
+    fn new() -> Key64 {
+        Key64{
+            keys: [Key::new(); 64]
+        }
+    }
+}
 
-impl_consensus_encoding!(Key64, key);
+impl From<[Key; 64]> for Key64 {
+    fn from(keys: [Key; 64]) -> Self {
+        Self { keys }
+    }
+}
 
-impl From<[u8; 64]> for Key64 {
-    fn from(key: [u8; 64]) -> Self {
-        Self { key }
+impl Decodable for Key64 {
+    fn consensus_decode<D: io::Read>(
+        d: &mut D,
+    ) -> Result<Key64, encode::Error> {
+        let mut key64 = Key64::new();
+        for i in 0..64 {
+            let key: Key = Decodable::consensus_decode(d)?;
+            key64.keys[i] = key;
+        }
+        Ok(key64)
+    }
+}
+
+#[sealed]
+impl crate::consensus::encode::Encodable for Key64 {
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let mut len = 0;
+        for i in 0..64 {
+            len += self.keys[i].consensus_encode(s)?;
+        }
+        Ok(len)
+    }
+}
+
+impl fmt::Display for Key64 {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        for key in self.keys{
+           writeln!(fmt, "{}", key)?;
+        }
+        Ok(())
     }
 }
 
