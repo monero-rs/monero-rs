@@ -60,7 +60,7 @@ pub enum Error {
 
 // ====================================================================
 /// Raw 32 bytes key.
-#[derive(Clone, Copy, PartialEq, Hash)]
+#[derive(Clone, Copy, PartialEq, Hash, Default)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Key {
     /// The actual key.
@@ -73,9 +73,7 @@ impl_consensus_encoding!(Key, key);
 
 impl Key {
     fn new() -> Key {
-        Key{
-            key: [0; 32]
-        }
+        Key { key: [0; 32] }
     }
 }
 
@@ -97,8 +95,8 @@ pub struct Key64 {
 
 impl Key64 {
     fn new() -> Key64 {
-        Key64{
-            keys: [Key::new(); 64]
+        Key64 {
+            keys: [Key::new(); 64],
         }
     }
 }
@@ -110,9 +108,7 @@ impl From<[Key; 64]> for Key64 {
 }
 
 impl Decodable for Key64 {
-    fn consensus_decode<D: io::Read>(
-        d: &mut D,
-    ) -> Result<Key64, encode::Error> {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Key64, encode::Error> {
         let mut key64 = Key64::new();
         for i in 0..64 {
             let key: Key = Decodable::consensus_decode(d)?;
@@ -135,8 +131,8 @@ impl crate::consensus::encode::Encodable for Key64 {
 
 impl fmt::Display for Key64 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        for key in self.keys{
-           writeln!(fmt, "{}", key)?;
+        for key in self.keys.iter() {
+            writeln!(fmt, "{}", key)?;
         }
         Ok(())
     }
