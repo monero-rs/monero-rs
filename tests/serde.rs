@@ -13,26 +13,27 @@
 // copies or substantial portions of the Software.
 //
 
-#![cfg(any(feature = "serde_support"))]
+#![cfg(any(feature = "serde"))]
 
 use monero::util::amount::{
-    serde_impl::{SerdeAmount, SerdeAmountForOpt},
+    serde::{SerdeAmount, SerdeAmountForOpt},
     SignedAmount,
 };
 use monero::Amount;
-use serde::{Deserialize, Serialize};
+use serde_crate::{Deserialize, Serialize};
 
 #[test]
-fn serde_impl_amount_and_signed_amount() {
+fn serde_amount_and_signed_amount() {
     #[derive(Serialize, Deserialize)]
+    #[serde(crate = "serde_crate")]
     pub struct HasAmount<T: SerdeAmountForOpt + SerdeAmount> {
-        #[serde(with = "monero::util::amount::serde_impl::as_xmr")]
+        #[serde(with = "monero::util::amount::serde::as_xmr")]
         pub xmr_amount: T,
-        #[serde(with = "monero::util::amount::serde_impl::as_xmr::opt")]
+        #[serde(with = "monero::util::amount::serde::as_xmr::opt")]
         pub some_xmr_amount: Option<T>,
-        #[serde(with = "monero::util::amount::serde_impl::as_pico")]
+        #[serde(with = "monero::util::amount::serde::as_pico")]
         pub pico_amount: T,
-        #[serde(with = "monero::util::amount::serde_impl::as_pico::opt")]
+        #[serde(with = "monero::util::amount::serde::as_pico::opt")]
         pub some_pico_amount: Option<T>,
     }
 
