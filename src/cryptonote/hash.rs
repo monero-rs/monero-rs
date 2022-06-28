@@ -1,5 +1,5 @@
 // Rust Monero Library
-// Written in 2019 by
+// Written in 2019-2022 by
 //   h4sh3d <h4sh3d@protonmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
