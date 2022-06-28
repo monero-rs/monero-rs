@@ -83,7 +83,7 @@ impl From<[u8; 32]> for Key {
 pub struct Key64 {
     /// The actual key.
     #[cfg_attr(feature = "serde", serde(with = "BigArray"))]
-    pub key: [u8; 64],
+    pub keys: [Key; 64],
 }
 
 impl Key64 {
