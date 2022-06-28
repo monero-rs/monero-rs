@@ -137,6 +137,7 @@ mod tests {
     use serde_test::{assert_tokens, Token};
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_ser_de_hash_null() {
         let hash = Hash::null();
 
@@ -202,6 +203,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_ser_de_hash() {
         let hash = Hash::new("");
 
