@@ -29,9 +29,9 @@ use crate::util::key::H;
 use crate::{PublicKey, ViewPair};
 
 #[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
-#[cfg(feature = "serde")]
 use serde_big_array::BigArray;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
 use curve25519_dalek::edwards::EdwardsPoint;
