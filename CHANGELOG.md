@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update `serde-big-array` requirement from 0.3.2 to 0.4.1 ([#77](https://github.com/monero-rs/monero-rs/pull/77))
 - Update `serde_json` requirement from <1.0.45 to 1 ([#84](https://github.com/monero-rs/monero-rs/pull/84))
 
 ## [0.16.0] - 2021-11-15
