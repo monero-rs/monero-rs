@@ -1,6 +1,6 @@
 // Rust Monero Library
-// Written in 2021 by
-//   h4sh3d <h4sh3d@protonmail.com>
+// Written in 2021-2022 by
+//   Monero Rust Contributors
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -1364,9 +1364,9 @@ mod tests {
     fn to_from_string_in() {
         use super::Denomination as D;
         let ua_str = Amount::from_str_in;
-        let ua_sat = Amount::from_pico;
+        let ua_pic = Amount::from_pico;
         let sa_str = SignedAmount::from_str_in;
-        let sa_sat = SignedAmount::from_pico;
+        let sa_pic = SignedAmount::from_pico;
 
         assert_eq!("0.500", Amount::from_pico(500).to_string_in(D::Nanonero));
         assert_eq!(
@@ -1388,44 +1388,44 @@ mod tests {
         );
 
         assert_eq!(
-            ua_str(&ua_sat(0).to_string_in(D::Piconero), D::Piconero),
-            Ok(ua_sat(0))
+            ua_str(&ua_pic(0).to_string_in(D::Piconero), D::Piconero),
+            Ok(ua_pic(0))
         );
         assert_eq!(
-            ua_str(&ua_sat(500).to_string_in(D::Monero), D::Monero),
-            Ok(ua_sat(500))
+            ua_str(&ua_pic(500).to_string_in(D::Monero), D::Monero),
+            Ok(ua_pic(500))
         );
         assert_eq!(
-            ua_str(&ua_sat(21_000_000).to_string_in(D::Nanonero), D::Nanonero),
-            Ok(ua_sat(21_000_000))
+            ua_str(&ua_pic(21_000_000).to_string_in(D::Nanonero), D::Nanonero),
+            Ok(ua_pic(21_000_000))
         );
         assert_eq!(
-            ua_str(&ua_sat(1).to_string_in(D::Micronero), D::Micronero),
-            Ok(ua_sat(1))
+            ua_str(&ua_pic(1).to_string_in(D::Micronero), D::Micronero),
+            Ok(ua_pic(1))
         );
         assert_eq!(
             ua_str(
-                &ua_sat(1_000_000_000_000).to_string_in(D::Millinero),
+                &ua_pic(1_000_000_000_000).to_string_in(D::Millinero),
                 D::Millinero
             ),
-            Ok(ua_sat(1_000_000_000_000))
+            Ok(ua_pic(1_000_000_000_000))
         );
         assert_eq!(
             ua_str(
-                &ua_sat(u64::max_value()).to_string_in(D::Millinero),
+                &ua_pic(u64::max_value()).to_string_in(D::Millinero),
                 D::Millinero
             ),
             Err(ParsingError::TooBig)
         );
 
         assert_eq!(
-            sa_str(&sa_sat(-1).to_string_in(D::Micronero), D::Micronero),
-            Ok(sa_sat(-1))
+            sa_str(&sa_pic(-1).to_string_in(D::Micronero), D::Micronero),
+            Ok(sa_pic(-1))
         );
 
         assert_eq!(
             sa_str(
-                &sa_sat(i64::max_value()).to_string_in(D::Piconero),
+                &sa_pic(i64::max_value()).to_string_in(D::Piconero),
                 D::Micronero
             ),
             Err(ParsingError::TooBig)
@@ -1433,7 +1433,7 @@ mod tests {
         // Test an overflow bug in `abs()`
         assert_eq!(
             sa_str(
-                &sa_sat(i64::min_value()).to_string_in(D::Piconero),
+                &sa_pic(i64::min_value()).to_string_in(D::Piconero),
                 D::Micronero
             ),
             Err(ParsingError::TooBig)

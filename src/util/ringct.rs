@@ -1,6 +1,6 @@
 // Rust Monero Library
-// Written in 2019 by
-//   h4sh3d <h4sh3d@protonmail.com>
+// Written in 2019-2022 by
+//   Monero Rust Contributors
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@ use crate::{PublicKey, ViewPair};
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_support")]
-use serde_big_array_unchecked_docs::*;
+use serde_big_array::BigArray;
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
 use curve25519_dalek::edwards::EdwardsPoint;
@@ -40,15 +40,6 @@ use sealed::sealed;
 use thiserror::Error;
 
 use std::convert::TryInto;
-
-/// Serde support for array's bigger than 32 items.
-#[allow(missing_docs)]
-#[cfg(feature = "serde_support")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_support")))]
-pub mod serde_big_array_unchecked_docs {
-    use serde_big_array::big_array;
-    big_array! { BigArray; }
-}
 
 /// Ring Confidential Transaction potential errors.
 #[derive(Error, Debug, PartialEq)]
