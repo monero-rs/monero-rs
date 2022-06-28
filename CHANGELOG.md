@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add serde support for `Amount` by [@TheCharlatan](https://github.com/TheCharlatan) ([#74](https://github.com/monero-rs/monero-rs/pull/74))
 
+### Fixed 
+
+- make `Key64` an array of 64 32 byte keys by [@Boog900](https://github.com/Boog900) ([#86](https://github.com/monero-rs/monero-rs/pull/86))
+
 ## [0.16.0] - 2021-11-15
 
 ### Added
