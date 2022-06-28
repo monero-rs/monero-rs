@@ -1,6 +1,6 @@
 // Rust Monero Library
 // Written in 2021 by
-//   h4sh3d <h4sh3d@protonmail.com>
+//   Monero Rust Contributors
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
