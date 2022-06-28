@@ -879,10 +879,8 @@ pub mod serde {
         }
         fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
             use serde_crate::de::Error;
-            Ok(
-                Amount::from_str_in(&String::deserialize(d)?, Denomination::Monero)
-                    .map_err(D::Error::custom)?,
-            )
+            Amount::from_str_in(&String::deserialize(d)?, Denomination::Monero)
+                .map_err(D::Error::custom)
         }
     }
 
@@ -912,10 +910,8 @@ pub mod serde {
         }
         fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
             use serde_crate::de::Error;
-            Ok(
-                SignedAmount::from_str_in(&String::deserialize(d)?, Denomination::Monero)
-                    .map_err(D::Error::custom)?,
-            )
+            SignedAmount::from_str_in(&String::deserialize(d)?, Denomination::Monero)
+                .map_err(D::Error::custom)
         }
     }
 
@@ -1507,8 +1503,8 @@ mod tests {
         }
 
         let with = T {
-            amt: Some(Amount::from_pico(2__500_000_000_000)),
-            samt: Some(SignedAmount::from_pico(-2__500_000_000_000)),
+            amt: Some(Amount::from_pico(2_500_000_000_000)),
+            samt: Some(SignedAmount::from_pico(-2_500_000_000_000)),
         };
         let without = T {
             amt: None,
@@ -1553,16 +1549,16 @@ mod tests {
         }
 
         let orig = T {
-            amt: Amount::from_pico(9_000_000__000_000_000_001),
-            samt: SignedAmount::from_pico(-9_000_000__000_000_000_001),
+            amt: Amount::from_pico(9_000_000_000_000_000_001),
+            samt: SignedAmount::from_pico(-9_000_000_000_000_000_001),
         };
 
         let json = "{\"amt\": \"9000000.000000000001\", \
                    \"samt\": \"-9000000.000000000001\"}";
-        let t: T = serde_json::from_str(&json).unwrap();
+        let t: T = serde_json::from_str(json).unwrap();
         assert_eq!(t, orig);
 
-        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let value: serde_json::Value = serde_json::from_str(json).unwrap();
         assert_eq!(t, serde_json::from_value(value).unwrap());
 
         // errors
@@ -1596,8 +1592,8 @@ mod tests {
         }
 
         let with = T {
-            amt: Some(Amount::from_pico(2__500_000_000_000)),
-            samt: Some(SignedAmount::from_pico(-2__500_000_000_000)),
+            amt: Some(Amount::from_pico(2_500_000_000_000)),
+            samt: Some(SignedAmount::from_pico(-2_500_000_000_000)),
         };
         let without = T {
             amt: None,
