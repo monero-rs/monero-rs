@@ -95,7 +95,7 @@ pub enum TxIn {
 
 /// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
 /// original cryptonote implementation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum TxOutTarget {
@@ -138,7 +138,7 @@ impl TxOutTarget {
 }
 
 /// A transaction output, can be consumed by a [`TxIn`] input of the matching format.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TxOut {
@@ -269,7 +269,7 @@ impl<'a> OwnedTxOut<'a> {
 /// public key.
 ///
 /// Extra field is composed of typed sub fields of variable or fixed length.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct ExtraField(pub Vec<SubField>);
@@ -353,7 +353,7 @@ impl fmt::Display for SubField {
 ///
 /// As transaction prefix implements [`hash::Hashable`] it is possible to generate the transaction
 /// prefix hash with `tx_prefix.hash()`.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TransactionPrefix {
