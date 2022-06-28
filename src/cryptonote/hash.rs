@@ -128,3 +128,122 @@ pub fn keccak_256(input: &[u8]) -> [u8; 32] {
 
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "serde")]
+    use serde_test::{assert_tokens, Token};
+
+    #[test]
+    fn test_ser_de_hash_null() {
+        let hash = Hash::null();
+
+        assert_tokens(
+            &hash,
+            &[
+                Token::NewtypeStruct { name: "Hash" },
+                Token::Tuple { len: 32 },
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::TupleEnd,
+            ],
+        );
+
+        let hash = Hash8([0u8; 8]);
+
+        assert_tokens(
+            &hash,
+            &[
+                Token::NewtypeStruct { name: "Hash8" },
+                Token::Tuple { len: 8 },
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::U8(0),
+                Token::TupleEnd,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_ser_de_hash() {
+        let hash = Hash::new("");
+
+        assert_tokens(
+            &hash,
+            &[
+                Token::NewtypeStruct { name: "Hash" },
+                Token::Tuple { len: 32 },
+                Token::U8(197),
+                Token::U8(210),
+                Token::U8(70),
+                Token::U8(1),
+                Token::U8(134),
+                Token::U8(247),
+                Token::U8(35),
+                Token::U8(60),
+                Token::U8(146),
+                Token::U8(126),
+                Token::U8(125),
+                Token::U8(178),
+                Token::U8(220),
+                Token::U8(199),
+                Token::U8(3),
+                Token::U8(192),
+                Token::U8(229),
+                Token::U8(0),
+                Token::U8(182),
+                Token::U8(83),
+                Token::U8(202),
+                Token::U8(130),
+                Token::U8(39),
+                Token::U8(59),
+                Token::U8(123),
+                Token::U8(250),
+                Token::U8(216),
+                Token::U8(4),
+                Token::U8(93),
+                Token::U8(133),
+                Token::U8(164),
+                Token::U8(112),
+                Token::TupleEnd,
+            ],
+        );
+    }
+}
