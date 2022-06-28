@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add serde support for `Amount` by [@TheCharlatan](https://github.com/TheCharlatan) ([#74](https://github.com/monero-rs/monero-rs/pull/74))
 
+### Changed
+
+- Update `serde_json` requirement from <1.0.45 to 1 ([#84](https://github.com/monero-rs/monero-rs/pull/84))
+
 ## [0.16.0] - 2021-11-15
 
 ### Added
