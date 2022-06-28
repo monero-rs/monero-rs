@@ -29,7 +29,7 @@ base58-monero = { version = "0.3", default-features = false }
 curve25519-dalek = { version = "3.0.2" }
 hex = "0.4.3"
 hex-literal = "0.3.1"
-sealed = "0.3"
+sealed = "0.4"
 serde = { version = "1.0.124", features = ["derive"], optional = true }
 serde-big-array = { version = "0.4.1", optional = true }
 thiserror = "1.0.24"
