@@ -77,8 +77,8 @@ use crate::cryptonote::hash;
 use sealed::sealed;
 use thiserror::Error;
 
-#[cfg(feature = "serde_support")]
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 /// Potential errors encountered during key decoding.
 #[derive(Error, Debug, PartialEq)]
@@ -269,7 +269,8 @@ impl crate::consensus::encode::Encodable for PrivateKey {
 
 /// A public key, a valid edward point on the curve.
 #[derive(PartialEq, Eq, Copy, Clone)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct PublicKey {
     /// The actual Ed25519 point.
     pub point: CompressedEdwardsY,

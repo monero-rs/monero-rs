@@ -30,12 +30,13 @@ use std::io;
 
 use crate::consensus::encode::{self, Decodable};
 use crate::util::key::PrivateKey;
-#[cfg(feature = "serde_support")]
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 fixed_hash::construct_fixed_hash!(
     /// Result of the Keccak-256 hashing function.
-    #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
     pub struct Hash(32);
 );
 
@@ -99,7 +100,8 @@ pub trait Hashable {
 
 fixed_hash::construct_fixed_hash!(
     /// An 8-bytes hash result.
-    #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
     pub struct Hash8(8);
 );
 

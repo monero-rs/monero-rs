@@ -16,7 +16,7 @@ Supports (or should support)
 - Address and subaddress creation, de/serialization and validation
 - Private keys and one-time keys creation, de/serialization and validation
 - Transaction owned output detection and amount recovery with view keypair
-- Serde support on most structures with feature `serde_support`
+- Serde support on most structures with feature `serde`
 
 ## Documentation
 
@@ -24,9 +24,9 @@ Currently can be found on [docs.rs/monero](https://docs.rs/monero). Patches to a
 
 ## Features
 
-### `serde_support`
+### `serde`
 
-The `serde_support` feature enables implementation of `serde` on serializable types across the library.
+The `serde` feature enables implementation of [`serde`](https://docs.rs/serde/latest/serde/) on serializable types across the library.
 
 ### `experimental`
 

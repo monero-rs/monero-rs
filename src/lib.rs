@@ -34,9 +34,10 @@
 //! It is worth noting that `std` is widely used all over the library and no `no_std` support is
 //! planned at the moment.
 //!
-//! ### `serde_support`
+//! ### `serde`
 //!
-//! The `serde_support` feature enables implementation of `serde` on serializable types.
+//! The `serde` feature enables implementation of [`serde`](https://docs.rs/serde/latest/serde/) on
+//! serializable types.
 //!
 //! ### `experimental`
 //!

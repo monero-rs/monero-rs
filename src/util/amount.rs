@@ -814,19 +814,20 @@ impl FromStr for SignedAmount {
     }
 }
 
-#[cfg(feature = "serde_support")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_support")))]
+#[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 pub mod serde_impl {
     //! This module adds serde serialization and deserialization support for Amounts.
     //! Since there is not a default way to serialize and deserialize Amounts, multiple
     //! ways are supported and it's up to the user to decide which serialiation to use.
     //! The provided modules can be used as follows:
     //!
-    //! ```rust,ignore
-    //! use serde::{Serialize, Deserialize};
+    //! ```rust
+    //! use serde_crate::{Serialize, Deserialize};
     //! use monero::Amount;
     //!
     //! #[derive(Serialize, Deserialize)]
+    //! # #[serde(crate = "serde_crate")]
     //! pub struct HasAmount {
     //!     #[serde(with = "monero::util::amount::serde_impl::as_xmr")]
     //!     pub amount: Amount,
@@ -838,7 +839,7 @@ pub mod serde_impl {
 
     use super::{Amount, Denomination, SignedAmount};
     use sealed::sealed;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_crate::{Deserialize, Deserializer, Serialize, Serializer};
 
     #[sealed]
     /// This trait is used only to avoid code duplication and naming collisions of the different
@@ -877,7 +878,7 @@ pub mod serde_impl {
             String::serialize(&self.to_string_in(Denomination::Monero), s)
         }
         fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
-            use serde::de::Error;
+            use serde_crate::de::Error;
             Ok(
                 Amount::from_str_in(&String::deserialize(d)?, Denomination::Monero)
                     .map_err(D::Error::custom)?,
@@ -910,7 +911,7 @@ pub mod serde_impl {
             String::serialize(&self.to_string_in(Denomination::Monero), s)
         }
         fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
-            use serde::de::Error;
+            use serde_crate::de::Error;
             Ok(
                 SignedAmount::from_str_in(&String::deserialize(d)?, Denomination::Monero)
                     .map_err(D::Error::custom)?,
@@ -941,7 +942,7 @@ pub mod serde_impl {
         //! [`Amount`]: crate::util::amount::Amount
 
         use super::SerdeAmount;
-        use serde::{Deserializer, Serializer};
+        use serde_crate::{Deserializer, Serializer};
 
         pub fn serialize<A: SerdeAmount, S: Serializer>(a: &A, s: S) -> Result<S::Ok, S::Error> {
             a.ser_pico(s)
@@ -957,7 +958,7 @@ pub mod serde_impl {
             use super::super::SerdeAmountForOpt;
             use core::fmt;
             use core::marker::PhantomData;
-            use serde::{de, Deserializer, Serializer};
+            use serde_crate::{de, Deserializer, Serializer};
 
             pub fn serialize<A: SerdeAmountForOpt, S: Serializer>(
                 a: &Option<A>,
@@ -1009,7 +1010,7 @@ pub mod serde_impl {
         //! [`Amount`]: crate::util::amount::Amount
 
         use super::SerdeAmount;
-        use serde::{Deserializer, Serializer};
+        use serde_crate::{Deserializer, Serializer};
 
         pub fn serialize<A: SerdeAmount, S: Serializer>(a: &A, s: S) -> Result<S::Ok, S::Error> {
             a.ser_xmr(s)
@@ -1026,7 +1027,7 @@ pub mod serde_impl {
             use super::super::SerdeAmountForOpt;
             use core::fmt;
             use core::marker::PhantomData;
-            use serde::{de, Deserializer, Serializer};
+            use serde_crate::{de, Deserializer, Serializer};
 
             pub fn serialize<A: SerdeAmountForOpt, S: Serializer>(
                 a: &Option<A>,
@@ -1075,7 +1076,7 @@ mod tests {
     use std::panic;
     use std::str::FromStr;
 
-    #[cfg(feature = "serde_support")]
+    #[cfg(feature = "serde")]
     use serde_test;
 
     #[test]
@@ -1461,12 +1462,13 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "serde_support")]
+    #[cfg(feature = "serde")]
     #[test]
     fn serde_as_pico() {
-        use serde::{Deserialize, Serialize};
+        use serde_crate::{Deserialize, Serialize};
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
         struct T {
             #[serde(with = "super::serde_impl::as_pico")]
             pub amt: Amount,
@@ -1489,13 +1491,14 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "serde_support")]
+    #[cfg(feature = "serde")]
     #[test]
     fn serde_as_pico_opt() {
-        use serde::{Deserialize, Serialize};
+        use serde_crate::{Deserialize, Serialize};
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
         struct T {
             #[serde(default, with = "super::serde_impl::as_pico::opt")]
             pub amt: Option<Amount>,
@@ -1534,13 +1537,14 @@ mod tests {
         assert_eq!(without, serde_json::from_value(value_without).unwrap());
     }
 
-    #[cfg(feature = "serde_support")]
+    #[cfg(feature = "serde")]
     #[test]
     fn serde_as_xmr() {
-        use serde::{Deserialize, Serialize};
+        use serde_crate::{Deserialize, Serialize};
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
         struct T {
             #[serde(with = "super::serde_impl::as_xmr")]
             pub amt: Amount,
@@ -1576,13 +1580,14 @@ mod tests {
             .contains(&ParsingError::Negative.to_string()));
     }
 
-    #[cfg(feature = "serde_support")]
+    #[cfg(feature = "serde")]
     #[test]
     fn serde_as_xmr_opt() {
-        use serde::{Deserialize, Serialize};
+        use serde_crate::{Deserialize, Serialize};
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
         struct T {
             #[serde(default, with = "super::serde_impl::as_xmr::opt")]
             pub amt: Option<Amount>,
