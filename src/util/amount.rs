@@ -816,7 +816,7 @@ impl FromStr for SignedAmount {
 
 #[cfg(feature = "serde")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-pub mod serde_impl {
+pub mod serde {
     //! This module adds serde serialization and deserialization support for Amounts.
     //! Since there is not a default way to serialize and deserialize Amounts, multiple
     //! ways are supported and it's up to the user to decide which serialiation to use.
@@ -829,7 +829,7 @@ pub mod serde_impl {
     //! #[derive(Serialize, Deserialize)]
     //! # #[serde(crate = "serde_crate")]
     //! pub struct HasAmount {
-    //!     #[serde(with = "monero::util::amount::serde_impl::as_xmr")]
+    //!     #[serde(with = "monero::util::amount::serde::as_xmr")]
     //!     pub amount: Amount,
     //! }
     //! ```
@@ -937,7 +937,7 @@ pub mod serde_impl {
         #![allow(missing_docs)]
 
         //! Serialize and deserialize [`Amount`] as real numbers denominated in piconero.
-        //! Use with `#[serde(with = "amount::serde_impl::as_pico")]`.
+        //! Use with `#[serde(with = "amount::serde::as_pico")]`.
         //!
         //! [`Amount`]: crate::util::amount::Amount
 
@@ -1005,7 +1005,7 @@ pub mod serde_impl {
         #![allow(missing_docs)]
 
         //! Serialize and deserialize [`Amount`] as JSON strings denominated in XMR.
-        //! Use with `#[serde(with = "amount::serde_impl::as_xmr")]`.
+        //! Use with `#[serde(with = "amount::serde::as_xmr")]`.
         //!
         //! [`Amount`]: crate::util::amount::Amount
 
@@ -1470,9 +1470,9 @@ mod tests {
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
         #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
         struct T {
-            #[serde(with = "super::serde_impl::as_pico")]
+            #[serde(with = "super::serde::as_pico")]
             pub amt: Amount,
-            #[serde(with = "super::serde_impl::as_pico")]
+            #[serde(with = "super::serde::as_pico")]
             pub samt: SignedAmount,
         }
         serde_test::assert_tokens(
@@ -1500,9 +1500,9 @@ mod tests {
         #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
         #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
         struct T {
-            #[serde(default, with = "super::serde_impl::as_pico::opt")]
+            #[serde(default, with = "super::serde::as_pico::opt")]
             pub amt: Option<Amount>,
-            #[serde(default, with = "super::serde_impl::as_pico::opt")]
+            #[serde(default, with = "super::serde::as_pico::opt")]
             pub samt: Option<SignedAmount>,
         }
 
@@ -1546,9 +1546,9 @@ mod tests {
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
         #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
         struct T {
-            #[serde(with = "super::serde_impl::as_xmr")]
+            #[serde(with = "super::serde::as_xmr")]
             pub amt: Amount,
-            #[serde(with = "super::serde_impl::as_xmr")]
+            #[serde(with = "super::serde::as_xmr")]
             pub samt: SignedAmount,
         }
 
@@ -1589,9 +1589,9 @@ mod tests {
         #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
         #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
         struct T {
-            #[serde(default, with = "super::serde_impl::as_xmr::opt")]
+            #[serde(default, with = "super::serde::as_xmr::opt")]
             pub amt: Option<Amount>,
-            #[serde(default, with = "super::serde_impl::as_xmr::opt")]
+            #[serde(default, with = "super::serde::as_xmr::opt")]
             pub samt: Option<SignedAmount>,
         }
 
