@@ -23,14 +23,15 @@
 use crate::blockdata::transaction::Transaction;
 use crate::consensus::encode::VarInt;
 use crate::cryptonote::hash;
-#[cfg(feature = "serde_support")]
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 use std::fmt;
 
 /// A block header containing the version, the mining timestamp, the previous block hash and the
 /// nonce.
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct BlockHeader {
     /// Major version, defines the consensus rules.
     pub major_version: VarInt,
@@ -66,7 +67,8 @@ impl_consensus_encoding!(
 /// A full block with the mining transaction and the commitments (hash) to all included
 /// transaction.
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct Block {
     /// The block header.
     pub header: BlockHeader,

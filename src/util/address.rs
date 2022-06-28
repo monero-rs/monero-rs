@@ -281,11 +281,11 @@ impl FromStr for Address {
     }
 }
 
-#[cfg(any(feature = "serde", feature = "serde_support"))]
+#[cfg(feature = "serde")]
 mod serde_impl {
     use super::*;
 
-    use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+    use serde_crate::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
     impl Serialize for Address {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

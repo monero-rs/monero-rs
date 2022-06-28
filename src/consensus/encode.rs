@@ -38,8 +38,8 @@ use super::endian;
 use crate::blockdata::transaction;
 use crate::util::{address, key, ringct};
 
-#[cfg(feature = "serde_support")]
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 /// Errors encountered when encoding or decoding data.
 #[derive(Error, Debug)]
@@ -261,7 +261,8 @@ pub trait Decodable: Sized {
 
 /// A variable-length unsigned integer type as defined by the Monero codebase.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Default)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct VarInt(pub u64);
 
 impl fmt::Display for VarInt {

@@ -33,7 +33,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: clippy
-        args: --workspace --all-targets -- -D warnings
+        args: --workspace --all-targets --all-features -- -D warnings
 
   mdtomlfmt:
     name: Generic format (md,toml)
@@ -75,11 +75,11 @@ jobs:
         command: build
         args: --verbose
 
-    - name: Build (serde_support)
+    - name: Build (serde)
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --verbose --no-default-features --features serde_support
+        args: --verbose --no-default-features --features serde
 
     - name: Build (experimental)
       uses: actions-rs/cargo@v1

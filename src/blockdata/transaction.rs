@@ -36,8 +36,8 @@ use thiserror::Error;
 use std::ops::Range;
 use std::{fmt, io};
 
-#[cfg(feature = "serde_support")]
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 /// Errors possible when manipulating transactions.
 #[derive(Error, Clone, Copy, Debug, PartialEq)]
@@ -62,7 +62,8 @@ pub enum Error {
 /// The key image used in transaction inputs [`TxIn`] to commit to the use of an output one-time
 /// public key as in [`TxOutTarget::ToKey`].
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyImage {
     /// The actual key image data.
     pub image: hash::Hash,
@@ -73,7 +74,8 @@ impl_consensus_encoding!(KeyImage, image);
 /// A transaction input, either a coinbase spend or a one-time key spend which defines the ring
 /// size and the key image to avoid double spend.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum TxIn {
     /// A coinbase input.
     Gen {
@@ -94,7 +96,8 @@ pub enum TxIn {
 /// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
 /// original cryptonote implementation.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum TxOutTarget {
     /// A script output, not used.
     ToScript {
@@ -136,7 +139,8 @@ impl TxOutTarget {
 
 /// A transaction output, can be consumed by a [`TxIn`] input of the matching format.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TxOut {
     /// The amount sent to the associated key, can be 0 in case of Confidential Transaction (CT).
     pub amount: VarInt,
@@ -266,7 +270,8 @@ impl<'a> OwnedTxOut<'a> {
 ///
 /// Extra field is composed of typed sub fields of variable or fixed length.
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct ExtraField(pub Vec<SubField>);
 
 impl fmt::Display for ExtraField {
@@ -300,7 +305,8 @@ impl ExtraField {
 /// length, in variable length case the length is encoded with a [`VarInt`] before the content
 /// itself.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum SubField {
     /// Transaction public key, fixed length of 32 bytes.
     TxPublicKey(PublicKey),
@@ -348,7 +354,8 @@ impl fmt::Display for SubField {
 /// As transaction prefix implements [`hash::Hashable`] it is possible to generate the transaction
 /// prefix hash with `tx_prefix.hash()`.
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TransactionPrefix {
     /// Transaction format version.
     pub version: VarInt,
@@ -489,7 +496,8 @@ impl hash::Hashable for TransactionPrefix {
 /// As transaction implements [`hash::Hashable`] it is possible to generate the transaction hash
 /// with `tx.hash()`.
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct Transaction {
     /// The transaction prefix.
     pub prefix: TransactionPrefix,

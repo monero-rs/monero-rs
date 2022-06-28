@@ -21,7 +21,7 @@ edition = "2018"
 [features]
 default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
-serde_support = ["serde", "serde-big-array", "curve25519-dalek/serde"]
+serde = ["serde-crate", "serde-big-array", "curve25519-dalek/serde"]
 experimental = []
 
 [dependencies]
@@ -30,8 +30,8 @@ curve25519-dalek = { version = "3.0.2" }
 hex = "0.4.3"
 hex-literal = "0.3.1"
 sealed = "0.4"
-serde = { version = "1.0.124", features = ["derive"], optional = true }
 serde-big-array = { version = "0.4.1", optional = true }
+serde-crate = { package = "serde", version = "1.0.124", features = ["derive"], optional = true }
 thiserror = "1.0.24"
 tiny-keccak = { version = "2", features = ["keccak"] }
 
