@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `serde_json` requirement from <1.0.45 to 1 ([#84](https://github.com/monero-rs/monero-rs/pull/84))
 - Update `sealed` requirement from 0.3 to 0.4 ([#73](https://github.com/monero-rs/monero-rs/pull/73))
 
+### Fixed
+
+- make `Key64` an array of 64 32 byte keys by [@Boog900](https://github.com/Boog900) ([#86](https://github.com/monero-rs/monero-rs/pull/86))
+
 ## [0.16.0] - 2021-11-15
 
 ### Added
