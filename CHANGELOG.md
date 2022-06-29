@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2022-06-29
+
 ### Added
 
 - Add serde support for `Amount` by [@TheCharlatan](https://github.com/TheCharlatan) ([#74](https://github.com/monero-rs/monero-rs/pull/74))
@@ -16,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rename feature `serde_support` into `serde` ([#94](https://github.com/monero-rs/monero-rs/pull/94))
 - Update `base58-monero` requirement from 0.3 to 1 ([#91](https://github.com/monero-rs/monero-rs/pull/91))
 - Update `serde-big-array` requirement from 0.3.2 to 0.4.1 ([#77](https://github.com/monero-rs/monero-rs/pull/77))
-- Update `serde_json` requirement from <1.0.45 to 1 ([#84](https://github.com/monero-rs/monero-rs/pull/84))
+- Update `serde_json` requirement from &lt;1.0.45 to 1 ([#84](https://github.com/monero-rs/monero-rs/pull/84))
 - Update `sealed` requirement from 0.3 to 0.4 ([#73](https://github.com/monero-rs/monero-rs/pull/73))
 
 ### Fixed
@@ -229,7 +231,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Address and subaddress creation, de/serialization and validation
 - Private keys and one-time keys creation, de/serialization and validation
 
-[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/monero-rs/monero-rs/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/monero-rs/monero-rs/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/monero-rs/monero-rs/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/monero-rs/monero-rs/compare/v0.13.0...v0.14.0
