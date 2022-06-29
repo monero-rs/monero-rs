@@ -21,7 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- make `Key64` an array of 64 32 byte keys by [@Boog900](https://github.com/Boog900) ([#86](https://github.com/monero-rs/monero-rs/pull/86))
+- Check outputs of miner transaction ([#96](https://github.com/monero-rs/monero-rs/pull/96))
+- Make `Key64` an array of 64 32 byte keys by [@Boog900](https://github.com/Boog900) ([#86](https://github.com/monero-rs/monero-rs/pull/86))
 
 ## [0.16.0] - 2021-11-15
 

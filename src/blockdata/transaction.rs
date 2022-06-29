@@ -95,7 +95,7 @@ pub enum TxIn {
 
 /// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
 /// original cryptonote implementation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum TxOutTarget {
@@ -138,7 +138,7 @@ impl TxOutTarget {
 }
 
 /// A transaction output, can be consumed by a [`TxIn`] input of the matching format.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TxOut {
@@ -230,11 +230,17 @@ impl<'a> OwnedTxOut<'a> {
         self.tx_pubkey
     }
 
-    /// Returns the unblinded amount of this output.
+    /// Returns the unblinded or clear amount of this output.
     ///
     /// None if we didn't have enough information to unblind the output.
     pub fn amount(&self) -> Option<u64> {
-        self.opening.as_ref().map(|o| o.amount)
+        match self.opening {
+            Some(Opening { amount, .. }) => Some(amount),
+            None => match self.out.amount {
+                VarInt(0) => None,
+                VarInt(a) => Some(a),
+            },
+        }
     }
 
     /// Returns the original blinding factor of this output.
@@ -269,7 +275,7 @@ impl<'a> OwnedTxOut<'a> {
 /// public key.
 ///
 /// Extra field is composed of typed sub fields of variable or fixed length.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct ExtraField(pub Vec<SubField>);
@@ -353,7 +359,7 @@ impl fmt::Display for SubField {
 ///
 /// As transaction prefix implements [`hash::Hashable`] it is possible to generate the transaction
 /// prefix hash with `tx_prefix.hash()`.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TransactionPrefix {
@@ -450,6 +456,10 @@ impl TransactionPrefix {
             })
             .map(|(i, out, sub_index, tx_pubkey)| {
                 let opening = match rct_sig_base {
+                    Some(RctSigBase {
+                        rct_type: RctType::Null,
+                        ..
+                    }) => None,
                     Some(rct_sig_base) => {
                         let ecdh_info = rct_sig_base
                             .ecdh_info

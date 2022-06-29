@@ -13,9 +13,13 @@
 // copies or substantial portions of the Software.
 //
 
-use monero::blockdata::transaction::Transaction;
-use monero::consensus::encode::{deserialize, serialize};
+use monero::blockdata::transaction::{
+    ExtraField, Transaction, TransactionPrefix, TxIn, TxOut, TxOutTarget,
+};
+use monero::consensus::encode::{deserialize, serialize, VarInt};
 use monero::cryptonote::hash::Hashable;
+use monero::util::key::PublicKey;
+use std::str::FromStr;
 
 #[test]
 fn deserialize_transaction_1() {
@@ -154,5 +158,40 @@ fn deserialize_transaction_10() {
     assert_eq!(
         "4a5fd752ebb0bb9bc6c82ad0b9bf1d0df02401aeb1c6cecbffd506902636cd7f",
         format!("{:02x}", tx.hash())
+    );
+}
+
+#[test]
+fn deserialize_transaction_11() {
+    let hex = hex::decode("02de8ba20101ffa28ba2010190c6afb1be11026cb8ab2153b04c9b955e444b026c38b3dab0b033a8607c66aa59e45b305866013e01eef7d65dcbe97e40bc1e79d0b810b662981a2f402005e07bc61340abb3813d9b021b6d696e65786d722e636f6d2901130000000003000000000000000000").unwrap();
+    let tx = deserialize::<Transaction>(&hex[..]);
+    assert!(tx.is_ok());
+    let tx = tx.unwrap();
+    assert_eq!(hex, serialize(&tx));
+    assert_eq!(
+        "d0108dac8ad68ae30d0620ae5c898c9be148639e77f2d94993978ffadabd6586",
+        format!("{:02x}", tx.hash())
+    );
+
+    println!("{:#?}", tx);
+
+    let extra = hex::decode("3e01eef7d65dcbe97e40bc1e79d0b810b662981a2f402005e07bc61340abb3813d9b021b6d696e65786d722e636f6d29011300000000030000000000000000").unwrap();
+    let key =
+        PublicKey::from_str("6cb8ab2153b04c9b955e444b026c38b3dab0b033a8607c66aa59e45b30586601")
+            .expect("correct pubkey");
+    assert_eq!(
+        TransactionPrefix {
+            version: VarInt(2),
+            unlock_time: VarInt(2655710),
+            inputs: vec![TxIn::Gen {
+                height: VarInt(2655650),
+            }],
+            outputs: vec![TxOut {
+                amount: VarInt(600862090000),
+                target: TxOutTarget::ToKey { key },
+            }],
+            extra: deserialize::<ExtraField>(&extra[..]).unwrap(),
+        },
+        *tx.prefix()
     );
 }
