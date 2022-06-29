@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/monero.svg)](https://crates.io/crates/monero)
 [![Documentation](https://docs.rs/monero/badge.svg)](https://docs.rs/monero)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![MSRV](https://img.shields.io/badge/MSRV-1.50.0-blue)](https://blog.rust-lang.org/2021/02/11/Rust-1.50.0.html)
+[![MSRV](https://img.shields.io/badge/MSRV-1.51.0-blue)](https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html)
 
 # Rust Monero Library
 

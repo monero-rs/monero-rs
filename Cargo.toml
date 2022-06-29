@@ -18,9 +18,6 @@ description = "Rust Monero Library."
 
 edition = "2018"
 
-[package.metadata]
-msrv = "1.50.0"
-
 [features]
 default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
