@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Update MSRV, allow to reduce it from 1.51.0 to 1.50.0 ([#97](https://github.com/monero-rs/monero-rs/pull/97))
 - Rename feature `serde_support` into `serde` ([#94](https://github.com/monero-rs/monero-rs/pull/94))
 - Update `base58-monero` requirement from 0.3 to 1 ([#91](https://github.com/monero-rs/monero-rs/pull/91))
 - Update `serde-big-array` requirement from 0.3.2 to 0.4.1 ([#77](https://github.com/monero-rs/monero-rs/pull/77))
