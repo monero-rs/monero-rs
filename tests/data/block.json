@@ -1,0 +1,37 @@
+{
+  "id": "0",
+  "jsonrpc": "2.0",
+  "result": {
+    "blob": "0e0ec980f09506418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e38475c625023d01ff0101808080f0ffff0702e928dfd0a413a4eac0b541fcc434c56da56cb34c95d8d6916146c3a4f7071ae82101b0f38ad895b9a7bc053e9be31ddd16139ad7006396ae7a29eb6365306ae6f4b70000",
+    "block_header": {
+      "block_size": 81,
+      "block_weight": 81,
+      "cumulative_difficulty": 2,
+      "cumulative_difficulty_top64": 0,
+      "depth": 8193,
+      "difficulty": 1,
+      "difficulty_top64": 0,
+      "hash": "bcf59f2c93dd22b0aa5a79f12af02afbba18e106a1ec86de9081a0f369967018",
+      "height": 1,
+      "long_term_weight": 81,
+      "major_version": 14,
+      "miner_tx_hash": "50ad877c2f126c9278dc4b043774bceb995c80bc2fa11de10a0f8379a856422e",
+      "minor_version": 14,
+      "nonce": 633763204,
+      "num_txes": 0,
+      "orphan_status": false,
+      "pow_hash": "",
+      "prev_hash": "418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3",
+      "reward": 35184338534400,
+      "timestamp": 1656488009,
+      "wide_cumulative_difficulty": "0x2",
+      "wide_difficulty": "0x1"
+    },
+    "credits": 0,
+    "json": "{\n  \"major_version\": 14, \n  \"minor_version\": 14, \n  \"timestamp\": 1656488009, \n  \"prev_id\": \"418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3\", \n  \"nonce\": 633763204, \n  \"miner_tx\": {\n    \"version\": 2, \n    \"unlock_time\": 61, \n    \"vin\": [ {\n        \"gen\": {\n          \"height\": 1\n        }\n      }\n    ], \n    \"vout\": [ {\n        \"amount\": 35184338534400, \n        \"target\": {\n          \"key\": \"e928dfd0a413a4eac0b541fcc434c56da56cb34c95d8d6916146c3a4f7071ae8\"\n        }\n      }\n    ], \n    \"extra\": [ 1, 176, 243, 138, 216, 149, 185, 167, 188, 5, 62, 155, 227, 29, 221, 22, 19, 154, 215, 0, 99, 150, 174, 122, 41, 235, 99, 101, 48, 106, 230, 244, 183\n    ], \n    \"rct_signatures\": {\n      \"type\": 0\n    }\n  }, \n  \"tx_hashes\": [ ]\n}",
+    "miner_tx_hash": "50ad877c2f126c9278dc4b043774bceb995c80bc2fa11de10a0f8379a856422e",
+    "status": "OK",
+    "top_hash": "",
+    "untrusted": false
+  }
+}
