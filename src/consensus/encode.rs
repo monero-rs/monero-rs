@@ -27,7 +27,6 @@
 use hex::encode as hex_encode;
 
 use std::convert::TryFrom;
-use std::io::{Cursor, Read, Write};
 use std::ops::Deref;
 use std::{fmt, io, mem, u32};
 
@@ -95,15 +94,15 @@ pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
 /// Deserialize an object from a vector, but will not report an error if said deserialization
 /// doesn't consume the entire vector.
 pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Error> {
-    let mut decoder = Cursor::new(data);
+    let mut decoder = io::Cursor::new(data);
     let rv = Decodable::consensus_decode(&mut decoder)?;
     let consumed = decoder.position() as usize;
 
     Ok((rv, consumed))
 }
 
-/// Extensions of [`Write`] to encode data as per Monero consensus.
-pub trait WriteExt {
+/// Extensions of [`io::Write`] to encode data as per Monero consensus.
+pub trait WriteExt: io::Write {
     /// Output a 64-bit uint.
     fn emit_u64(&mut self, v: u64) -> Result<(), io::Error>;
     /// Output a 32-bit uint.
@@ -129,8 +128,8 @@ pub trait WriteExt {
     fn emit_slice(&mut self, v: &[u8]) -> Result<(), io::Error>;
 }
 
-/// Extensions of [`Read`] to decode data as per Monero consensus.
-pub trait ReadExt {
+/// Extensions of [`io::Read`] to decode data as per Monero consensus.
+pub trait ReadExt: io::Read {
     /// Read a 64-bit uint.
     fn read_u64(&mut self) -> Result<u64, Error>;
     /// Read a 32-bit uint.
@@ -176,7 +175,7 @@ macro_rules! decoder_fn {
     };
 }
 
-impl<W: Write> WriteExt for W {
+impl<W: io::Write> WriteExt for W {
     encoder_fn!(emit_u64, u64, u64_to_array_le);
     encoder_fn!(emit_u32, u32, u32_to_array_le);
     encoder_fn!(emit_u16, u16, u16_to_array_le);
@@ -205,7 +204,7 @@ impl<W: Write> WriteExt for W {
     }
 }
 
-impl<R: Read> ReadExt for R {
+impl<R: io::Read> ReadExt for R {
     decoder_fn!(read_u64, u64, slice_to_u64_le, 8);
     decoder_fn!(read_u32, u32, slice_to_u32_le, 4);
     decoder_fn!(read_u16, u16, slice_to_u16_le, 2);
