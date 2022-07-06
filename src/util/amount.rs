@@ -139,7 +139,7 @@ fn parse_signed_to_piconero(mut s: &str, denom: Denomination) -> Result<(bool, u
             // into a less precise amount. That is not allowed unless
             // there are no decimals and the last digits are zeroes as
             // many as the difference in precision.
-            let last_n = precision_diff.abs() as usize;
+            let last_n = precision_diff.unsigned_abs() as usize;
             if is_too_precise(s, last_n) {
                 return Err(ParsingError::TooPrecise);
             }
@@ -211,7 +211,7 @@ fn fmt_piconero_in(
         }
         Ordering::Less => {
             // need to inject a comma in the number
-            let nb_decimals = precision.abs() as usize;
+            let nb_decimals = precision.unsigned_abs() as usize;
             let real = format!("{:0width$}", piconero, width = nb_decimals);
             if real.len() == nb_decimals {
                 write!(f, "0.{}", &real[real.len() - nb_decimals..])?;
