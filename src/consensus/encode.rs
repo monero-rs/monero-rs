@@ -249,13 +249,13 @@ pub trait Encodable {
     /// Encoder errors.
     ///
     /// The only errors returned are errors propagated from the writer.
-    fn consensus_encode<W: io::Write + ?Sized>(&self, writer: &mut W) -> Result<usize, io::Error>;
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error>;
 }
 
 /// Data which can be decoded in a consensus-consistent way.
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format.
-    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Self, Error>;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error>;
 }
 
 /// A variable-length unsigned integer type as defined by the Monero codebase.
@@ -289,18 +289,18 @@ macro_rules! impl_int_encodable {
     ($ty:ident, $meth_dec:ident, $meth_enc:ident) => {
         impl Decodable for $ty {
             #[inline]
-            fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Self, Error> {
-                ReadExt::$meth_dec(d).map($ty::from_le)
+            fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+                ReadExt::$meth_dec(r).map($ty::from_le)
             }
         }
         #[sealed]
         impl Encodable for $ty {
             #[inline]
-            fn consensus_encode<S: io::Write + ?Sized>(
+            fn consensus_encode<W: io::Write + ?Sized>(
                 &self,
-                s: &mut S,
+                w: &mut W,
             ) -> Result<usize, io::Error> {
-                s.$meth_enc(self.to_le())?;
+                w.$meth_enc(self.to_le())?;
                 Ok(mem::size_of::<$ty>())
             }
         }
@@ -319,7 +319,7 @@ impl_int_encodable!(i64, read_i64, emit_i64);
 #[sealed]
 impl Encodable for VarInt {
     #[inline]
-    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut res: Vec<u8> = vec![];
         let mut n = self.0;
         loop {
@@ -334,14 +334,14 @@ impl Encodable for VarInt {
             Some((last, arr)) => {
                 let a: Result<Vec<_>, io::Error> = arr
                     .iter()
-                    .map(|bits| s.emit_u8(*bits | 0b1000_0000))
+                    .map(|bits| w.emit_u8(*bits | 0b1000_0000))
                     .collect();
                 let len = a?.len();
-                s.emit_u8(*last)?;
+                w.emit_u8(*last)?;
                 Ok(len + 1)
             }
             None => {
-                s.emit_u8(0x00)?;
+                w.emit_u8(0x00)?;
                 Ok(1)
             }
         }
@@ -350,10 +350,10 @@ impl Encodable for VarInt {
 
 impl Decodable for VarInt {
     #[inline]
-    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Self, Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
         let mut res: Vec<u8> = vec![];
         loop {
-            let n = d.read_u8()?;
+            let n = r.read_u8()?;
             res.push(n & 0b0111_1111);
             if n & 0b1000_0000 == 0 {
                 break;
@@ -375,16 +375,16 @@ impl Decodable for VarInt {
 #[sealed]
 impl Encodable for bool {
     #[inline]
-    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
-        s.emit_bool(*self)?;
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        w.emit_bool(*self)?;
         Ok(1)
     }
 }
 
 impl Decodable for bool {
     #[inline]
-    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<bool, Error> {
-        ReadExt::read_bool(d)
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<bool, Error> {
+        ReadExt::read_bool(r)
     }
 }
 
@@ -392,18 +392,18 @@ impl Decodable for bool {
 #[sealed]
 impl Encodable for String {
     #[inline]
-    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let b = self.as_bytes();
-        let vi_len = VarInt(b.len() as u64).consensus_encode(s)?;
-        s.emit_slice(b)?;
+        let vi_len = VarInt(b.len() as u64).consensus_encode(w)?;
+        w.emit_slice(b)?;
         Ok(vi_len + b.len())
     }
 }
 
 impl Decodable for String {
     #[inline]
-    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<String, Error> {
-        String::from_utf8(Decodable::consensus_decode(d)?)
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<String, Error> {
+        String::from_utf8(Decodable::consensus_decode(r)?)
             .map_err(|_| self::Error::ParseFailed("String was not valid UTF8"))
     }
 }
@@ -414,13 +414,13 @@ macro_rules! impl_array {
         #[sealed]
         impl<T: Encodable> Encodable for [T; $size] {
             #[inline]
-            fn consensus_encode<S: io::Write + ?Sized>(
+            fn consensus_encode<W: io::Write + ?Sized>(
                 &self,
-                s: &mut S,
+                w: &mut W,
             ) -> Result<usize, io::Error> {
                 let mut len = 0;
                 for i in self.iter() {
-                    len += i.consensus_encode(s)?;
+                    len += i.consensus_encode(w)?;
                 }
                 Ok(len)
             }
@@ -428,12 +428,12 @@ macro_rules! impl_array {
 
         impl<T: Decodable + Copy> Decodable for [T; $size] {
             #[inline]
-            fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Self, Error> {
+            fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
                 // Set everything to the first decode
-                let mut ret = [Decodable::consensus_decode(d)?; $size];
+                let mut ret = [Decodable::consensus_decode(r)?; $size];
                 // Set the rest
                 for item in ret.iter_mut().take($size).skip(1) {
-                    *item = Decodable::consensus_decode(d)?;
+                    *item = Decodable::consensus_decode(r)?;
                 }
                 Ok(ret)
             }
@@ -449,10 +449,10 @@ impl_array!(64);
 #[sealed]
 impl<T: Encodable> Encodable for [T] {
     #[inline]
-    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
-        let mut len = VarInt(self.len() as u64).consensus_encode(s)?;
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        let mut len = VarInt(self.len() as u64).consensus_encode(w)?;
         for c in self.iter() {
-            len += c.consensus_encode(s)?;
+            len += c.consensus_encode(w)?;
         }
         Ok(len)
     }
@@ -464,16 +464,16 @@ impl<T: Encodable> Encodable for [T] {
 #[sealed]
 impl<T: Encodable> Encodable for Vec<T> {
     #[inline]
-    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
-        (&self[..]).consensus_encode(s)
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        (&self[..]).consensus_encode(w)
     }
 }
 
 impl<T: Decodable> Decodable for Vec<T> {
     #[inline]
-    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Self, Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
         const MAX_VEC_ALLOC_SIZE: usize = 4 * 1024 * 1024;
-        let len = usize::try_from(*VarInt::consensus_decode(d)?)
+        let len = usize::try_from(*VarInt::consensus_decode(r)?)
             .map_err(|_| self::Error::ParseFailed("VarInt overflows usize"))?;
 
         // Prevent allocations larger than 4 MiB
@@ -486,7 +486,7 @@ impl<T: Decodable> Decodable for Vec<T> {
 
         let mut ret = Vec::with_capacity(len);
         for _ in 0..len {
-            ret.push(Decodable::consensus_decode(d)?);
+            ret.push(Decodable::consensus_decode(r)?);
         }
         Ok(ret)
     }
@@ -515,19 +515,19 @@ macro_rules! encode_sized_vec {
 #[sealed]
 impl<T: Encodable> Encodable for Box<[T]> {
     #[inline]
-    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
-        (&self[..]).consensus_encode(s)
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        (&self[..]).consensus_encode(w)
     }
 }
 
 impl<T: Decodable> Decodable for Box<[T]> {
     #[inline]
-    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Self, Error> {
-        let len = VarInt::consensus_decode(d)?.0;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+        let len = VarInt::consensus_decode(r)?.0;
         let len = len as usize;
         let mut ret = Vec::with_capacity(len);
         for _ in 0..len {
-            ret.push(Decodable::consensus_decode(d)?);
+            ret.push(Decodable::consensus_decode(r)?);
         }
         Ok(ret.into_boxed_slice())
     }

@@ -72,15 +72,15 @@ impl Hash {
 }
 
 impl Decodable for Hash {
-    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Hash, encode::Error> {
-        Ok(Hash(Decodable::consensus_decode(d)?))
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Hash, encode::Error> {
+        Ok(Hash(Decodable::consensus_decode(r)?))
     }
 }
 
 #[sealed]
 impl crate::consensus::encode::Encodable for Hash {
-    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
-        self.0.consensus_encode(s)
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        self.0.consensus_encode(w)
     }
 }
 
@@ -106,15 +106,15 @@ fixed_hash::construct_fixed_hash!(
 );
 
 impl Decodable for Hash8 {
-    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Hash8, encode::Error> {
-        Ok(Hash8(Decodable::consensus_decode(d)?))
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Hash8, encode::Error> {
+        Ok(Hash8(Decodable::consensus_decode(r)?))
     }
 }
 
 #[sealed]
 impl crate::consensus::encode::Encodable for Hash8 {
-    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
-        self.0.consensus_encode(s)
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        self.0.consensus_encode(w)
     }
 }
 

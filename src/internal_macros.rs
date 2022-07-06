@@ -22,23 +22,23 @@ macro_rules! impl_consensus_encoding {
         #[sealed::sealed]
         impl $crate::consensus::encode::Encodable for $thing {
             #[inline]
-            fn consensus_encode<S: ::std::io::Write + ?Sized>(
+            fn consensus_encode<W: ::std::io::Write + ?Sized>(
                 &self,
-                s: &mut S
+                w: &mut W
             ) -> Result<usize, ::std::io::Error> {
                 let mut len = 0;
-                $( len += self.$field.consensus_encode(s)?; )+
+                $( len += self.$field.consensus_encode(w)?; )+
                 Ok(len)
             }
         }
 
         impl $crate::consensus::encode::Decodable for $thing {
             #[inline]
-            fn consensus_decode<D: ::std::io::Read + ?Sized>(
-                d: &mut D
+            fn consensus_decode<R: ::std::io::Read + ?Sized>(
+                r: &mut R
             ) -> Result<$thing, $crate::consensus::encode::Error> {
                 Ok($thing {
-                    $( $field: crate::consensus::encode::Decodable::consensus_decode(d)?, )+
+                    $( $field: crate::consensus::encode::Decodable::consensus_decode(r)?, )+
                 })
             }
         }
