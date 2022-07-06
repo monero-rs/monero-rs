@@ -731,7 +731,7 @@ impl hash::Hashable for Transaction {
 // ----------------------------------------------------------------------------------------------------------------
 
 impl Decodable for ExtraField {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<ExtraField, encode::Error> {
+    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<ExtraField, encode::Error> {
         let mut fields: Vec<SubField> = vec![];
         let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
         let mut decoder = io::Cursor::new(&bytes[..]);
@@ -752,7 +752,7 @@ impl Decodable for ExtraField {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for ExtraField {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut buffer = Vec::new();
         for field in self.0.iter() {
             field.consensus_encode(&mut buffer)?;
@@ -762,7 +762,7 @@ impl crate::consensus::encode::Encodable for ExtraField {
 }
 
 impl Decodable for SubField {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<SubField, encode::Error> {
+    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<SubField, encode::Error> {
         let tag: u8 = Decodable::consensus_decode(d)?;
 
         match tag {
@@ -803,7 +803,7 @@ impl Decodable for SubField {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for SubField {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         match *self {
             SubField::Padding(nbytes) => {
@@ -839,7 +839,7 @@ impl crate::consensus::encode::Encodable for SubField {
 }
 
 impl Decodable for TxIn {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<TxIn, encode::Error> {
+    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<TxIn, encode::Error> {
         let intype: u8 = Decodable::consensus_decode(d)?;
         match intype {
             0xff => Ok(TxIn::Gen {
@@ -858,7 +858,7 @@ impl Decodable for TxIn {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for TxIn {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             TxIn::Gen { height } => {
                 let len = 0xffu8.consensus_encode(s)?;
@@ -879,7 +879,7 @@ impl crate::consensus::encode::Encodable for TxIn {
 }
 
 impl Decodable for TxOutTarget {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<TxOutTarget, encode::Error> {
+    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<TxOutTarget, encode::Error> {
         let outtype: u8 = Decodable::consensus_decode(d)?;
         match outtype {
             0x2 => Ok(TxOutTarget::ToKey {
@@ -892,7 +892,7 @@ impl Decodable for TxOutTarget {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for TxOutTarget {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             TxOutTarget::ToKey { key } => {
                 let len = 0x2u8.consensus_encode(s)?;
@@ -908,7 +908,7 @@ impl crate::consensus::encode::Encodable for TxOutTarget {
 
 #[allow(non_snake_case)]
 impl Decodable for Transaction {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Transaction, encode::Error> {
+    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Transaction, encode::Error> {
         let prefix: TransactionPrefix = Decodable::consensus_decode(d)?;
 
         let inputs = prefix.inputs.len();
@@ -984,7 +984,7 @@ impl Decodable for Transaction {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for Transaction {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = self.prefix.consensus_encode(s)?;
         match *self.prefix.version {
             1 => {

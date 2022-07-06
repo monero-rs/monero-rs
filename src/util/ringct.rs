@@ -101,7 +101,7 @@ impl From<[Key; 64]> for Key64 {
 }
 
 impl Decodable for Key64 {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Key64, encode::Error> {
+    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<Key64, encode::Error> {
         let mut key64 = Key64::new();
         for i in 0..64 {
             let key: Key = Decodable::consensus_decode(d)?;
@@ -113,7 +113,7 @@ impl Decodable for Key64 {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for Key64 {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         for i in 0..64 {
             len += self.keys[i].consensus_encode(s)?;
@@ -307,7 +307,7 @@ impl fmt::Display for EcdhInfo {
 
 impl EcdhInfo {
     /// Decode Diffie-Hellman info given the RingCt type.
-    fn consensus_decode<D: io::Read>(
+    fn consensus_decode<D: io::Read + ?Sized>(
         d: &mut D,
         rct_type: RctType,
     ) -> Result<EcdhInfo, encode::Error> {
@@ -327,7 +327,7 @@ impl EcdhInfo {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for EcdhInfo {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         match self {
             EcdhInfo::Standard { mask, amount } => {
@@ -372,7 +372,7 @@ pub struct MgSig {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for MgSig {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         for ss in self.ss.iter() {
             len += encode_sized_vec!(ss, s);
@@ -399,7 +399,7 @@ pub struct Clsag {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for Clsag {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         // Encode the vector without prefix lenght
         len += encode_sized_vec!(self.s, s);
@@ -494,7 +494,7 @@ impl fmt::Display for RctSigBase {
 
 impl RctSigBase {
     /// Decode a RingCt base signature given the number of inputs and outputs of the transaction.
-    pub fn consensus_decode<D: io::Read>(
+    pub fn consensus_decode<D: io::Read + ?Sized>(
         d: &mut D,
         inputs: usize,
         outputs: usize,
@@ -541,7 +541,7 @@ impl RctSigBase {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for RctSigBase {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         let mut len = 0;
         len += self.rct_type.consensus_encode(s)?;
         match self.rct_type {
@@ -614,7 +614,7 @@ impl RctType {
 }
 
 impl Decodable for RctType {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<RctType, encode::Error> {
+    fn consensus_decode<D: io::Read + ?Sized>(d: &mut D) -> Result<RctType, encode::Error> {
         let rct_type: u8 = Decodable::consensus_decode(d)?;
         match rct_type {
             0 => Ok(RctType::Null),
@@ -630,7 +630,7 @@ impl Decodable for RctType {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for RctType {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+    fn consensus_encode<S: io::Write + ?Sized>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             RctType::Null => 0u8.consensus_encode(s),
             RctType::Full => 1u8.consensus_encode(s),
@@ -665,7 +665,7 @@ impl RctSigPrunable {
     /// Decode a prunable RingCt signature given the number of inputs and outputs in the
     /// transaction, the RingCt type and the number of mixins.
     #[allow(non_snake_case)]
-    pub fn consensus_decode<D: io::Read>(
+    pub fn consensus_decode<D: io::Read + ?Sized>(
         d: &mut D,
         rct_type: RctType,
         inputs: usize,
@@ -749,7 +749,7 @@ impl RctSigPrunable {
     }
 
     /// Encode the prunable RingCt signature part given the RingCt type of the transaction.
-    pub fn consensus_encode<S: io::Write>(
+    pub fn consensus_encode<S: io::Write + ?Sized>(
         &self,
         s: &mut S,
         rct_type: RctType,

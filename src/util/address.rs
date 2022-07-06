@@ -308,7 +308,7 @@ mod serde_impl {
 }
 
 impl Decodable for Address {
-    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Address, encode::Error> {
+    fn consensus_decode<D: std::io::Read + ?Sized>(d: &mut D) -> Result<Address, encode::Error> {
         let address: Vec<u8> = Decodable::consensus_decode(d)?;
         Ok(Address::from_bytes(&address)?)
     }
@@ -316,7 +316,10 @@ impl Decodable for Address {
 
 #[sealed]
 impl crate::consensus::encode::Encodable for Address {
-    fn consensus_encode<S: std::io::Write>(&self, s: &mut S) -> Result<usize, std::io::Error> {
+    fn consensus_encode<S: std::io::Write + ?Sized>(
+        &self,
+        s: &mut S,
+    ) -> Result<usize, std::io::Error> {
         self.as_bytes().consensus_encode(s)
     }
 }

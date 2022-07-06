@@ -22,7 +22,7 @@ macro_rules! impl_consensus_encoding {
         #[sealed::sealed]
         impl $crate::consensus::encode::Encodable for $thing {
             #[inline]
-            fn consensus_encode<S: ::std::io::Write>(
+            fn consensus_encode<S: ::std::io::Write + ?Sized>(
                 &self,
                 s: &mut S
             ) -> Result<usize, ::std::io::Error> {
@@ -34,7 +34,7 @@ macro_rules! impl_consensus_encoding {
 
         impl $crate::consensus::encode::Decodable for $thing {
             #[inline]
-            fn consensus_decode<D: ::std::io::Read>(
+            fn consensus_decode<D: ::std::io::Read + ?Sized>(
                 d: &mut D
             ) -> Result<$thing, $crate::consensus::encode::Error> {
                 Ok($thing {
