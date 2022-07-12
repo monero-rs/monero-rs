@@ -254,16 +254,16 @@ impl ops::Index<ops::RangeFull> for PrivateKey {
 }
 
 impl Decodable for PrivateKey {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<PrivateKey, encode::Error> {
-        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<PrivateKey, encode::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(r)?;
         Ok(PrivateKey::from_slice(&bytes)?)
     }
 }
 
 #[sealed]
 impl crate::consensus::encode::Encodable for PrivateKey {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
-        self.to_bytes().consensus_encode(s)
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        self.to_bytes().consensus_encode(w)
     }
 }
 
@@ -468,16 +468,16 @@ impl ops::Index<ops::RangeFull> for PublicKey {
 }
 
 impl Decodable for PublicKey {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<PublicKey, encode::Error> {
-        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<PublicKey, encode::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(r)?;
         Ok(PublicKey::from_slice(&bytes)?)
     }
 }
 
 #[sealed]
 impl crate::consensus::encode::Encodable for PublicKey {
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
-        self.to_bytes().consensus_encode(s)
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        self.to_bytes().consensus_encode(w)
     }
 }
 
