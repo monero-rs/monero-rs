@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Relaxe generics requirement to `?Sized` in consensus encode/decode reader and writer ([#101](https://github.com/monero-rs/monero-rs/pull/101))
+- Relax generics requirement to `?Sized` in consensus encode/decode reader and writer ([#101](https://github.com/monero-rs/monero-rs/pull/101))
 
 ## [0.17.0] - 2022-06-29
 
