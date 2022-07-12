@@ -22,6 +22,8 @@
 //! [`address`]: crate::util::address
 //!
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 use std::fmt;
 use std::io::Cursor;
 
@@ -36,6 +38,8 @@ use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 /// Index implements [`Default`] and returns `0/0`.
 ///
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct Index {
     /// The major index, also account.
     pub major: u32,
