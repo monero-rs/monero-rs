@@ -2066,4 +2066,85 @@ mod tests {
         assert_eq!(serde_json::to_string(&without).unwrap(), expected_without);
     }
 
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_xmr_vec_deserialize() {
+        use serde_crate::Deserialize;
+
+        #[derive(Deserialize, PartialEq, Debug, Eq)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        struct T {
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_amount"
+            )]
+            pub amt1: Vec<Amount>,
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_amount"
+            )]
+            pub amt2: Vec<Amount>,
+
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_signed_amount"
+            )]
+            pub samt1: Vec<SignedAmount>,
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_signed_amount"
+            )]
+            pub samt2: Vec<SignedAmount>,
+        }
+
+        let t = T {
+            amt1: vec![Amount(1_000_000)],
+            amt2: vec![],
+            samt1: vec![SignedAmount(-1_000_000)],
+            samt2: vec![],
+        };
+
+        let t_str = r#"{"amt1": ["0.000001"], "amt2": [], "samt1": ["-0.000001"], "samt2": []}"#;
+        let t_from_str: T = serde_json::from_str(t_str).unwrap();
+        assert_eq!(t_from_str, t);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_xmr_vec_deserialize_negative_amount_error() {
+        use serde_crate::Deserialize;
+
+        #[derive(Deserialize, PartialEq, Debug, Eq)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        struct T {
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_amount"
+            )]
+            pub amt: Vec<Amount>,
+
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_signed_amount"
+            )]
+            pub samt: Vec<SignedAmount>,
+        }
+
+        // `samt` is a vector of `SignedAmount`, and `SignedAmount` holds a `i64`.
+        // `18446744073709551615` is the largest value of a `u64` can hold (see https://doc.rust-lang.org/std/u64/constant.MAX.html),
+        // and thus a `i64` cannot hold this value, so an error must happen when deserializing (note that any value greater than
+        // 9_223_372_036_854_775_807 could be used to trigger the error - as per https://doc.rust-lang.org/std/i64/constant.MAX.html)
+        // Another way to see that is that no `u64` to `i64` casting is happenning, which would
+        // cause overflow wrapping, causing wrong representation.
+        let t_str = r#"{"amt": [], "samt": ["18446744073709551615"]}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        assert!(t.unwrap_err().is_data());
+
+        // `amt` is a vector of `Amount`, and `Amount` holds a `u64`, but `-0.001` is a signed value. Like
+        // above, this test makes sure no `i64` to `u64` casting is happening, which would cause
+        // wrong representation.
+        let t_str = r#"{"amt": ["-0.001"], "samt": []}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        assert!(t.unwrap_err().is_data());
+    }
 }
