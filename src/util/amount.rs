@@ -1837,6 +1837,79 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
+    fn serde_as_pico_vec_deserialize() {
+        use serde_crate::Deserialize;
+
+        #[derive(Deserialize, PartialEq, Debug, Eq)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        struct T {
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_amount"
+            )]
+            pub amt1: Vec<Amount>,
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_amount"
+            )]
+            pub amt2: Vec<Amount>,
+
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_signed_amount"
+            )]
+            pub samt1: Vec<SignedAmount>,
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_signed_amount"
+            )]
+            pub samt2: Vec<SignedAmount>,
+        }
+
+        let t = T {
+            amt1: vec![Amount(1_000)],
+            amt2: vec![],
+            samt1: vec![SignedAmount(-1_000)],
+            samt2: vec![],
+        };
+
+        let t_str = r#"{"amt1": [1000], "amt2": [], "samt1": [-1000], "samt2": []}"#;
+        let t_from_str: T = serde_json::from_str(t_str).unwrap();
+        assert_eq!(t_from_str, t);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_pico_vec_deserialize_negative_amount_error() {
+        use serde_crate::Deserialize;
+
+        #[derive(Deserialize, PartialEq, Debug, Eq)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        struct T {
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_amount"
+            )]
+            pub amt: Vec<Amount>,
+
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_signed_amount"
+            )]
+            pub samt: Vec<SignedAmount>,
+        }
+
+        let t_str = r#"{"amt": [], "samt": [18446744073709551615]}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        assert!(t.unwrap_err().is_data());
+
+        let t_str = r#"{"amt": [-1000], "samt": []}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        assert!(t.unwrap_err().is_data());
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
     fn serde_as_xmr() {
         use serde_crate::{Deserialize, Serialize};
         use serde_json;
