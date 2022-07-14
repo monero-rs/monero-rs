@@ -1057,6 +1057,77 @@ pub mod serde {
             }
         }
 
+        pub mod vec {
+            //! Deserialize a JSON array of numbers (in piconero) into `Vec<Amount>` or
+            //! `Vec<SignedAmount>`.
+            //! It is possible to use `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_amount")]`
+            //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_signed_amount")]`
+            //! for `Vec<SignedAmount>`.
+
+            use super::super::{Amount, SignedAmount};
+            use core::marker::PhantomData;
+            use serde_crate::{de, Deserializer, __private::size_hint};
+
+            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_amount")]`.
+            pub fn deserialize_amount<'d, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Vec<Amount>, D::Error> {
+                struct VisitVecAmt(PhantomData<Amount>);
+
+                impl<'de> de::Visitor<'de> for VisitVecAmt {
+                    type Value = Vec<Amount>;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        write!(formatter, "A Vec<u64>")
+                    }
+
+                    fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                    where
+                        S: de::SeqAccess<'de>,
+                    {
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+
+                        while let Some(amt) = seq.next_element::<u64>()? {
+                            amt_vec.push(Amount::from_pico(amt));
+                        }
+
+                        Ok(amt_vec)
+                    }
+                }
+
+                d.deserialize_seq(VisitVecAmt(PhantomData))
+            }
+
+            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_signed_amount")]`.
+            pub fn deserialize_signed_amount<'d, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Vec<SignedAmount>, D::Error> {
+                struct VisitVecAmt(PhantomData<SignedAmount>);
+
+                impl<'de> de::Visitor<'de> for VisitVecAmt {
+                    type Value = Vec<SignedAmount>;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        write!(formatter, "A Vec<i64>")
+                    }
+
+                    fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                    where
+                        S: de::SeqAccess<'de>,
+                    {
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+
+                        while let Some(amt) = seq.next_element::<i64>()? {
+                            amt_vec.push(SignedAmount::from_pico(amt));
+                        }
+
+                        Ok(amt_vec)
+                    }
+                }
+
+                d.deserialize_seq(VisitVecAmt(PhantomData))
+            }
+        }
     }
 
     pub mod as_xmr {
