@@ -1995,4 +1995,75 @@ mod tests {
         let value_without: serde_json::Value = serde_json::from_str("{}").unwrap();
         assert_eq!(without, serde_json::from_value(value_without).unwrap());
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_xmr_slice_serialize() {
+        use serde_crate::Serialize;
+
+        #[derive(Serialize, PartialEq, Debug, Eq)]
+        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        struct T<'a> {
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub amt1: Vec<Amount>,
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub amt2: [Amount; 2],
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub amt3: &'a [Amount],
+
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub samt1: Vec<SignedAmount>,
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub samt2: [SignedAmount; 2],
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub samt3: &'a [SignedAmount],
+        }
+        let with = T {
+            amt1: vec![
+                Amount::from_pico(1_000_000_000),
+                Amount::from_pico(2_000_000_000),
+            ],
+            amt2: [
+                Amount::from_pico(3_000_000_000),
+                Amount::from_pico(4_000_000_000),
+            ],
+            amt3: &[
+                Amount::from_pico(5_000_000_000),
+                Amount::from_pico(6_000_000_000),
+            ],
+            samt1: vec![
+                SignedAmount::from_pico(-1_000_000_000),
+                SignedAmount::from_pico(-2_000_000_000),
+            ],
+            samt2: [
+                SignedAmount::from_pico(-3_000_000_000),
+                SignedAmount::from_pico(-4_000_000_000),
+            ],
+            samt3: &[
+                SignedAmount::from_pico(-5_000_000_000),
+                SignedAmount::from_pico(-6_000_000_000),
+            ],
+        };
+        let without = T {
+            amt1: vec![],
+            amt2: [
+                Amount::from_pico(3_000_000_000),
+                Amount::from_pico(4_000_000_000),
+            ], // cannot be empty
+            amt3: &[],
+            samt1: vec![],
+            samt2: [
+                SignedAmount::from_pico(-3_000_000_000),
+                SignedAmount::from_pico(-4_000_000_000),
+            ], // cannot be empty
+            samt3: &[],
+        };
+
+        let expected_with = r#"{"amt1":["0.001000000000","0.002000000000"],"amt2":["0.003000000000","0.004000000000"],"amt3":["0.005000000000","0.006000000000"],"samt1":["-0.001000000000","-0.002000000000"],"samt2":["-0.003000000000","-0.004000000000"],"samt3":["-0.005000000000","-0.006000000000"]}"#;
+        assert_eq!(serde_json::to_string(&with).unwrap(), expected_with);
+
+        let expected_without = r#"{"amt1":[],"amt2":["0.003000000000","0.004000000000"],"amt3":[],"samt1":[],"samt2":["-0.003000000000","-0.004000000000"],"samt3":[]}"#;
+        assert_eq!(serde_json::to_string(&without).unwrap(), expected_without);
+    }
+
 }
