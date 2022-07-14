@@ -131,6 +131,7 @@ pub fn keccak_256(input: &[u8]) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "serde")]
     use super::*;
 
     #[cfg(feature = "serde")]
