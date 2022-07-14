@@ -909,6 +909,21 @@ pub mod serde {
     }
 
     #[sealed]
+    impl SerdeAmountForSlice for Amount {
+        fn type_prefix() -> &'static str {
+            "u"
+        }
+
+        fn ser_pico_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
+            s.serialize_element(&self.as_pico())
+        }
+
+        fn ser_xmr_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
+            s.serialize_element(&self.to_string_in(Denomination::Monero))
+        }
+    }
+
+    #[sealed]
     impl SerdeAmount for SignedAmount {
         fn ser_pico<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
             i64::serialize(&self.as_pico(), s)
@@ -936,6 +951,21 @@ pub mod serde {
         }
         fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
             s.serialize_some(&self.to_string_in(Denomination::Monero))
+        }
+    }
+
+    #[sealed]
+    impl SerdeAmountForSlice for SignedAmount {
+        fn type_prefix() -> &'static str {
+            "i"
+        }
+
+        fn ser_pico_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
+            s.serialize_element(&self.as_pico())
+        }
+
+        fn ser_xmr_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
+            s.serialize_element(&self.to_string_in(Denomination::Monero))
         }
     }
 
