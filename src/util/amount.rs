@@ -1035,6 +1035,28 @@ pub mod serde {
                 d.deserialize_option(VisitOptAmt::<A>(PhantomData))
             }
         }
+
+        pub mod slice {
+            //! Serialize `&[Amount]` and `&[SignedAmount]` as JSON arrays of numbers denoted in piconero.
+            //! Use with `#[serde(default, serialize_with = "amount::serde::as_pico::slice::serialize")]`.
+
+            use super::super::SerdeAmountForSlice;
+            use serde_crate::{ser::SerializeSeq, Serializer};
+
+            pub fn serialize<A: SerdeAmountForSlice, S: Serializer>(
+                a_slice: &[A],
+                s: S,
+            ) -> Result<S::Ok, S::Error> {
+                let mut seq = s.serialize_seq(Some(a_slice.len()))?;
+
+                for e in a_slice {
+                    e.ser_pico_slice(&mut seq)?;
+                }
+
+                seq.end()
+            }
+        }
+
     }
 
     pub mod as_xmr {
