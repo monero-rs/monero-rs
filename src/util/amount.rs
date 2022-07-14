@@ -839,7 +839,7 @@ pub mod serde {
 
     use super::{Amount, Denomination, SignedAmount};
     use sealed::sealed;
-    use serde_crate::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_crate::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 
     #[sealed]
     /// This trait is used only to avoid code duplication and naming collisions of the different
@@ -864,6 +864,17 @@ pub mod serde {
         fn ser_pico_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
         /// Serialize with [`Serializer`] an optional amount as monero.
         fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+    }
+
+    #[sealed]
+    /// This trait is for serialization of `&[Amount]` and `&[SignedAmount]` slices
+    pub trait SerdeAmountForSlice: Copy + Sized + SerdeAmount {
+        /// Return the type prefix (`i` or `u`) used to sign or not the amount.
+        fn type_prefix() -> &'static str;
+        /// Serialize with [`Serializer`] a slice of amounts as a slice of piconeros.
+        fn ser_pico_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error>;
+        /// Serialize with [`Serializer`] a slice of amounts as a slice of moneros.
+        fn ser_xmr_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error>;
     }
 
     #[sealed]
