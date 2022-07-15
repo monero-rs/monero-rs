@@ -989,7 +989,7 @@ pub mod serde {
         }
 
         pub mod opt {
-            //! Serialize and deserialize [Option] as JSON numbers denominated in piconero.
+            //! Serialize and deserialize [Option] as a number denominated in piconero.
             //! Use with `#[serde(default, with = "amount::serde::as_pico::opt")]`.
 
             use super::super::SerdeAmountForOpt;
@@ -1037,7 +1037,7 @@ pub mod serde {
         }
 
         pub mod slice {
-            //! Serialize `&[Amount]` and `&[SignedAmount]` as JSON arrays of numbers denoted in piconero.
+            //! Serialize `&[Amount]` and `&[SignedAmount]` as an array of numbers denoted in piconero.
             //! Use with `#[serde(default, serialize_with = "amount::serde::as_pico::slice::serialize")]`.
 
             use super::super::SerdeAmountForSlice;
@@ -1058,7 +1058,7 @@ pub mod serde {
         }
 
         pub mod vec {
-            //! Deserialize a JSON array of numbers (in piconero) into `Vec<Amount>` or
+            //! Deserialize an array of numbers (in piconero) into `Vec<Amount>` or
             //! `Vec<SignedAmount>`.
             //! It is possible to use `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_amount")]`
             //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_signed_amount")]`
@@ -1134,7 +1134,7 @@ pub mod serde {
         // methods are implementation of a standardized serde-specific signature
         #![allow(missing_docs)]
 
-        //! Serialize and deserialize [`Amount`] as JSON strings denominated in XMR.
+        //! Serialize and deserialize [`Amount`] as a string denominated in XMR.
         //! Use with `#[serde(with = "amount::serde::as_xmr")]`.
         //!
         //! [`Amount`]: crate::util::amount::Amount
@@ -1151,7 +1151,7 @@ pub mod serde {
         }
 
         pub mod opt {
-            //! Serialize and deserialize [Option] as JSON numbers denominated in XMR.
+            //! Serialize and deserialize [Option] as a number denominated in XMR.
             //! Use with `#[serde(default, with = "amount::serde::as_xmr::opt")]`.
 
             use super::super::SerdeAmountForOpt;
@@ -1199,7 +1199,7 @@ pub mod serde {
         }
 
         pub mod slice {
-            //! Serialize `&[Amount]` and `&[SignedAmount]` as JSON arrays of numbers denoted in XMR.
+            //! Serialize `&[Amount]` and `&[SignedAmount]` as an array of numbers denoted in XMR.
             //! Use with `#[serde(default, serialize_with = "amount::serde::as_xmr::slice::serialize")]`.
 
             use super::super::SerdeAmountForSlice;
@@ -1220,7 +1220,7 @@ pub mod serde {
         }
 
         pub mod vec {
-            //! Deserialize a JSON array of numbers (in XMR) into `Vec<Amount>` or
+            //! Deserialize an array of numbers (in XMR) into `Vec<Amount>` or
             //! `Vec<SignedAmount>`.
             //! It is possible to use `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_amount")]`
             //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_signed_amount")]`
