@@ -1696,7 +1696,7 @@ mod tests {
         use serde_crate::{Deserialize, Serialize};
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(with = "super::serde::as_pico")]
             pub amt: Amount,
@@ -1726,7 +1726,7 @@ mod tests {
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(default, with = "super::serde::as_pico::opt")]
             pub amt: Option<Amount>,
@@ -1771,7 +1771,7 @@ mod tests {
         use serde_crate::Serialize;
 
         #[derive(Serialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T<'a> {
             #[serde(default, serialize_with = "super::serde::as_pico::slice::serialize")]
             pub amt1: Vec<Amount>,
@@ -1841,7 +1841,7 @@ mod tests {
         use serde_crate::Deserialize;
 
         #[derive(Deserialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(
                 default,
@@ -1884,7 +1884,7 @@ mod tests {
         use serde_crate::Deserialize;
 
         #[derive(Deserialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(
                 default,
@@ -1915,7 +1915,7 @@ mod tests {
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(with = "super::serde::as_xmr")]
             pub amt: Amount,
@@ -1958,7 +1958,7 @@ mod tests {
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(default, with = "super::serde::as_xmr::opt")]
             pub amt: Option<Amount>,
@@ -2002,7 +2002,7 @@ mod tests {
         use serde_crate::Serialize;
 
         #[derive(Serialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T<'a> {
             #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
             pub amt1: Vec<Amount>,
@@ -2072,7 +2072,7 @@ mod tests {
         use serde_crate::Deserialize;
 
         #[derive(Deserialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(
                 default,
@@ -2115,7 +2115,7 @@ mod tests {
         use serde_crate::Deserialize;
 
         #[derive(Deserialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(
                 default,
