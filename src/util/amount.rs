@@ -1016,7 +1016,7 @@ pub mod serde {
                     type Value = Option<X>;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        write!(formatter, "An Option<{}64>", X::type_prefix())
+                        write!(formatter, "an Option<{}64>", X::type_prefix())
                     }
 
                     fn visit_none<E>(self) -> Result<Self::Value, E>
@@ -1078,7 +1078,7 @@ pub mod serde {
                     type Value = Vec<Amount>;
 
                     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        write!(formatter, "A Vec<u64>")
+                        write!(formatter, "a Vec<u64>")
                     }
 
                     fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
@@ -1108,7 +1108,7 @@ pub mod serde {
                     type Value = Vec<SignedAmount>;
 
                     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        write!(formatter, "A Vec<i64>")
+                        write!(formatter, "a Vec<i64>")
                     }
 
                     fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
@@ -1178,7 +1178,7 @@ pub mod serde {
                     type Value = Option<X>;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        write!(formatter, "An Option<String>")
+                        write!(formatter, "an Option<String>")
                     }
 
                     fn visit_none<E>(self) -> Result<Self::Value, E>
@@ -1240,7 +1240,7 @@ pub mod serde {
                     type Value = Vec<Amount>;
 
                     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        write!(formatter, "A Vec<u64>")
+                        write!(formatter, "a Vec<String>")
                     }
 
                     fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
@@ -1273,7 +1273,7 @@ pub mod serde {
                     type Value = Vec<SignedAmount>;
 
                     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        write!(formatter, "A Vec<i64>")
+                        write!(formatter, "a Vec<String>")
                     }
 
                     fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
@@ -1880,7 +1880,7 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn serde_as_pico_vec_deserialize_negative_amount_error() {
+    fn serde_as_pico_vec_deserialize_invalid_amounts_error() {
         use serde_crate::Deserialize;
 
         #[derive(Deserialize, PartialEq, Debug, Eq)]
@@ -1901,11 +1901,39 @@ mod tests {
 
         let t_str = r#"{"amt": [], "samt": [18446744073709551615]}"#;
         let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
-        assert!(t.unwrap_err().is_data());
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid value: integer `18446744073709551615`, expected i64 at line 1 column 41"
+        );
+
+        let t_str = r#"{"amt": [], "samt": 1}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid type: integer `1`, expected a Vec<i64> at line 1 column 21"
+        );
 
         let t_str = r#"{"amt": [-1000], "samt": []}"#;
         let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
-        assert!(t.unwrap_err().is_data());
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid value: integer `-1000`, expected u64 at line 1 column 14"
+        );
+
+        let t_str = r#"{"amt": 1, "samt": []}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid type: integer `1`, expected a Vec<u64> at line 1 column 9"
+        );
     }
 
     #[cfg(feature = "serde")]
@@ -2111,7 +2139,7 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn serde_as_xmr_vec_deserialize_negative_amount_error() {
+    fn serde_as_xmr_vec_deserialize_invalid_amounts_error() {
         use serde_crate::Deserialize;
 
         #[derive(Deserialize, PartialEq, Debug, Eq)]
@@ -2138,13 +2166,38 @@ mod tests {
         // cause overflow wrapping, causing wrong representation.
         let t_str = r#"{"amt": [], "samt": ["18446744073709551615"]}"#;
         let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
-        assert!(t.unwrap_err().is_data());
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "Amount is too big to fit inside the type at line 1 column 44"
+        );
+
+        let t_str = r#"{"amt": [], "samt": 1}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid type: integer `1`, expected a Vec<String> at line 1 column 21"
+        );
 
         // `amt` is a vector of `Amount`, and `Amount` holds a `u64`, but `-0.001` is a signed value. Like
         // above, this test makes sure no `i64` to `u64` casting is happening, which would cause
         // wrong representation.
         let t_str = r#"{"amt": ["-0.001"], "samt": []}"#;
         let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
-        assert!(t.unwrap_err().is_data());
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(t_err.to_string(), "Amount is negative at line 1 column 18");
+
+        let t_str = r#"{"amt": 1, "samt": []}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid type: integer `1`, expected a Vec<String> at line 1 column 9"
+        );
     }
 }
