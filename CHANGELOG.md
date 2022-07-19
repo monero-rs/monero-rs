@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `amount::serde::as_pico::slice::serialize`, which is used to serialize a `&[Amount]` or `&[SignedAmount]` into arrays for numbers ([#107](https://github.com/monero-rs/monero-rs/pull/107))
+- Add `amount::serde::as_pico::vec::deserialize_amount`, which is used to deserialize an array of numbers into a `Vec<Amount>` ([#107](https://github.com/monero-rs/monero-rs/pull/107))
+- Add `amount::serde::as_pico::vec::deserialize_signed_amount`, which is used to deserialize an array of numbers into a `Vec<SignedAmount>` ([#107](https://github.com/monero-rs/monero-rs/pull/107))
+- Add `amount::serde::as_xmr::slice::serialize`, which is used to serialize a `&[Amount]` or `&[SignedAmount]` into an array of XMR strings ([#107](https://github.com/monero-rs/monero-rs/pull/107))
+- Add `amount::serde::as_xmr::vec::deserialize_amount`, which is used to deserialize an array of strings in XMR denomination into a `Vec<Amount>` ([#107](https://github.com/monero-rs/monero-rs/pull/107))
+- Add `amount::serde::as_xmr::vec::deserialize_signed_amount`, which is used to deserialize an array of strings in XMR denomination into a `Vec<SignedAmount>` ([#107](https://github.com/monero-rs/monero-rs/pull/107))
+
 ## [0.17.1] - 2022-07-12
 
 ### Added

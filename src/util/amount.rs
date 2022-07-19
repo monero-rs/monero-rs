@@ -839,7 +839,7 @@ pub mod serde {
 
     use super::{Amount, Denomination, SignedAmount};
     use sealed::sealed;
-    use serde_crate::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_crate::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 
     #[sealed]
     /// This trait is used only to avoid code duplication and naming collisions of the different
@@ -864,6 +864,17 @@ pub mod serde {
         fn ser_pico_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
         /// Serialize with [`Serializer`] an optional amount as monero.
         fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+    }
+
+    #[sealed]
+    /// This trait is for serialization of `&[Amount]` and `&[SignedAmount]` slices
+    pub trait SerdeAmountForSlice: Copy + Sized + SerdeAmount {
+        /// Return the type prefix (`i` or `u`) used to sign or not the amount.
+        fn type_prefix() -> &'static str;
+        /// Serialize with [`Serializer`] a slice of amounts as a slice of piconeros.
+        fn ser_pico_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error>;
+        /// Serialize with [`Serializer`] a slice of amounts as a slice of moneros.
+        fn ser_xmr_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error>;
     }
 
     #[sealed]
@@ -898,6 +909,21 @@ pub mod serde {
     }
 
     #[sealed]
+    impl SerdeAmountForSlice for Amount {
+        fn type_prefix() -> &'static str {
+            "u"
+        }
+
+        fn ser_pico_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
+            s.serialize_element(&self.as_pico())
+        }
+
+        fn ser_xmr_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
+            s.serialize_element(&self.to_string_in(Denomination::Monero))
+        }
+    }
+
+    #[sealed]
     impl SerdeAmount for SignedAmount {
         fn ser_pico<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
             i64::serialize(&self.as_pico(), s)
@@ -928,6 +954,21 @@ pub mod serde {
         }
     }
 
+    #[sealed]
+    impl SerdeAmountForSlice for SignedAmount {
+        fn type_prefix() -> &'static str {
+            "i"
+        }
+
+        fn ser_pico_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
+            s.serialize_element(&self.as_pico())
+        }
+
+        fn ser_xmr_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
+            s.serialize_element(&self.to_string_in(Denomination::Monero))
+        }
+    }
+
     pub mod as_pico {
         // methods are implementation of a standardized serde-specific signature
         #![allow(missing_docs)]
@@ -948,7 +989,7 @@ pub mod serde {
         }
 
         pub mod opt {
-            //! Serialize and deserialize [Option] as JSON numbers denominated in piconero.
+            //! Serialize and deserialize [Option] as a number denominated in piconero.
             //! Use with `#[serde(default, with = "amount::serde::as_pico::opt")]`.
 
             use super::super::SerdeAmountForOpt;
@@ -975,7 +1016,7 @@ pub mod serde {
                     type Value = Option<X>;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        write!(formatter, "An Option<{}64>", X::type_prefix())
+                        write!(formatter, "an Option<{}64>", X::type_prefix())
                     }
 
                     fn visit_none<E>(self) -> Result<Self::Value, E>
@@ -994,13 +1035,106 @@ pub mod serde {
                 d.deserialize_option(VisitOptAmt::<A>(PhantomData))
             }
         }
+
+        pub mod slice {
+            //! Serialize `&[Amount]` and `&[SignedAmount]` as an array of numbers denoted in piconero.
+            //! Use with `#[serde(default, serialize_with = "amount::serde::as_pico::slice::serialize")]`.
+
+            use super::super::SerdeAmountForSlice;
+            use serde_crate::{ser::SerializeSeq, Serializer};
+
+            pub fn serialize<A: SerdeAmountForSlice, S: Serializer>(
+                a_slice: &[A],
+                s: S,
+            ) -> Result<S::Ok, S::Error> {
+                let mut seq = s.serialize_seq(Some(a_slice.len()))?;
+
+                for e in a_slice {
+                    e.ser_pico_slice(&mut seq)?;
+                }
+
+                seq.end()
+            }
+        }
+
+        pub mod vec {
+            //! Deserialize an array of numbers (in piconero) into `Vec<Amount>` or
+            //! `Vec<SignedAmount>`.
+            //! It is possible to use `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_amount")]`
+            //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_signed_amount")]`
+            //! for `Vec<SignedAmount>`.
+
+            use super::super::{Amount, SignedAmount};
+            use core::marker::PhantomData;
+            use serde_crate::{de, Deserializer, __private::size_hint};
+
+            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_amount")]`.
+            pub fn deserialize_amount<'d, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Vec<Amount>, D::Error> {
+                struct VisitVecAmt(PhantomData<Amount>);
+
+                impl<'de> de::Visitor<'de> for VisitVecAmt {
+                    type Value = Vec<Amount>;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        write!(formatter, "a Vec<u64>")
+                    }
+
+                    fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                    where
+                        S: de::SeqAccess<'de>,
+                    {
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+
+                        while let Some(amt) = seq.next_element::<u64>()? {
+                            amt_vec.push(Amount::from_pico(amt));
+                        }
+
+                        Ok(amt_vec)
+                    }
+                }
+
+                d.deserialize_seq(VisitVecAmt(PhantomData))
+            }
+
+            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_signed_amount")]`.
+            pub fn deserialize_signed_amount<'d, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Vec<SignedAmount>, D::Error> {
+                struct VisitVecAmt(PhantomData<SignedAmount>);
+
+                impl<'de> de::Visitor<'de> for VisitVecAmt {
+                    type Value = Vec<SignedAmount>;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        write!(formatter, "a Vec<i64>")
+                    }
+
+                    fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                    where
+                        S: de::SeqAccess<'de>,
+                    {
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+
+                        while let Some(amt) = seq.next_element::<i64>()? {
+                            amt_vec.push(SignedAmount::from_pico(amt));
+                        }
+
+                        Ok(amt_vec)
+                    }
+                }
+
+                d.deserialize_seq(VisitVecAmt(PhantomData))
+            }
+        }
     }
 
     pub mod as_xmr {
         // methods are implementation of a standardized serde-specific signature
         #![allow(missing_docs)]
 
-        //! Serialize and deserialize [`Amount`] as JSON strings denominated in XMR.
+        //! Serialize and deserialize [`Amount`] as a string denominated in XMR.
         //! Use with `#[serde(with = "amount::serde::as_xmr")]`.
         //!
         //! [`Amount`]: crate::util::amount::Amount
@@ -1017,7 +1151,7 @@ pub mod serde {
         }
 
         pub mod opt {
-            //! Serialize and deserialize [Option] as JSON numbers denominated in XMR.
+            //! Serialize and deserialize [Option] as a number denominated in XMR.
             //! Use with `#[serde(default, with = "amount::serde::as_xmr::opt")]`.
 
             use super::super::SerdeAmountForOpt;
@@ -1044,7 +1178,7 @@ pub mod serde {
                     type Value = Option<X>;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        write!(formatter, "An Option<String>")
+                        write!(formatter, "an Option<String>")
                     }
 
                     fn visit_none<E>(self) -> Result<Self::Value, E>
@@ -1061,6 +1195,104 @@ pub mod serde {
                     }
                 }
                 d.deserialize_option(VisitOptAmt::<A>(PhantomData))
+            }
+        }
+
+        pub mod slice {
+            //! Serialize `&[Amount]` and `&[SignedAmount]` as an array of numbers denoted in XMR.
+            //! Use with `#[serde(default, serialize_with = "amount::serde::as_xmr::slice::serialize")]`.
+
+            use super::super::SerdeAmountForSlice;
+            use serde_crate::{ser::SerializeSeq, Serializer};
+
+            pub fn serialize<A: SerdeAmountForSlice, S: Serializer>(
+                a_slice: &[A],
+                s: S,
+            ) -> Result<S::Ok, S::Error> {
+                let mut seq = s.serialize_seq(Some(a_slice.len()))?;
+
+                for e in a_slice {
+                    e.ser_xmr_slice(&mut seq)?;
+                }
+
+                seq.end()
+            }
+        }
+
+        pub mod vec {
+            //! Deserialize an array of numbers (in XMR) into `Vec<Amount>` or
+            //! `Vec<SignedAmount>`.
+            //! It is possible to use `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_amount")]`
+            //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_signed_amount")]`
+            //! for `Vec<SignedAmount>`.
+
+            use super::super::{super::Denomination, Amount, SignedAmount};
+            use core::marker::PhantomData;
+            use serde_crate::{de, Deserializer, __private::size_hint};
+
+            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_amount")]`.
+            pub fn deserialize_amount<'d, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Vec<Amount>, D::Error> {
+                struct VisitVecAmt(PhantomData<Amount>);
+
+                impl<'de> de::Visitor<'de> for VisitVecAmt {
+                    type Value = Vec<Amount>;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        write!(formatter, "a Vec<String>")
+                    }
+
+                    fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                    where
+                        S: de::SeqAccess<'de>,
+                    {
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+
+                        while let Some(amt) = seq.next_element()? {
+                            let amt = Amount::from_str_in(amt, Denomination::Monero)
+                                .map_err(|e| de::Error::custom(e.to_string()))?;
+
+                            amt_vec.push(amt);
+                        }
+
+                        Ok(amt_vec)
+                    }
+                }
+
+                d.deserialize_seq(VisitVecAmt(PhantomData))
+            }
+
+            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_signed_amount")]`.
+            pub fn deserialize_signed_amount<'d, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Vec<SignedAmount>, D::Error> {
+                struct VisitVecAmt(PhantomData<SignedAmount>);
+
+                impl<'de> de::Visitor<'de> for VisitVecAmt {
+                    type Value = Vec<SignedAmount>;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        write!(formatter, "a Vec<String>")
+                    }
+
+                    fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                    where
+                        S: de::SeqAccess<'de>,
+                    {
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+
+                        while let Some(amt) = seq.next_element()? {
+                            let amt = SignedAmount::from_str_in(amt, Denomination::Monero)
+                                .map_err(|e| de::Error::custom(e.to_string()))?;
+                            amt_vec.push(amt);
+                        }
+
+                        Ok(amt_vec)
+                    }
+                }
+
+                d.deserialize_seq(VisitVecAmt(PhantomData))
             }
         }
     }
@@ -1464,7 +1696,7 @@ mod tests {
         use serde_crate::{Deserialize, Serialize};
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(with = "super::serde::as_pico")]
             pub amt: Amount,
@@ -1494,7 +1726,7 @@ mod tests {
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(default, with = "super::serde::as_pico::opt")]
             pub amt: Option<Amount>,
@@ -1535,12 +1767,183 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
+    fn serde_as_pico_slice_serialize() {
+        use serde_crate::Serialize;
+
+        #[derive(Serialize, PartialEq, Debug, Eq)]
+        #[serde(crate = "serde_crate")]
+        struct T<'a> {
+            #[serde(default, serialize_with = "super::serde::as_pico::slice::serialize")]
+            pub amt1: Vec<Amount>,
+            #[serde(default, serialize_with = "super::serde::as_pico::slice::serialize")]
+            pub amt2: [Amount; 2],
+            #[serde(default, serialize_with = "super::serde::as_pico::slice::serialize")]
+            pub amt3: &'a [Amount],
+
+            #[serde(default, serialize_with = "super::serde::as_pico::slice::serialize")]
+            pub samt1: Vec<SignedAmount>,
+            #[serde(default, serialize_with = "super::serde::as_pico::slice::serialize")]
+            pub samt2: [SignedAmount; 2],
+            #[serde(default, serialize_with = "super::serde::as_pico::slice::serialize")]
+            pub samt3: &'a [SignedAmount],
+        }
+        let with = T {
+            amt1: vec![
+                Amount::from_pico(1_000_000_000),
+                Amount::from_pico(2_000_000_000),
+            ],
+            amt2: [
+                Amount::from_pico(3_000_000_000),
+                Amount::from_pico(4_000_000_000),
+            ],
+            amt3: &[
+                Amount::from_pico(5_000_000_000),
+                Amount::from_pico(6_000_000_000),
+            ],
+            samt1: vec![
+                SignedAmount::from_pico(-1_000_000_000),
+                SignedAmount::from_pico(-2_000_000_000),
+            ],
+            samt2: [
+                SignedAmount::from_pico(-3_000_000_000),
+                SignedAmount::from_pico(-4_000_000_000),
+            ],
+            samt3: &[
+                SignedAmount::from_pico(-5_000_000_000),
+                SignedAmount::from_pico(-6_000_000_000),
+            ],
+        };
+        let without = T {
+            amt1: vec![],
+            amt2: [
+                Amount::from_pico(3_000_000_000),
+                Amount::from_pico(4_000_000_000),
+            ], // cannot be empty
+            amt3: &[],
+            samt1: vec![],
+            samt2: [
+                SignedAmount::from_pico(-3_000_000_000),
+                SignedAmount::from_pico(-4_000_000_000),
+            ], // cannot be empty
+            samt3: &[],
+        };
+
+        let expected_with = r#"{"amt1":[1000000000,2000000000],"amt2":[3000000000,4000000000],"amt3":[5000000000,6000000000],"samt1":[-1000000000,-2000000000],"samt2":[-3000000000,-4000000000],"samt3":[-5000000000,-6000000000]}"#;
+        assert_eq!(serde_json::to_string(&with).unwrap(), expected_with);
+
+        let expected_without = r#"{"amt1":[],"amt2":[3000000000,4000000000],"amt3":[],"samt1":[],"samt2":[-3000000000,-4000000000],"samt3":[]}"#;
+        assert_eq!(serde_json::to_string(&without).unwrap(), expected_without);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_pico_vec_deserialize() {
+        use serde_crate::Deserialize;
+
+        #[derive(Deserialize, PartialEq, Debug, Eq)]
+        #[serde(crate = "serde_crate")]
+        struct T {
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_amount"
+            )]
+            pub amt1: Vec<Amount>,
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_amount"
+            )]
+            pub amt2: Vec<Amount>,
+
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_signed_amount"
+            )]
+            pub samt1: Vec<SignedAmount>,
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_signed_amount"
+            )]
+            pub samt2: Vec<SignedAmount>,
+        }
+
+        let t = T {
+            amt1: vec![Amount(1_000)],
+            amt2: vec![],
+            samt1: vec![SignedAmount(-1_000)],
+            samt2: vec![],
+        };
+
+        let t_str = r#"{"amt1": [1000], "amt2": [], "samt1": [-1000], "samt2": []}"#;
+        let t_from_str: T = serde_json::from_str(t_str).unwrap();
+        assert_eq!(t_from_str, t);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_pico_vec_deserialize_invalid_amounts_error() {
+        use serde_crate::Deserialize;
+
+        #[derive(Deserialize, PartialEq, Debug, Eq)]
+        #[serde(crate = "serde_crate")]
+        struct T {
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_amount"
+            )]
+            pub amt: Vec<Amount>,
+
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_pico::vec::deserialize_signed_amount"
+            )]
+            pub samt: Vec<SignedAmount>,
+        }
+
+        let t_str = r#"{"amt": [], "samt": [18446744073709551615]}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid value: integer `18446744073709551615`, expected i64 at line 1 column 41"
+        );
+
+        let t_str = r#"{"amt": [], "samt": 1}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid type: integer `1`, expected a Vec<i64> at line 1 column 21"
+        );
+
+        let t_str = r#"{"amt": [-1000], "samt": []}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid value: integer `-1000`, expected u64 at line 1 column 14"
+        );
+
+        let t_str = r#"{"amt": 1, "samt": []}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid type: integer `1`, expected a Vec<u64> at line 1 column 9"
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
     fn serde_as_xmr() {
         use serde_crate::{Deserialize, Serialize};
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(with = "super::serde::as_xmr")]
             pub amt: Amount,
@@ -1583,7 +1986,7 @@ mod tests {
         use serde_json;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
-        #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
+        #[serde(crate = "serde_crate")]
         struct T {
             #[serde(default, with = "super::serde::as_xmr::opt")]
             pub amt: Option<Amount>,
@@ -1619,5 +2022,182 @@ mod tests {
 
         let value_without: serde_json::Value = serde_json::from_str("{}").unwrap();
         assert_eq!(without, serde_json::from_value(value_without).unwrap());
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_xmr_slice_serialize() {
+        use serde_crate::Serialize;
+
+        #[derive(Serialize, PartialEq, Debug, Eq)]
+        #[serde(crate = "serde_crate")]
+        struct T<'a> {
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub amt1: Vec<Amount>,
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub amt2: [Amount; 2],
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub amt3: &'a [Amount],
+
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub samt1: Vec<SignedAmount>,
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub samt2: [SignedAmount; 2],
+            #[serde(default, serialize_with = "super::serde::as_xmr::slice::serialize")]
+            pub samt3: &'a [SignedAmount],
+        }
+        let with = T {
+            amt1: vec![
+                Amount::from_pico(1_000_000_000),
+                Amount::from_pico(2_000_000_000),
+            ],
+            amt2: [
+                Amount::from_pico(3_000_000_000),
+                Amount::from_pico(4_000_000_000),
+            ],
+            amt3: &[
+                Amount::from_pico(5_000_000_000),
+                Amount::from_pico(6_000_000_000),
+            ],
+            samt1: vec![
+                SignedAmount::from_pico(-1_000_000_000),
+                SignedAmount::from_pico(-2_000_000_000),
+            ],
+            samt2: [
+                SignedAmount::from_pico(-3_000_000_000),
+                SignedAmount::from_pico(-4_000_000_000),
+            ],
+            samt3: &[
+                SignedAmount::from_pico(-5_000_000_000),
+                SignedAmount::from_pico(-6_000_000_000),
+            ],
+        };
+        let without = T {
+            amt1: vec![],
+            amt2: [
+                Amount::from_pico(3_000_000_000),
+                Amount::from_pico(4_000_000_000),
+            ], // cannot be empty
+            amt3: &[],
+            samt1: vec![],
+            samt2: [
+                SignedAmount::from_pico(-3_000_000_000),
+                SignedAmount::from_pico(-4_000_000_000),
+            ], // cannot be empty
+            samt3: &[],
+        };
+
+        let expected_with = r#"{"amt1":["0.001000000000","0.002000000000"],"amt2":["0.003000000000","0.004000000000"],"amt3":["0.005000000000","0.006000000000"],"samt1":["-0.001000000000","-0.002000000000"],"samt2":["-0.003000000000","-0.004000000000"],"samt3":["-0.005000000000","-0.006000000000"]}"#;
+        assert_eq!(serde_json::to_string(&with).unwrap(), expected_with);
+
+        let expected_without = r#"{"amt1":[],"amt2":["0.003000000000","0.004000000000"],"amt3":[],"samt1":[],"samt2":["-0.003000000000","-0.004000000000"],"samt3":[]}"#;
+        assert_eq!(serde_json::to_string(&without).unwrap(), expected_without);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_xmr_vec_deserialize() {
+        use serde_crate::Deserialize;
+
+        #[derive(Deserialize, PartialEq, Debug, Eq)]
+        #[serde(crate = "serde_crate")]
+        struct T {
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_amount"
+            )]
+            pub amt1: Vec<Amount>,
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_amount"
+            )]
+            pub amt2: Vec<Amount>,
+
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_signed_amount"
+            )]
+            pub samt1: Vec<SignedAmount>,
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_signed_amount"
+            )]
+            pub samt2: Vec<SignedAmount>,
+        }
+
+        let t = T {
+            amt1: vec![Amount(1_000_000)],
+            amt2: vec![],
+            samt1: vec![SignedAmount(-1_000_000)],
+            samt2: vec![],
+        };
+
+        let t_str = r#"{"amt1": ["0.000001"], "amt2": [], "samt1": ["-0.000001"], "samt2": []}"#;
+        let t_from_str: T = serde_json::from_str(t_str).unwrap();
+        assert_eq!(t_from_str, t);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_as_xmr_vec_deserialize_invalid_amounts_error() {
+        use serde_crate::Deserialize;
+
+        #[derive(Deserialize, PartialEq, Debug, Eq)]
+        #[serde(crate = "serde_crate")]
+        struct T {
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_amount"
+            )]
+            pub amt: Vec<Amount>,
+
+            #[serde(
+                default,
+                deserialize_with = "super::serde::as_xmr::vec::deserialize_signed_amount"
+            )]
+            pub samt: Vec<SignedAmount>,
+        }
+
+        // `samt` is a vector of `SignedAmount`, and `SignedAmount` holds a `i64`.
+        // `18446744073709551615` is the largest value of a `u64` can hold (see https://doc.rust-lang.org/std/u64/constant.MAX.html),
+        // and thus a `i64` cannot hold this value, so an error must happen when deserializing (note that any value greater than
+        // 9_223_372_036_854_775_807 could be used to trigger the error - as per https://doc.rust-lang.org/std/i64/constant.MAX.html)
+        // Another way to see that is that no `u64` to `i64` casting is happenning, which would
+        // cause overflow wrapping, causing wrong representation.
+        let t_str = r#"{"amt": [], "samt": ["18446744073709551615"]}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "Amount is too big to fit inside the type at line 1 column 44"
+        );
+
+        let t_str = r#"{"amt": [], "samt": 1}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid type: integer `1`, expected a Vec<String> at line 1 column 21"
+        );
+
+        // `amt` is a vector of `Amount`, and `Amount` holds a `u64`, but `-0.001` is a signed value. Like
+        // above, this test makes sure no `i64` to `u64` casting is happening, which would cause
+        // wrong representation.
+        let t_str = r#"{"amt": ["-0.001"], "samt": []}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(t_err.to_string(), "Amount is negative at line 1 column 18");
+
+        let t_str = r#"{"amt": 1, "samt": []}"#;
+        let t: Result<T, serde_json::Error> = serde_json::from_str(t_str);
+        let t_err = t.unwrap_err();
+        assert!(t_err.is_data());
+        assert_eq!(
+            t_err.to_string(),
+            "invalid type: integer `1`, expected a Vec<String> at line 1 column 9"
+        );
     }
 }
