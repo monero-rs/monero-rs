@@ -488,7 +488,7 @@ impl hash::Hashable for PublicKey {
 }
 
 /// Alternative generator `H` used for pedersen commitments, as defined in
-/// [`rctTypes.h`](https://github.com/monero-project/monero/blob/master/src/ringct/rctTypes.h#L555)
+/// [`rctTypes.h`](https://github.com/monero-project/monero/blob/a0d80b1f95cee64edfeba799f4fe9b8fb2ef4f43/src/ringct/rctTypes.h#L614)
 /// in the Monero codebase.
 pub const H: PublicKey = PublicKey {
     point: CompressedEdwardsY(hex!(
