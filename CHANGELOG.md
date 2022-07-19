@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.2] - 2022-07-19
+
 ### Added
 
 - Add serde `serialize` for `Amount` and `SignedAmount` slices by [@LeoNero](https://github.com/LeoNero) ([#107](https://github.com/monero-rs/monero-rs/pull/107))
@@ -246,7 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Address and subaddress creation, de/serialization and validation
 - Private keys and one-time keys creation, de/serialization and validation
 
-[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.17.1...HEAD
+[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.17.2...HEAD
+[0.17.2]: https://github.com/monero-rs/monero-rs/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/monero-rs/monero-rs/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/monero-rs/monero-rs/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/monero-rs/monero-rs/compare/v0.15.0...v0.16.0
