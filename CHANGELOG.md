@@ -16,11 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add serde support for `Index` ([#104](https://github.com/monero-rs/monero-rs/pull/104))
+- Add serde support for `Index` by [@LeoNero](https://github.com/LeoNero) ([#104](https://github.com/monero-rs/monero-rs/pull/104))
 
 ### Changed
 
-- Relax generics requirement to `?Sized` in consensus encode/decode reader and writer ([#101](https://github.com/monero-rs/monero-rs/pull/101))
+- Relax generics requirement to `?Sized` in consensus encode/decode reader and writer by [@h4sh3d](https://github.com/h4sh3d) ([#101](https://github.com/monero-rs/monero-rs/pull/101))
 
 ## [0.17.0] - 2022-06-29
 
@@ -30,70 +30,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Rename feature `serde_support` into `serde` ([#94](https://github.com/monero-rs/monero-rs/pull/94))
-- Update `base58-monero` requirement from 0.3 to 1 ([#91](https://github.com/monero-rs/monero-rs/pull/91))
+- Rename feature `serde_support` into `serde` by [@h4sh3d](https://github.com/h4sh3d) ([#94](https://github.com/monero-rs/monero-rs/pull/94))
+- Update `base58-monero` requirement from 0.3 to 1 by [@h4sh3d](https://github.com/h4sh3d) ([#91](https://github.com/monero-rs/monero-rs/pull/91))
 - Update `serde-big-array` requirement from 0.3.2 to 0.4.1 ([#77](https://github.com/monero-rs/monero-rs/pull/77))
 - Update `serde_json` requirement from &lt;1.0.45 to 1 ([#84](https://github.com/monero-rs/monero-rs/pull/84))
 - Update `sealed` requirement from 0.3 to 0.4 ([#73](https://github.com/monero-rs/monero-rs/pull/73))
 
 ### Fixed
 
-- Check outputs of miner transaction ([#96](https://github.com/monero-rs/monero-rs/pull/96))
-- Make `Key64` an array of 64 32 byte keys by [@Boog900](https://github.com/Boog900) ([#86](https://github.com/monero-rs/monero-rs/pull/86))
+- Check outputs of miner transaction by [@h4sh3d](https://github.com/h4sh3d) ([#96](https://github.com/monero-rs/monero-rs/pull/96))
+- Make `Key64` an array of 64 32-byte keys by [@Boog900](https://github.com/Boog900) ([#86](https://github.com/monero-rs/monero-rs/pull/86))
 
 ## [0.16.0] - 2021-11-15
 
 ### Added
 
 - Method to check outputs with existing `SubKeyChecker` by [@busyboredom](https://github.com/busyboredom) ([#64](https://github.com/monero-rs/monero-rs/pull/64))
-- Impl consensus Decodable and Encodable for Address ([#68](https://github.com/monero-rs/monero-rs/pull/68))
+- Implement consensus decodable and encodable for `Address` by [@TheCharlatan](https://github.com/TheCharlatan) ([#68](https://github.com/monero-rs/monero-rs/pull/68))
 
 ### Removed
 
-- Remove the strict encoding support feature, this should be handled by crates using it ([#67](https://github.com/monero-rs/monero-rs/pull/67))
+- Remove the strict encoding support feature, this should be handled by crates using it, by [@h4sh3d](https://github.com/h4sh3d) ([#67](https://github.com/monero-rs/monero-rs/pull/67))
 
 ## [0.15.0] - 2021-09-27
 
 ### Added
 
-- Derive `Hash` for `PrivateKey` ([#58](https://github.com/monero-rs/monero-rs/pull/58))
-- Add MSRV badge in README ([#60](https://github.com/monero-rs/monero-rs/pull/60))
+- Derive `Hash` for `PrivateKey` by [@TheCharlatan](https://github.com/TheCharlatan) ([#58](https://github.com/monero-rs/monero-rs/pull/58))
+- Set and test the minimum stable Rust version to `1.51.0` by [@h4sh3d](https://github.com/h4sh3d) ([#60](https://github.com/monero-rs/monero-rs/pull/60))
 
 ### Changed
 
-- Modify Hash public API, fix clippy ([#59](https://github.com/monero-rs/monero-rs/pull/59))
+- Modify Hash public API, fix clippy by [@h4sh3d](https://github.com/h4sh3d) ([#59](https://github.com/monero-rs/monero-rs/pull/59))
 
 ## [0.14.0] - 2021-08-17
 
 ### Added
 
-- Function for computing the signature hash of a transaction ([#41](https://github.com/monero-rs/monero-rs/pull/41))
-- Length bounds check before allocating `Vec` ([#47](https://github.com/monero-rs/monero-rs/pull/47))
+- Function for computing the signature hash of a transaction by [@COMIT](https://github.com/comit-network) ([#41](https://github.com/monero-rs/monero-rs/pull/41))
+- Length bounds check before allocating `Vec` by [@sdbondi](https://github.com/sdbondi) ([#47](https://github.com/monero-rs/monero-rs/pull/47))
 
 ### Changed
 
-- Don't use `io::Cursor` for implementing `Encodable` on `ExtraField` ([#49](https://github.com/monero-rs/monero-rs/pull/49))
-- Trait `Encodable` is now sealed and cannot be implemented outside of the library to guarentee a correct, non-failable, implementation ([#50](https://github.com/monero-rs/monero-rs/pull/50))
+- Don't use `io::Cursor` for implementing `Encodable` on `ExtraField` by [@COMIT](https://github.com/comit-network) ([#49](https://github.com/monero-rs/monero-rs/pull/49))
+- Trait `Encodable` is now sealed and cannot be implemented outside of the library to guarentee a correct, non-failable, implementation, by [@h4sh3d](https://github.com/h4sh3d) ([#50](https://github.com/monero-rs/monero-rs/pull/50))
 
 ### Fixed
 
-- Activation of curve25519-dalek's serde feature ([#52](https://github.com/monero-rs/monero-rs/pull/52))
-- Clippy errors ([#53](https://github.com/monero-rs/monero-rs/pull/53))
+- Activation of curve25519-dalek's serde feature by [@h4sh3d](https://github.com/h4sh3d) ([#52](https://github.com/monero-rs/monero-rs/pull/52))
+- Clippy errors by [@h4sh3d](https://github.com/h4sh3d) ([#53](https://github.com/monero-rs/monero-rs/pull/53))
 
 ### Removed
 
-- Unused `TxIn` variants ([#50](https://github.com/monero-rs/monero-rs/pull/50))
+- Unused `TxIn` variants by [@h4sh3d](https://github.com/h4sh3d) ([#50](https://github.com/monero-rs/monero-rs/pull/50))
 
 ## [0.13.0] - 2021-06-02
 
 ### Added
 
-- `Amount` structure, based on rust-bitcoin implementation ([#33](https://github.com/monero-rs/monero-rs/pull/33))
+- `Amount` structure, based on rust-bitcoin implementation by [@h4sh3d](https://github.com/h4sh3d) ([#33](https://github.com/monero-rs/monero-rs/pull/33))
 
 ### Changed
 
-- Replace `keccak-hash` with `tiny-keccak` ([#40](https://github.com/monero-rs/monero-rs/pull/40))
-- New `check_output` API ([#42](https://github.com/monero-rs/monero-rs/pull/42))
+- Replace `keccak-hash` with `tiny-keccak` by [@COMIT](https://github.com/comit-network) ([#40](https://github.com/monero-rs/monero-rs/pull/40))
+- New `check_output` API by [@COMIT](https://github.com/comit-network) ([#42](https://github.com/monero-rs/monero-rs/pull/42))
 - Switch CI from Travis to GitHub Actions
 
 ## [0.12.0] - 2021-04-29
