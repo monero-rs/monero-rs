@@ -145,6 +145,18 @@ fixed_hash::construct_fixed_hash! {
     pub struct PaymentId(8);
 }
 
+impl hex::FromHex for PaymentId {
+    type Error = hex::FromHexError;
+
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
+        let hex = hex.as_ref();
+        let hex = hex.strip_prefix("0x".as_bytes()).unwrap_or(hex);
+
+        let buffer = <[u8; 8]>::from_hex(hex)?;
+        Ok(PaymentId(buffer))
+    }
+}
+
 /// A complete Monero typed address valid for a specific network.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Address {
@@ -326,6 +338,8 @@ impl crate::consensus::encode::Encodable for Address {
 
 #[cfg(test)]
 mod tests {
+    use hex::{FromHex, FromHexError, ToHex};
+
     use crate::consensus::encode::{Decodable, Encodable};
     use std::str::FromStr;
 
@@ -443,5 +457,34 @@ mod tests {
         let address = "4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV";
         let add = Address::from_str(address).unwrap();
         assert_eq!(address, add.to_string());
+    }
+
+    #[test]
+    fn test_to_from_hex_payment_id() {
+        let payment_id_wrong_length_str = "abcd";
+        assert_eq!(
+            PaymentId::from_hex(payment_id_wrong_length_str).unwrap_err(),
+            FromHexError::InvalidStringLength,
+        );
+
+        let payment_id_wrong_length_str = "a".repeat(10);
+        assert_eq!(
+            PaymentId::from_hex(payment_id_wrong_length_str).unwrap_err(),
+            FromHexError::InvalidStringLength,
+        );
+
+        let payment_id = PaymentId::from_str("0123456789abcdef").unwrap();
+
+        let payment_id_str: String = payment_id.encode_hex();
+        assert_eq!(
+            PaymentId::from_hex(payment_id_str.clone()).unwrap(),
+            payment_id
+        );
+
+        let payment_id_str_with_0x = format!("0x{payment_id_str}");
+        assert_eq!(
+            PaymentId::from_hex(payment_id_str_with_0x).unwrap(),
+            payment_id
+        );
     }
 }
