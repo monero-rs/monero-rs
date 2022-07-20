@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add serde `serialize` for `Amount` and `SignedAmount` slices by [@LeoNero](https://github.com/LeoNero) ([#107](https://github.com/monero-rs/monero-rs/pull/107))
 - Add serde `deserialize` for `Amount` and `SignedAmount` vectors by [@LeoNero](https://github.com/LeoNero) ([#107](https://github.com/monero-rs/monero-rs/pull/107))
+- Change `u64` and `VarInt` to `Amount` where it makes sense to by [@LeoNero](https://github.com/LeoNero) ([#113](https://github.com/monero-rs/monero-rs/pull/113))
 
 ## [0.17.1] - 2022-07-12
 
