@@ -280,6 +280,27 @@ impl Address {
     }
 }
 
+impl hex::ToHex for Address {
+    fn encode_hex<T: std::iter::FromIterator<char>>(&self) -> T {
+        self.as_bytes().encode_hex()
+    }
+
+    fn encode_hex_upper<T: std::iter::FromIterator<char>>(&self) -> T {
+        self.as_bytes().encode_hex_upper()
+    }
+}
+
+impl hex::FromHex for Address {
+    type Error = Error;
+
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
+        let hex = hex.as_ref();
+        let hex = hex.strip_prefix("0x".as_bytes()).unwrap_or(hex);
+        let bytes = hex::decode(hex).map_err(|_| Self::Error::InvalidFormat)?;
+        Self::from_bytes(&bytes)
+    }
+}
+
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", base58::encode(self.as_bytes().as_slice()).unwrap())
@@ -486,5 +507,31 @@ mod tests {
             PaymentId::from_hex(payment_id_str_with_0x).unwrap(),
             payment_id
         );
+    }
+
+    #[test]
+    fn test_address_hex() {
+        let address_str = "4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV";
+
+        let address_bytes = [
+            19, 17, 81, 127, 230, 166, 35, 81, 36, 161, 94, 154, 206, 60, 98, 195, 62, 12, 11, 234,
+            133, 228, 196, 77, 3, 68, 188, 84, 78, 94, 109, 238, 44, 115, 212, 211, 204, 198, 30,
+            73, 70, 235, 52, 160, 200, 39, 215, 134, 239, 249, 129, 47, 156, 14, 116, 18, 191, 112,
+            207, 139, 208, 54, 59, 92, 115, 88, 118, 184, 183, 41, 150, 255, 151, 133, 45, 85, 110,
+        ];
+        let address_hex_lower = hex::encode(address_bytes);
+        let address_hex_lower_with_0x = format!("0x{}", address_hex_lower);
+        let address_hex_upper = hex::encode_upper(address_bytes);
+
+        let address = Address::from_str(address_str).unwrap();
+
+        assert_eq!(address.as_hex(), address_hex_lower);
+        assert_eq!(address.encode_hex::<String>(), address_hex_lower);
+        assert_eq!(address.encode_hex_upper::<String>(), address_hex_upper);
+
+        let address_from_hex = Address::from_hex(address_hex_lower).unwrap();
+        assert_eq!(address_from_hex, address);
+        let address_from_hex_with_0x = Address::from_hex(address_hex_lower_with_0x).unwrap();
+        assert_eq!(address_from_hex_with_0x, address);
     }
 }
