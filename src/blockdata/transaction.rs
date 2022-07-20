@@ -24,6 +24,7 @@ use crate::consensus::encode::{self, serialize, Decodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
+use crate::util::amount::Amount;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 use crate::util::ringct::{Opening, RctSig, RctSigBase, RctSigPrunable, RctType, Signature};
 
@@ -233,12 +234,12 @@ impl<'a> OwnedTxOut<'a> {
     /// Returns the unblinded or clear amount of this output.
     ///
     /// None if we didn't have enough information to unblind the output.
-    pub fn amount(&self) -> Option<u64> {
+    pub fn amount(&self) -> Option<Amount> {
         match self.opening {
             Some(Opening { amount, .. }) => Some(amount),
             None => match self.out.amount {
                 VarInt(0) => None,
-                VarInt(a) => Some(a),
+                VarInt(a) => Some(Amount::from_pico(a)),
             },
         }
     }

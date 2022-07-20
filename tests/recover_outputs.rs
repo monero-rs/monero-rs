@@ -68,7 +68,7 @@ fn recover_output_and_amount() {
 
     let amount = out.amount();
     assert!(amount.is_some());
-    assert_eq!(amount.unwrap(), 7000000000);
+    assert_eq!(amount.unwrap().as_pico(), 7000000000);
 }
 
 #[test]
@@ -133,5 +133,5 @@ fn check_output_on_miner_tx() {
 
     let amount = out.amount();
     assert!(amount.is_some());
-    assert_eq!(amount.unwrap(), 35184338534400);
+    assert_eq!(amount.unwrap().as_pico(), 35184338534400);
 }

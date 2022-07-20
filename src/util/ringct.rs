@@ -25,6 +25,7 @@ use std::{fmt, io};
 use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::KeyGenerator;
+use crate::util::amount::{self, Amount};
 use crate::util::key::H;
 use crate::{PublicKey, ViewPair};
 
@@ -245,7 +246,7 @@ impl EcdhInfo {
         }
 
         Some(Opening {
-            amount,
+            amount: Amount::from_pico(amount),
             blinding_factor,
             commitment: expected_commitment,
         })
@@ -256,7 +257,7 @@ impl EcdhInfo {
 #[derive(Debug)]
 pub struct Opening {
     /// The original amount of the output.
-    pub amount: u64,
+    pub amount: Amount,
     /// The blinding factor used to blind the amount.
     pub blinding_factor: Scalar,
     /// The commitment used to verify the blinded amount.
@@ -466,7 +467,8 @@ pub struct RctSigBase {
     /// The RingCt type of signatures.
     pub rct_type: RctType,
     /// Transaction fee.
-    pub txn_fee: VarInt,
+    #[cfg_attr(feature = "serde", serde(with = "amount::serde::as_pico"))]
+    pub txn_fee: Amount,
     /// Pseudo outs key vector.
     pub pseudo_outs: Vec<Key>,
     /// Ecdh info vector.
@@ -516,6 +518,7 @@ impl RctSigBase {
                 let mut pseudo_outs: Vec<Key> = vec![];
                 // TxnFee
                 let txn_fee: VarInt = Decodable::consensus_decode(r)?;
+                let txn_fee = Amount::from_pico(*txn_fee);
                 // RctType
                 if rct_type == RctType::Simple {
                     pseudo_outs = decode_sized_vec!(inputs, r);
@@ -551,7 +554,8 @@ impl crate::consensus::encode::Encodable for RctSigBase {
             | RctType::Bulletproof
             | RctType::Bulletproof2
             | RctType::Clsag => {
-                len += self.txn_fee.consensus_encode(w)?;
+                let txn_fee: VarInt = VarInt(self.txn_fee.as_pico());
+                len += txn_fee.consensus_encode(w)?;
                 if self.rct_type == RctType::Simple {
                     len += encode_sized_vec!(self.pseudo_outs, w);
                 }
