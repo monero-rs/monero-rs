@@ -77,6 +77,18 @@ impl Decodable for Hash {
     }
 }
 
+impl hex::FromHex for Hash {
+    type Error = hex::FromHexError;
+
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
+        let hex = hex.as_ref();
+        let hex = hex.strip_prefix("0x".as_bytes()).unwrap_or(hex);
+
+        let buffer = <[u8; 32]>::from_hex(hex)?;
+        Ok(Hash(buffer))
+    }
+}
+
 #[sealed]
 impl crate::consensus::encode::Encodable for Hash {
     fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
@@ -111,6 +123,18 @@ impl Decodable for Hash8 {
     }
 }
 
+impl hex::FromHex for Hash8 {
+    type Error = hex::FromHexError;
+
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
+        let hex = hex.as_ref();
+        let hex = hex.strip_prefix("0x".as_bytes()).unwrap_or(hex);
+
+        let buffer = <[u8; 8]>::from_hex(hex)?;
+        Ok(Hash8(buffer))
+    }
+}
+
 #[sealed]
 impl crate::consensus::encode::Encodable for Hash8 {
     fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
@@ -131,9 +155,11 @@ pub fn keccak_256(input: &[u8]) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "serde")]
+    use std::str::FromStr;
+
     use super::*;
 
+    use hex::{FromHex, FromHexError, ToHex};
     #[cfg(feature = "serde")]
     use serde_test::{assert_tokens, Token};
 
@@ -248,5 +274,51 @@ mod tests {
                 Token::TupleEnd,
             ],
         );
+    }
+
+    #[test]
+    fn test_to_from_hex_hash() {
+        let hash_wrong_length_str = "abcd";
+        assert_eq!(
+            Hash::from_hex(hash_wrong_length_str).unwrap_err(),
+            FromHexError::InvalidStringLength,
+        );
+
+        let hash_wrong_length_str = "a".repeat(66);
+        assert_eq!(
+            Hash::from_hex(hash_wrong_length_str).unwrap_err(),
+            FromHexError::InvalidStringLength,
+        );
+
+        let hash = Hash::new("");
+
+        let hash_str: String = hash.encode_hex();
+        assert_eq!(Hash::from_hex(hash_str.clone()).unwrap(), hash);
+
+        let hash_str_with_0x = format!("0x{hash_str}");
+        assert_eq!(Hash::from_hex(hash_str_with_0x).unwrap(), hash);
+    }
+
+    #[test]
+    fn test_to_from_hex_hash8() {
+        let hash8_wrong_length_str = "abcd";
+        assert_eq!(
+            Hash8::from_hex(hash8_wrong_length_str).unwrap_err(),
+            FromHexError::InvalidStringLength,
+        );
+
+        let hash8_wrong_length_str = "a".repeat(10);
+        assert_eq!(
+            Hash8::from_hex(hash8_wrong_length_str).unwrap_err(),
+            FromHexError::InvalidStringLength,
+        );
+
+        let hash8 = Hash8::from_str("0123456789abcdef").unwrap();
+
+        let hash8_str: String = hash8.encode_hex();
+        assert_eq!(Hash8::from_hex(hash8_str.clone()).unwrap(), hash8);
+
+        let hash8_str_with_0x = format!("0x{hash8_str}");
+        assert_eq!(Hash8::from_hex(hash8_str_with_0x).unwrap(), hash8);
     }
 }

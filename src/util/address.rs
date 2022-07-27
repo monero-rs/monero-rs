@@ -145,6 +145,18 @@ fixed_hash::construct_fixed_hash! {
     pub struct PaymentId(8);
 }
 
+impl hex::FromHex for PaymentId {
+    type Error = hex::FromHexError;
+
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
+        let hex = hex.as_ref();
+        let hex = hex.strip_prefix("0x".as_bytes()).unwrap_or(hex);
+
+        let buffer = <[u8; 8]>::from_hex(hex)?;
+        Ok(PaymentId(buffer))
+    }
+}
+
 /// A complete Monero typed address valid for a specific network.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Address {
@@ -268,6 +280,27 @@ impl Address {
     }
 }
 
+impl hex::ToHex for Address {
+    fn encode_hex<T: std::iter::FromIterator<char>>(&self) -> T {
+        self.as_bytes().encode_hex()
+    }
+
+    fn encode_hex_upper<T: std::iter::FromIterator<char>>(&self) -> T {
+        self.as_bytes().encode_hex_upper()
+    }
+}
+
+impl hex::FromHex for Address {
+    type Error = Error;
+
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
+        let hex = hex.as_ref();
+        let hex = hex.strip_prefix("0x".as_bytes()).unwrap_or(hex);
+        let bytes = hex::decode(hex).map_err(|_| Self::Error::InvalidFormat)?;
+        Self::from_bytes(&bytes)
+    }
+}
+
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", base58::encode(self.as_bytes().as_slice()).unwrap())
@@ -326,6 +359,8 @@ impl crate::consensus::encode::Encodable for Address {
 
 #[cfg(test)]
 mod tests {
+    use hex::{FromHex, FromHexError, ToHex};
+
     use crate::consensus::encode::{Decodable, Encodable};
     use std::str::FromStr;
 
@@ -443,5 +478,60 @@ mod tests {
         let address = "4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV";
         let add = Address::from_str(address).unwrap();
         assert_eq!(address, add.to_string());
+    }
+
+    #[test]
+    fn test_to_from_hex_payment_id() {
+        let payment_id_wrong_length_str = "abcd";
+        assert_eq!(
+            PaymentId::from_hex(payment_id_wrong_length_str).unwrap_err(),
+            FromHexError::InvalidStringLength,
+        );
+
+        let payment_id_wrong_length_str = "a".repeat(10);
+        assert_eq!(
+            PaymentId::from_hex(payment_id_wrong_length_str).unwrap_err(),
+            FromHexError::InvalidStringLength,
+        );
+
+        let payment_id = PaymentId::from_str("0123456789abcdef").unwrap();
+
+        let payment_id_str: String = payment_id.encode_hex();
+        assert_eq!(
+            PaymentId::from_hex(payment_id_str.clone()).unwrap(),
+            payment_id
+        );
+
+        let payment_id_str_with_0x = format!("0x{payment_id_str}");
+        assert_eq!(
+            PaymentId::from_hex(payment_id_str_with_0x).unwrap(),
+            payment_id
+        );
+    }
+
+    #[test]
+    fn test_address_hex() {
+        let address_str = "4Byr22j9M2878Mtyb3fEPcBNwBZf5EXqn1Yi6VzR46618SFBrYysab2Cs1474CVDbsh94AJq7vuV3Z2DRq4zLcY3LHzo1Nbv3d8J6VhvCV";
+
+        let address_bytes = [
+            19, 17, 81, 127, 230, 166, 35, 81, 36, 161, 94, 154, 206, 60, 98, 195, 62, 12, 11, 234,
+            133, 228, 196, 77, 3, 68, 188, 84, 78, 94, 109, 238, 44, 115, 212, 211, 204, 198, 30,
+            73, 70, 235, 52, 160, 200, 39, 215, 134, 239, 249, 129, 47, 156, 14, 116, 18, 191, 112,
+            207, 139, 208, 54, 59, 92, 115, 88, 118, 184, 183, 41, 150, 255, 151, 133, 45, 85, 110,
+        ];
+        let address_hex_lower = hex::encode(address_bytes);
+        let address_hex_lower_with_0x = format!("0x{}", address_hex_lower);
+        let address_hex_upper = hex::encode_upper(address_bytes);
+
+        let address = Address::from_str(address_str).unwrap();
+
+        assert_eq!(address.as_hex(), address_hex_lower);
+        assert_eq!(address.encode_hex::<String>(), address_hex_lower);
+        assert_eq!(address.encode_hex_upper::<String>(), address_hex_upper);
+
+        let address_from_hex = Address::from_hex(address_hex_lower).unwrap();
+        assert_eq!(address_from_hex, address);
+        let address_from_hex_with_0x = Address::from_hex(address_hex_lower_with_0x).unwrap();
+        assert_eq!(address_from_hex_with_0x, address);
     }
 }

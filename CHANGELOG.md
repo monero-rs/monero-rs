@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Change `u64` and `VarInt` to `Amount` where it makes sense to by [@LeoNero](https://github.com/LeoNero) ([#113](https://github.com/monero-rs/monero-rs/pull/113))
+- Add `FromHex` for `Hash`, `Hash8`, `PaymentId`, and `Address` [@LeoNero](https://github.com/LeoNero) ([#114](https://github.com/monero-rs/monero-rs/pull/114))
+- Add `ToHex` for `Address` [@LeoNero](https://github.com/LeoNero) ([#114](https://github.com/monero-rs/monero-rs/pull/114))
+
 ## [0.17.2] - 2022-07-19
 
 ### Added
 
 - Add serde `serialize` for `Amount` and `SignedAmount` slices by [@LeoNero](https://github.com/LeoNero) ([#107](https://github.com/monero-rs/monero-rs/pull/107))
 - Add serde `deserialize` for `Amount` and `SignedAmount` vectors by [@LeoNero](https://github.com/LeoNero) ([#107](https://github.com/monero-rs/monero-rs/pull/107))
-- Change `u64` and `VarInt` to `Amount` where it makes sense to by [@LeoNero](https://github.com/LeoNero) ([#113](https://github.com/monero-rs/monero-rs/pull/113))
 
 ## [0.17.1] - 2022-07-12
 
