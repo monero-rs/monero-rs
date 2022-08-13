@@ -43,7 +43,7 @@ use thiserror::Error;
 use std::convert::TryInto;
 
 /// Ring Confidential Transaction potential errors.
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Invalid RingCt type.
     #[error("Unknown RingCt type")]
@@ -52,7 +52,7 @@ pub enum Error {
 
 // ====================================================================
 /// Raw 32 bytes key.
-#[derive(Clone, Copy, PartialEq, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct Key {
@@ -78,7 +78,7 @@ impl From<[u8; 32]> for Key {
 
 // ====================================================================
 /// Raw 64 bytes key.
-#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct Key64 {
@@ -134,7 +134,7 @@ impl fmt::Display for Key64 {
 
 // ====================================================================
 /// Confidential transaction key.
-#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct CtKey {
@@ -606,7 +606,7 @@ impl hash::Hashable for RctSigBase {
 
 // ====================================================================
 /// Types of Ring Confidential Transaction signatures.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum RctType {

@@ -41,7 +41,7 @@ use std::{fmt, io};
 use serde_crate::{Deserialize, Serialize};
 
 /// Errors possible when manipulating transactions.
-#[derive(Error, Clone, Copy, Debug, PartialEq)]
+#[derive(Error, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     /// No transaction public key found in extra.
     #[error("No transaction public key found")]
@@ -62,7 +62,7 @@ pub enum Error {
 
 /// The key image used in transaction inputs [`TxIn`] to commit to the use of an output one-time
 /// public key as in [`TxOutTarget::ToKey`].
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyImage {
@@ -74,7 +74,7 @@ impl_consensus_encoding!(KeyImage, image);
 
 /// A transaction input, either a coinbase spend or a one-time key spend which defines the ring
 /// size and the key image to avoid double spend.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum TxIn {
@@ -96,7 +96,7 @@ pub enum TxIn {
 
 /// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
 /// original cryptonote implementation.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum TxOutTarget {
@@ -147,7 +147,7 @@ impl TxOutTarget {
 }
 
 /// A transaction output, can be consumed by a [`TxIn`] input of the matching format.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TxOut {
@@ -284,7 +284,7 @@ impl<'a> OwnedTxOut<'a> {
 /// public key.
 ///
 /// Extra field is composed of typed sub fields of variable or fixed length.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct ExtraField(pub Vec<SubField>);
@@ -319,7 +319,7 @@ impl ExtraField {
 /// Each sub-field contains a sub-field tag followed by sub-field content of fixed or variable
 /// length, in variable length case the length is encoded with a [`VarInt`] before the content
 /// itself.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum SubField {
