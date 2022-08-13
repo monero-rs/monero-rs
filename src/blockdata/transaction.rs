@@ -368,7 +368,7 @@ impl fmt::Display for SubField {
 ///
 /// As transaction prefix implements [`hash::Hashable`] it is possible to generate the transaction
 /// prefix hash with `tx_prefix.hash()`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TransactionPrefix {
