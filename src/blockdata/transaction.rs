@@ -112,6 +112,13 @@ pub enum TxOutTarget {
         /// The one-time public key of that output.
         key: PublicKey,
     },
+    /// A one-time public key output with a view tag.
+    ToTaggedKey {
+        /// The one-time public key of that output.
+        key: PublicKey,
+        /// The view tag of that output.
+        view_tag: u8,
+    },
     /// A script hash output, not used.
     ToScriptHash {
         /// The script hash
@@ -125,6 +132,7 @@ impl TxOutTarget {
         match self {
             TxOutTarget::ToScript { keys, .. } => Some(keys.clone()),
             TxOutTarget::ToKey { key } => Some(vec![*key]),
+            TxOutTarget::ToTaggedKey { key, .. } => Some(vec![*key]),
             TxOutTarget::ToScriptHash { .. } => None,
         }
     }
@@ -886,6 +894,10 @@ impl Decodable for TxOutTarget {
             0x2 => Ok(TxOutTarget::ToKey {
                 key: Decodable::consensus_decode(r)?,
             }),
+            0x3 => Ok(TxOutTarget::ToTaggedKey {
+                key: Decodable::consensus_decode(r)?,
+                view_tag: Decodable::consensus_decode(r)?,
+            }),
             _ => Err(encode::Error::ParseFailed("Invalid output type")),
         }
     }
@@ -898,6 +910,11 @@ impl crate::consensus::encode::Encodable for TxOutTarget {
             TxOutTarget::ToKey { key } => {
                 let len = 0x2u8.consensus_encode(w)?;
                 Ok(len + key.consensus_encode(w)?)
+            }
+            TxOutTarget::ToTaggedKey { key, view_tag } => {
+                let mut len = 0x3u8.consensus_encode(w)?;
+                len += key.consensus_encode(w)?;
+                Ok(len + view_tag.consensus_encode(w)?)
             }
             _ => Err(io::Error::new(
                 io::ErrorKind::Interrupted,
