@@ -135,3 +135,53 @@ fn check_output_on_miner_tx() {
     assert!(amount.is_some());
     assert_eq!(amount.unwrap().as_pico(), 35184338534400);
 }
+
+#[test]
+fn recover_output_and_amount_view_tagged() {
+    let raw_tx = hex::decode("020001020010f9b7b61a8a968a0288d201fafd08ee8401a4cb019efd01971eb0578604e207e403b201cb018c0fa70a0cb4bc29479087e2ae43915b3a28c6e8250edbd199779df1b3d948aa11e4e3000200037ab37a0735606650c1949d4bc4e56fada3417bb549f0400d99aa3f5e5f76e2bb5e0003d3707534b0c53156c26873f00a8d3c6e6480c599d9d4d2a3a96ee4f8002aab0f2d2c01a0e85d863a9a82dc82905310af78fa36ff6fd475ff5ef6c5c6611eb3ec629e8b0209017094944e5c8da5ba06e0f2cc0e72953d44df724bfcae12eafe54c55a413672c675f9cf407340473f77d63503f9dd3c44fcbb96d7f1e02ca7f972fb1681c5a630c2a924590ae7b485f39a8b531709c35ceae02e117ff06381e5b95a82be01ccc7d04f1cd6d3aefa10f9a400818e2f55d57edd99882d4cab5a9b3665f6efa905c330fd9d3998b8b7358b01392fac7d5d036e13e6d82013e26bfe0a5ffc04d4b0f0b7bad0e465b5a78deee3bab25d1560fcc3ce21ebdb40fc9d00025eda76c59136e0e4bbf1d18f56225e197db401a86a99709ad6f9adedc064f500df471d0bc19908911a3f8227a12dca286543d44f5f7843e2fb261d2092eeda3541706a0dd9779d7a0d762da7973ba39da0e700edb014ed68a874745b1a0e9bd758992e03076000cf3694adcd4cb8525606987e0d344f34fca2999bafaf92e5cb5716d9a1a64facef01d6adcc1d07a6d4c53a2959e6d3768f860e202c56dbe1c988d6f40278b37f07231f19d20388c1ea812596f2228dcbdbbdaaf156c15e993d2a78f2bb5d35fe34c76b72e34788ad1d08a8f24e40525583baf1deff4b6cf0e9e113eaa099a5a347a1dce8004d578209dce92759aa685071cc7ea9a50313effa55c2d64e2da7aa0c9a0d73d0147685e02f5733c25b35967331e04351d742de3092366cc1f1df7d49e8e2b13cf7ef396150c700c391ed046f7a6b0def1f1314124132ec4c0507af2fbd1804fbed13010f21da2b35c83e50a4b6382acbca1fffba7601850719dc909dff632a02216df7418fe6e87b6da323b4700f012f1b382ac27fa7e74b69384478c75af0fa1afd183b52c7174141a67ad2ce5369ce7719c46c725d42834f4a75340ce1d2b56f6d3497142a818541d18372c221b57632c7e26e006512398394a5d76c9dccec9342fca7d549061e2cf664ddbd39526290ea03e291cba522d58e7af6cec11a4183b8e59421df44dacd3a7e4eed19f2f4c743ea49c9595e82b27d5ac00401f39900ad0c406ddd69526bb8f9cd525299180863a6c5bc69c21352d0a6a571c6681a202cb2f9c561cd1b3a3a20314ec2497feda8d35a7fd48345980cc357565711d05605432ad9629dbf1ae770ccb0238a8f7565407b75571e38dd051882f553641400a95b95140fc8a932bd8393ec55f78ddb57df35d941540610026ccaec2273dbf5824578dce9736cbcbfe20715e73994a7297908388eb522e4054469448971db778bcefcbaa45a41c58ae28f82c4da60872360cbb51a2148e000b2286fee5019619e5f4a86def4ae13d8083bf23d2d93a4b634705d63012a8a08f9e353c8d9a5fa5f7c2218b8772ede25ddf072949c10c9c31e9d0024a4f1c20132595bf735601bfaa3101d2adb9cd4eef2dc60f2f450fdba5fb9988f1beb7f0724574ecc697342c22df2a28e75d264a74284d1f0e49040b1ea8604a9780ff003b02a801a615f2dc20a09c076368a9263a0cfc79b052e45df4e99fa9c1e629e0b7959c552edaff71b2b349ae34109510c401e456db5e7d2178dc643b12fc72a0a7ac9387e68aba392c988135237ac9f578c01ce5f1c9b1027665cc5be657dd70c9614cf7e0f71f37c437868e2d007f61f027f4d9238b8718423315034f0c9d1046967acd0da77b7f92cc2ca2f9358da608ae1b12a5acfb2d00b672409301df3068860621285d18f217ef5a5324a858bb7978c6cdd7358821fd30baba41c3fa50c268b57114db9c17851c6a49e5b221335c59b030d7ee7687c645d96d18e1be3051f2f6d96417a8e40ccdba572b02af5443aa9a8e8089a8e5e6cdb8821ac3f710c923256d7059514d3de3a775b80f7446b2ad7d7afdb6619eadb1514d97d26ce2d1f3dcf717cbab30ffa1d75c52e1fb65e4a1c0b612d911ab2d98d4c6e7369dc8f").unwrap();
+    let tx = deserialize::<Transaction>(&raw_tx).expect("Raw tx deserialization failed");
+
+    let secret_view_bytes =
+        hex::decode("ea14e88ba27fd2b1f0d115f4e37e3058508a71539b5cad985c9bfb39592b9c05").unwrap();
+    let secret_view = PrivateKey::from_slice(&secret_view_bytes).unwrap();
+
+    let secret_spend_bytes =
+        hex::decode("a336c3ad46b255925f854f2abaf5a054d5d76194bc0baa8213e251a95a6c3309").unwrap();
+    let secret_spend = PrivateKey::from_slice(&secret_spend_bytes).unwrap();
+    let public_spend = PublicKey::from_private_key(&secret_spend);
+
+    // Keypair used to recover the ephemeral spend key of an output
+    let keypair = KeyPair {
+        view: secret_view,
+        spend: secret_spend,
+    };
+
+    let spend = public_spend;
+
+    // Viewpair used to scan a transaction to retreive owned outputs
+    let view_pair = ViewPair {
+        view: secret_view,
+        spend,
+    };
+
+    // Get all owned output for sub-addresses in range of 0-1 major index and 0-2 minor index
+    let owned_outputs = tx.check_outputs(&view_pair, 0..2, 0..3).unwrap();
+
+    assert_eq!(owned_outputs.len(), 1);
+    let out = owned_outputs.get(0).unwrap();
+
+    // Recover the ephemeral private spend key
+    let private_key = out.recover_key(&keypair);
+    assert_eq!(
+        "d243f31cd076d0863d95aea770d40cc3b08549ea4de62ec3b58fed8170392303",
+        format!("{}", private_key)
+    );
+    assert_eq!(
+        "d3707534b0c53156c26873f00a8d3c6e6480c599d9d4d2a3a96ee4f8002aab0f",
+        format!("{}", PublicKey::from_private_key(&private_key))
+    );
+
+    let amount = out.amount();
+    assert!(amount.is_some());
+    assert_eq!(amount.unwrap().as_pico(), 23985700000);
+}

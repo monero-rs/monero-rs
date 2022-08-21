@@ -22,7 +22,7 @@
 
 use crate::consensus::encode::{self, serialize, Decodable, VarInt};
 use crate::cryptonote::hash;
-use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
+use crate::cryptonote::onetime_key::{KeyGenerator, KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::amount::Amount;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
@@ -94,7 +94,7 @@ pub enum TxIn {
     },
 }
 
-/// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
+/// Type of output formats, only [`TxOutTarget::ToKey`] and [`TxOutTarget::ToTaggedKey`] are used, other formats are legacy to the
 /// original cryptonote implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -137,11 +137,27 @@ impl TxOutTarget {
         }
     }
 
-    /// Returns the one-time public key if this is a [`TxOutTarget::ToKey`] and `None` otherwise.
+    /// Returns the one-time public key if this is a [`TxOutTarget::ToKey`] or [`TxOutTarget::ToTaggedKey`] and `None` otherwise.
     pub fn as_one_time_key(&self) -> Option<&PublicKey> {
         match self {
             TxOutTarget::ToKey { key } => Some(key),
+            TxOutTarget::ToTaggedKey { key, .. } => Some(key),
             _ => None,
+        }
+    }
+
+    /// Derives a view tag and checks if it matches the outputs view tag,
+    /// if no view tag is present the default is true.
+    pub fn check_view_tag(&self, rv: PublicKey, index: u8) -> bool {
+        match self {
+            TxOutTarget::ToTaggedKey { key: _, view_tag } => {
+                // https://github.com/monero-project/monero/blob/b6a029f222abada36c7bc6c65899a4ac969d7dee/src/crypto/crypto.cpp#L753
+                let salt: Vec<u8> = vec![118, 105, 101, 119, 95, 116, 97, 103];
+                let rv = rv.as_bytes().to_vec();
+                let buf = [salt, rv, Vec::from([index])].concat();
+                *view_tag == hash::Hash::new(buf).as_bytes()[0]
+            }
+            _ => true,
         }
     }
 }
@@ -459,7 +475,11 @@ impl TransactionPrefix {
             .zip(tx_pubkeys.iter())
             .filter_map(|((i, out), tx_pubkey)| {
                 let key = out.target.as_one_time_key()?;
-                let sub_index = checker.check(i, key, tx_pubkey)?;
+                let keygen = KeyGenerator::from_key(checker.keys, *tx_pubkey);
+                if !out.target.check_view_tag(keygen.rv, i as u8) {
+                    return None;
+                }
+                let sub_index = checker.check_with_key_generator(keygen, i, key)?;
 
                 Some((i, out, sub_index, tx_pubkey))
             })
