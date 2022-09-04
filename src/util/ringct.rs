@@ -469,7 +469,7 @@ impl_consensus_encoding!(Bulletproof, A, S, T1, T2, taux, mu, L, R, a, b, t);
 pub struct BulletproofPlus {
     /// A value.
     pub A: Key,
-    /// S value.
+    /// A1 value.
     pub A1: Key,
     /// B value.
     pub B: Key,
