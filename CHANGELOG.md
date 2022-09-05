@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change `u64` and `VarInt` to `Amount` where it makes sense to by [@LeoNero](https://github.com/LeoNero) ([#113](https://github.com/monero-rs/monero-rs/pull/113))
 - Add `FromHex` for `Hash`, `Hash8`, `PaymentId`, and `Address` [@LeoNero](https://github.com/LeoNero) ([#114](https://github.com/monero-rs/monero-rs/pull/114))
 - Add `ToHex` for `Address` [@LeoNero](https://github.com/LeoNero) ([#114](https://github.com/monero-rs/monero-rs/pull/114))
+- Add support for (de)serialization of BulletproofPlus and view tags by [@Boog900](https://github.com/Boog900) ([#116](https://github.com/monero-rs/monero-rs/pull/116))
+
+### Changed
+
+- Use view tags, when available, to speedup owned output finding by [@Boog900](https://github.com/Boog900) ([#116](https://github.com/monero-rs/monero-rs/pull/116))
 
 ## [0.17.2] - 2022-07-19
 

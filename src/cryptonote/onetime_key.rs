@@ -162,6 +162,18 @@ impl<'a> SubKeyChecker<'a> {
         self.table
             .get(&(key - PublicKey::from_private_key(&keygen.get_rvn_scalar(index))))
     }
+
+    /// Same as check but uses a pre-generated KeyGenerator
+    pub fn check_with_key_generator(
+        &self,
+        keygen: KeyGenerator,
+        index: usize,
+        key: &PublicKey,
+    ) -> Option<&Index> {
+        // D' = P - Hs(v*8*R || n)*G
+        self.table
+            .get(&(key - PublicKey::from_private_key(&keygen.get_rvn_scalar(index))))
+    }
 }
 
 /// Helper to compute onetime private keys.

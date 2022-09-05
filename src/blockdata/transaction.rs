@@ -22,7 +22,7 @@
 
 use crate::consensus::encode::{self, serialize, Decodable, VarInt};
 use crate::cryptonote::hash;
-use crate::cryptonote::onetime_key::{KeyRecoverer, SubKeyChecker};
+use crate::cryptonote::onetime_key::{KeyGenerator, KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
 use crate::util::amount::Amount;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
@@ -41,7 +41,7 @@ use std::{fmt, io};
 use serde_crate::{Deserialize, Serialize};
 
 /// Errors possible when manipulating transactions.
-#[derive(Error, Clone, Copy, Debug, PartialEq)]
+#[derive(Error, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     /// No transaction public key found in extra.
     #[error("No transaction public key found")]
@@ -62,7 +62,7 @@ pub enum Error {
 
 /// The key image used in transaction inputs [`TxIn`] to commit to the use of an output one-time
 /// public key as in [`TxOutTarget::ToKey`].
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyImage {
@@ -74,7 +74,7 @@ impl_consensus_encoding!(KeyImage, image);
 
 /// A transaction input, either a coinbase spend or a one-time key spend which defines the ring
 /// size and the key image to avoid double spend.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum TxIn {
@@ -94,9 +94,9 @@ pub enum TxIn {
     },
 }
 
-/// Type of output formats, only [`TxOutTarget::ToKey`] is used, other formats are legacy to the
+/// Type of output formats, only [`TxOutTarget::ToKey`] and [`TxOutTarget::ToTaggedKey`] are used, other formats are legacy to the
 /// original cryptonote implementation.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum TxOutTarget {
@@ -112,6 +112,13 @@ pub enum TxOutTarget {
         /// The one-time public key of that output.
         key: PublicKey,
     },
+    /// A one-time public key output with a view tag.
+    ToTaggedKey {
+        /// The one-time public key of that output.
+        key: PublicKey,
+        /// The view tag of that output.
+        view_tag: u8,
+    },
     /// A script hash output, not used.
     ToScriptHash {
         /// The script hash
@@ -125,21 +132,38 @@ impl TxOutTarget {
         match self {
             TxOutTarget::ToScript { keys, .. } => Some(keys.clone()),
             TxOutTarget::ToKey { key } => Some(vec![*key]),
+            TxOutTarget::ToTaggedKey { key, .. } => Some(vec![*key]),
             TxOutTarget::ToScriptHash { .. } => None,
         }
     }
 
-    /// Returns the one-time public key if this is a [`TxOutTarget::ToKey`] and `None` otherwise.
+    /// Returns the one-time public key if this is a [`TxOutTarget::ToKey`] or [`TxOutTarget::ToTaggedKey`] and `None` otherwise.
     pub fn as_one_time_key(&self) -> Option<&PublicKey> {
         match self {
             TxOutTarget::ToKey { key } => Some(key),
+            TxOutTarget::ToTaggedKey { key, .. } => Some(key),
             _ => None,
+        }
+    }
+
+    /// Derives a view tag and checks if it matches the outputs view tag,
+    /// if no view tag is present the default is true.
+    pub fn check_view_tag(&self, rv: PublicKey, index: u8) -> bool {
+        match self {
+            TxOutTarget::ToTaggedKey { key: _, view_tag } => {
+                // https://github.com/monero-project/monero/blob/b6a029f222abada36c7bc6c65899a4ac969d7dee/src/crypto/crypto.cpp#L753
+                let salt: Vec<u8> = vec![118, 105, 101, 119, 95, 116, 97, 103];
+                let rv = rv.as_bytes().to_vec();
+                let buf = [salt, rv, Vec::from([index])].concat();
+                *view_tag == hash::Hash::new(buf).as_bytes()[0]
+            }
+            _ => true,
         }
     }
 }
 
 /// A transaction output, can be consumed by a [`TxIn`] input of the matching format.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TxOut {
@@ -276,7 +300,7 @@ impl<'a> OwnedTxOut<'a> {
 /// public key.
 ///
 /// Extra field is composed of typed sub fields of variable or fixed length.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct ExtraField(pub Vec<SubField>);
@@ -311,7 +335,7 @@ impl ExtraField {
 /// Each sub-field contains a sub-field tag followed by sub-field content of fixed or variable
 /// length, in variable length case the length is encoded with a [`VarInt`] before the content
 /// itself.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum SubField {
@@ -360,7 +384,7 @@ impl fmt::Display for SubField {
 ///
 /// As transaction prefix implements [`hash::Hashable`] it is possible to generate the transaction
 /// prefix hash with `tx_prefix.hash()`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct TransactionPrefix {
@@ -451,7 +475,11 @@ impl TransactionPrefix {
             .zip(tx_pubkeys.iter())
             .filter_map(|((i, out), tx_pubkey)| {
                 let key = out.target.as_one_time_key()?;
-                let sub_index = checker.check(i, key, tx_pubkey)?;
+                let keygen = KeyGenerator::from_key(checker.keys, *tx_pubkey);
+                if !out.target.check_view_tag(keygen.rv, i as u8) {
+                    return None;
+                }
+                let sub_index = checker.check_with_key_generator(keygen, i, key)?;
 
                 Some((i, out, sub_index, tx_pubkey))
             })
@@ -886,6 +914,10 @@ impl Decodable for TxOutTarget {
             0x2 => Ok(TxOutTarget::ToKey {
                 key: Decodable::consensus_decode(r)?,
             }),
+            0x3 => Ok(TxOutTarget::ToTaggedKey {
+                key: Decodable::consensus_decode(r)?,
+                view_tag: Decodable::consensus_decode(r)?,
+            }),
             _ => Err(encode::Error::ParseFailed("Invalid output type")),
         }
     }
@@ -898,6 +930,11 @@ impl crate::consensus::encode::Encodable for TxOutTarget {
             TxOutTarget::ToKey { key } => {
                 let len = 0x2u8.consensus_encode(w)?;
                 Ok(len + key.consensus_encode(w)?)
+            }
+            TxOutTarget::ToTaggedKey { key, view_tag } => {
+                let mut len = 0x3u8.consensus_encode(w)?;
+                len += key.consensus_encode(w)?;
+                Ok(len + view_tag.consensus_encode(w)?)
             }
             _ => Err(io::Error::new(
                 io::ErrorKind::Interrupted,
