@@ -181,7 +181,7 @@ impl_consensus_encoding!(MultisigOut, c);
 // ====================================================================
 /// Diffie-Hellman info, mask and amount for transaction before `Bulletproof2` and only 8-bytes
 /// hash for the amount in `Bulletproof2` type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub enum EcdhInfo {
@@ -347,7 +347,7 @@ impl crate::consensus::encode::Encodable for EcdhInfo {
 
 // ====================================================================
 /// Borromean signature for range commitment.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct BoroSig {
@@ -363,7 +363,7 @@ impl_consensus_encoding!(BoroSig, s0, s1, ee);
 
 // ====================================================================
 /// Contains the necessary keys to represent Mlsag signature.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct MgSig {
@@ -387,7 +387,7 @@ impl crate::consensus::encode::Encodable for MgSig {
 
 // ====================================================================
 /// Clsag signature.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_snake_case)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
@@ -414,7 +414,7 @@ impl crate::consensus::encode::Encodable for Clsag {
 
 // ====================================================================
 /// Range signature for range commitment.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_snake_case)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
@@ -429,7 +429,7 @@ impl_consensus_encoding!(RangeSig, asig, Ci);
 
 // ====================================================================
 /// Bulletproof format.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_snake_case)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
@@ -462,7 +462,7 @@ impl_consensus_encoding!(Bulletproof, A, S, T1, T2, taux, mu, L, R, a, b, t);
 
 // ====================================================================
 /// BulletproofPlus format.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_snake_case)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
@@ -489,7 +489,7 @@ impl_consensus_encoding!(BulletproofPlus, A, A1, B, r1, s1, d1, L, R);
 
 // ====================================================================
 /// RingCt base signature format.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct RctSigBase {
@@ -688,7 +688,7 @@ impl crate::consensus::encode::Encodable for RctType {
 
 // ====================================================================
 /// Prunable part of RingCt signature format.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_snake_case)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
@@ -861,7 +861,7 @@ impl RctSigPrunable {
 
 // ====================================================================
 /// A RingCt signature.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct RctSig {
@@ -883,7 +883,7 @@ impl fmt::Display for RctSig {
 
 // ====================================================================
 /// A raw signature.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct Signature {
