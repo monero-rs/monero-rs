@@ -465,7 +465,7 @@ impl<T: Encodable> Encodable for [T] {
 impl<T: Encodable> Encodable for Vec<T> {
     #[inline]
     fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
-        (&self[..]).consensus_encode(w)
+        self[..].consensus_encode(w)
     }
 }
 
@@ -516,7 +516,7 @@ macro_rules! encode_sized_vec {
 impl<T: Encodable> Encodable for Box<[T]> {
     #[inline]
     fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
-        (&self[..]).consensus_encode(w)
+        self[..].consensus_encode(w)
     }
 }
 
