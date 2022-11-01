@@ -534,7 +534,7 @@ impl hash::Hashable for TransactionPrefix {
 ///
 /// As transaction implements [`hash::Hashable`] it is possible to generate the transaction hash
 /// with `tx.hash()`.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct Transaction {

@@ -29,7 +29,7 @@ use std::fmt;
 
 /// A block header containing the version, the mining timestamp, the previous block hash and the
 /// nonce.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct BlockHeader {
@@ -66,7 +66,7 @@ impl_consensus_encoding!(
 
 /// A full block with the mining transaction and the commitments (hash) to all included
 /// transaction.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct Block {
