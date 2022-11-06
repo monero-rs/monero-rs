@@ -214,7 +214,7 @@ impl EcdhInfo {
             // ecdhDecode in rctOps.cpp else
             EcdhInfo::Standard { mask, amount } => {
                 let shared_sec1 = hash::Hash::new(shared_key.as_bytes()).to_bytes();
-                let shared_sec2 = hash::Hash::new(&shared_sec1).to_bytes();
+                let shared_sec2 = hash::Hash::new(shared_sec1).to_bytes();
                 let mask_scalar = Scalar::from_bytes_mod_order(mask.key)
                     - Scalar::from_bytes_mod_order(shared_sec1);
 
