@@ -178,7 +178,8 @@ fn deserialize_transaction_11() {
     let extra = hex::decode("3e01eef7d65dcbe97e40bc1e79d0b810b662981a2f402005e07bc61340abb3813d9b021b6d696e65786d722e636f6d29011300000000030000000000000000").unwrap();
     let key =
         PublicKey::from_str("6cb8ab2153b04c9b955e444b026c38b3dab0b033a8607c66aa59e45b30586601")
-            .expect("correct pubkey");
+            .expect("correct pubkey")
+            .to_bytes();
     assert_eq!(
         TransactionPrefix {
             version: VarInt(2),
@@ -205,6 +206,21 @@ fn deserialize_transaction_12() {
     assert_eq!(hex, serialize(&tx));
     assert_eq!(
         "50062431e5c6a389cb379dc4d28e17cbe7d15df117611e4564676936b68f1b5d",
+        format!("{:02x}", tx.hash())
+    );
+}
+
+#[test]
+fn deserialize_transaction_13() {
+    // Transaction with invalid point
+    let hex = hex::decode("029cc06a01ffe0bf6a01e1c2c2b5cb60023948fa315528938a9cb8a278c543b7861e77198f489ab457d3ddeb77944b69b22b017f2c3e135de2b12357364f933c9f07750e77a707c84e65ac9712292f0d2914bf0208000000986cc78d0000").unwrap();
+    let tx = deserialize::<Transaction>(&hex[..]);
+    assert!(tx.is_ok());
+    let tx = tx.unwrap();
+    assert_eq!(tx.prefix.outputs[0].get_pubkeys(), None);
+    assert_eq!(hex, serialize(&tx));
+    assert_eq!(
+        "4ba024a944a978d6821302910d909e33547ba2ec8b45489bbb6cbc89482ee2d7",
         format!("{:02x}", tx.hash())
     );
 }
