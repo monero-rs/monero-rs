@@ -67,7 +67,7 @@ jobs:
         override: true
         profile: minimal
 
-    - uses: Swatinem/rust-cache@v2.0.0
+    - uses: Swatinem/rust-cache@v2.2.0
 
     - name: Build (default)
       uses: actions-rs/cargo@v1
@@ -112,7 +112,7 @@ jobs:
         override: true
         profile: minimal
 
-    - uses: Swatinem/rust-cache@v2.0.0
+    - uses: Swatinem/rust-cache@v2.2.0
 
     - name: Run tests
       uses: actions-rs/cargo@v1
