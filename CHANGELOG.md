@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- deserialization of txs with invalid points [@Boog900](https://github.com/Boog900) ([#132](https://github.com/monero-rs/monero-rs/pull/132))
+
 ## [0.18.0] - 2022-09-05
 
 ### Added
