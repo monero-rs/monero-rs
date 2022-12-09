@@ -58,6 +58,9 @@ pub enum Error {
     /// Missing commitment.
     #[error("Missing commitment")]
     MissingCommitment,
+    /// Invalid extra data.
+    #[error("Invalid extra data")]
+    InvalidExtraData,
 }
 
 /// The key image used in transaction inputs [`TxIn`] to commit to the use of an output one-time
@@ -398,14 +401,49 @@ pub struct TransactionPrefix {
     /// Array of outputs.
     pub outputs: Vec<TxOut>,
     /// Additional data associated with a transaction.
-    pub extra: ExtraField,
+    pub extra: RawExtraField,
+}
+
+/// Raw extra data.
+///
+/// Exact contents of this field are not covered by consensus
+/// therefore an additional best-effort parse method is provided separately.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate", transparent))]
+pub struct RawExtraField(pub Vec<u8>);
+
+impl RawExtraField {
+    /// Try parsing extra data as collecion of sub fields.
+    pub fn try_parse(&self) -> Result<ExtraField, encode::Error> {
+        crate::consensus::encode::deserialize(&serialize(self))
+    }
+}
+
+impl From<ExtraField> for RawExtraField {
+    fn from(extra: ExtraField) -> Self {
+        crate::consensus::encode::deserialize(&serialize(&extra)).unwrap()
+    }
+}
+
+#[sealed::sealed]
+impl crate::consensus::encode::Encodable for RawExtraField {
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        self.0.consensus_encode(w)
+    }
+}
+
+impl Decodable for RawExtraField {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
+        Decodable::consensus_decode(r).map(Self)
+    }
 }
 
 impl fmt::Display for TransactionPrefix {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "Version: {}", self.version)?;
         writeln!(fmt, "Unlock time: {}", self.unlock_time)?;
-        writeln!(fmt, "Extra field: {}", self.extra)
+        writeln!(fmt, "Extra field: {}", hex::encode(&self.extra.0))
     }
 }
 
@@ -429,16 +467,6 @@ impl TransactionPrefix {
         self.outputs.len()
     }
 
-    /// Return the transaction public key present in extra field.
-    pub fn tx_pubkey(&self) -> Option<PublicKey> {
-        self.extra.tx_pubkey()
-    }
-
-    /// Return the additional public keys present in extra field.
-    pub fn tx_additional_pubkeys(&self) -> Option<Vec<PublicKey>> {
-        self.extra.tx_additional_pubkeys()
-    }
-
     /// Iterate over transaction outputs and find outputs related to view pair.
     pub fn check_outputs(
         &self,
@@ -458,10 +486,14 @@ impl TransactionPrefix {
         checker: &SubKeyChecker,
         rct_sig_base: Option<&RctSigBase>,
     ) -> Result<Vec<OwnedTxOut>, Error> {
-        let tx_pubkeys = match self.tx_additional_pubkeys() {
+        let extra_field = self
+            .extra
+            .try_parse()
+            .map_err(|_| Error::InvalidExtraData)?;
+        let tx_pubkeys = match extra_field.tx_additional_pubkeys() {
             Some(additional_keys) => additional_keys,
             None => {
-                let tx_pubkey = self.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
+                let tx_pubkey = extra_field.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
 
                 // if we don't have additional_pubkeys, we check every output against the single `tx_pubkey`
                 vec![tx_pubkey; self.outputs.len()]
@@ -572,16 +604,6 @@ impl Transaction {
     /// Return the number of transaction's outputs.
     pub fn nb_outputs(&self) -> usize {
         self.prefix().outputs.len()
-    }
-
-    /// Return the transaction public key present in extra field.
-    pub fn tx_pubkey(&self) -> Option<PublicKey> {
-        self.prefix().extra.tx_pubkey()
-    }
-
-    /// Return the additional public keys present in extra field.
-    pub fn tx_additional_pubkeys(&self) -> Option<Vec<PublicKey>> {
-        self.prefix().extra.tx_additional_pubkeys()
     }
 
     /// Iterate over transaction outputs and find outputs related to view pair.
@@ -1192,7 +1214,8 @@ mod tests {
                     SubField::Nonce(vec![
                         196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     ]),
-                ]),
+                ])
+                .into(),
             },
             signatures: vec![],
             rct_signatures: RctSig {
@@ -1246,7 +1269,8 @@ mod tests {
                     SubField::Nonce(vec![
                         196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     ]),
-                ]),
+                ])
+                .into(),
             },
             signatures: vec![],
             rct_signatures: RctSig { sig: None, p: None },
