@@ -3,6 +3,7 @@ name = "monero"
 version = "0.18.0"
 authors = ["Monero Rust Contributors", "h4sh3d <h4sh3d@protonmail.com>"]
 documentation = "https://docs.rs/monero"
+edition = "2021"
 homepage = "https://github.com/monero-rs/monero-rs"
 include = [
   "src/*",
@@ -14,12 +15,8 @@ keywords = ["monero"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/monero-rs/monero-rs"
+rust-version = "1.56.1"
 description = "Rust Monero Library."
-
-edition = "2018"
-
-[package.metadata]
-msrv = "1.51.0"
 
 [features]
 default = ["full"]
@@ -43,7 +40,7 @@ serde_json = "1"
 serde_test = "1"
 
 [dependencies.fixed-hash]
-version = "0.7.0"
+version = "0.8.0"
 default-features = false
 
 [package.metadata.docs.rs]
