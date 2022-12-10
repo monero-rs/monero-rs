@@ -58,9 +58,6 @@ pub enum Error {
     /// Missing commitment.
     #[error("Missing commitment")]
     MissingCommitment,
-    /// Invalid extra data.
-    #[error("Invalid extra data")]
-    InvalidExtraData,
 }
 
 /// The key image used in transaction inputs [`TxIn`] to commit to the use of an output one-time
@@ -333,6 +330,31 @@ impl ExtraField {
             _ => None,
         })
     }
+
+    /// Attempts to parse the extra field if the extra field cannot be parsed completely
+    /// the parts that can be parsed are returned as an Err
+    pub fn try_parse(raw_extra: &RawExtraField) -> Result<Self, Self> {
+        let mut fields: Vec<SubField> = vec![];
+        let bytes = &raw_extra.0;
+        let mut decoder = io::Cursor::new(&bytes[..]);
+
+        let mut err = false;
+        // Decode each extra field
+        while decoder.position() < bytes.len() as u64 {
+            let field: Result<SubField, encode::Error> = Decodable::consensus_decode(&mut decoder);
+            if let Ok(sub_field) = field {
+                fields.push(sub_field);
+            } else {
+                err = true;
+            }
+        }
+
+        if err {
+            Err(ExtraField(fields))
+        } else {
+            Ok(ExtraField(fields))
+        }
+    }
 }
 
 /// Each sub-field contains a sub-field tag followed by sub-field content of fixed or variable
@@ -351,12 +373,12 @@ pub enum SubField {
     Padding(u8),
     /// Merge mining infos: `depth` and `merkle_root`, fixed length of one VarInt and 32 bytes
     /// hash.
-    MergeMining(VarInt, hash::Hash),
+    MergeMining(Option<VarInt>, hash::Hash),
     /// Additional public keys for [`Subaddresses`](crate::cryptonote::subaddress) outputs,
     /// variable length of `n` additional public keys.
     AdditionalPublickKey(Vec<PublicKey>),
     /// Mysterious `MinerGate`, variable length.
-    MysteriousMinerGate(String),
+    MysteriousMinerGate(Vec<u8>),
 }
 
 impl fmt::Display for SubField {
@@ -368,7 +390,9 @@ impl fmt::Display for SubField {
                 writeln!(fmt, "Nonce: {}", nonce_str)
             }
             SubField::Padding(padding) => writeln!(fmt, "Padding: {}", padding),
-            SubField::MergeMining(code, hash) => writeln!(fmt, "Merge mining: {}, {}", code, hash),
+            SubField::MergeMining(code, hash) => {
+                writeln!(fmt, "Merge mining: {:?}, {}", code, hash)
+            }
             SubField::AdditionalPublickKey(keys) => {
                 writeln!(fmt, "Additional publick keys: ")?;
                 for key in keys {
@@ -377,9 +401,51 @@ impl fmt::Display for SubField {
                 Ok(())
             }
             SubField::MysteriousMinerGate(miner_gate) => {
-                writeln!(fmt, "Mysterious miner gate: {}", miner_gate)
+                writeln!(fmt, "Mysterious miner gate: {:?}", miner_gate)
             }
         }
+    }
+}
+
+/// Raw extra data.
+///
+/// Exact contents of this field are not covered by consensus
+/// therefore an additional best-effort parse method is provided separately.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate", transparent))]
+pub struct RawExtraField(pub Vec<u8>);
+
+impl RawExtraField {
+    /// Try parsing extra data as collection of sub fields. This will return what
+    /// can be parsed from the raw extra field, if you want a function that returns
+    /// an err if the extra can't be parsed use ExtraField::try_parse()
+    pub fn try_parse(&self) -> ExtraField {
+        let extra = ExtraField::try_parse(self);
+        if let Err(extra) = extra {
+            extra
+        } else {
+            extra.unwrap()
+        }
+    }
+}
+
+impl From<ExtraField> for RawExtraField {
+    fn from(extra: ExtraField) -> Self {
+        crate::consensus::encode::deserialize(&serialize(&extra)).unwrap()
+    }
+}
+
+#[sealed::sealed]
+impl crate::consensus::encode::Encodable for RawExtraField {
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        self.0.consensus_encode(w)
+    }
+}
+
+impl Decodable for RawExtraField {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
+        Decodable::consensus_decode(r).map(Self)
     }
 }
 
@@ -402,41 +468,6 @@ pub struct TransactionPrefix {
     pub outputs: Vec<TxOut>,
     /// Additional data associated with a transaction.
     pub extra: RawExtraField,
-}
-
-/// Raw extra data.
-///
-/// Exact contents of this field are not covered by consensus
-/// therefore an additional best-effort parse method is provided separately.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "serde_crate", transparent))]
-pub struct RawExtraField(pub Vec<u8>);
-
-impl RawExtraField {
-    /// Try parsing extra data as collecion of sub fields.
-    pub fn try_parse(&self) -> Result<ExtraField, encode::Error> {
-        crate::consensus::encode::deserialize(&serialize(self))
-    }
-}
-
-impl From<ExtraField> for RawExtraField {
-    fn from(extra: ExtraField) -> Self {
-        crate::consensus::encode::deserialize(&serialize(&extra)).unwrap()
-    }
-}
-
-#[sealed::sealed]
-impl crate::consensus::encode::Encodable for RawExtraField {
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
-        self.0.consensus_encode(w)
-    }
-}
-
-impl Decodable for RawExtraField {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
-        Decodable::consensus_decode(r).map(Self)
-    }
 }
 
 impl fmt::Display for TransactionPrefix {
@@ -486,10 +517,7 @@ impl TransactionPrefix {
         checker: &SubKeyChecker,
         rct_sig_base: Option<&RctSigBase>,
     ) -> Result<Vec<OwnedTxOut>, Error> {
-        let extra_field = self
-            .extra
-            .try_parse()
-            .map_err(|_| Error::InvalidExtraData)?;
+        let extra_field = self.extra.try_parse();
         let tx_pubkeys = match extra_field.tx_additional_pubkeys() {
             Some(additional_keys) => additional_keys,
             None => {
@@ -819,12 +847,10 @@ impl Decodable for SubField {
         match tag {
             0x0 => {
                 let mut i = 0;
-                loop {
-                    // Consume all bytes until the end of cursor
-                    // A new cursor must be created when parsing extra bytes otherwise
-                    // transaction bytes will be consumed
-                    //
-                    // This works because extra padding must be the last one
+                for _ in 1..u8::MAX {
+                    // Consume all bytes until the end of cursor or until 255 bytes have
+                    // been consumed. A new cursor must be created when parsing extra bytes
+                    // otherwise transaction bytes will be consumed
                     let byte: Result<u8, encode::Error> = Decodable::consensus_decode(r);
                     match byte {
                         Ok(_) => {
@@ -837,10 +863,17 @@ impl Decodable for SubField {
             }
             0x1 => Ok(SubField::TxPublicKey(Decodable::consensus_decode(r)?)),
             0x2 => Ok(SubField::Nonce(Decodable::consensus_decode(r)?)),
-            0x3 => Ok(SubField::MergeMining(
-                Decodable::consensus_decode(r)?,
-                Decodable::consensus_decode(r)?,
-            )),
+            0x3 => {
+                let size = VarInt::consensus_decode(r)?;
+                let mut depth = None;
+                if size.0 == 33 {
+                    depth = Some(VarInt::consensus_decode(r)?);
+                }
+                Ok(SubField::MergeMining(
+                    depth,
+                    Decodable::consensus_decode(r)?,
+                ))
+            }
             0x4 => Ok(SubField::AdditionalPublickKey(Decodable::consensus_decode(
                 r,
             )?)),
@@ -874,16 +907,23 @@ impl crate::consensus::encode::Encodable for SubField {
             }
             SubField::MergeMining(ref depth, ref merkle_root) => {
                 len += 0x3u8.consensus_encode(w)?;
-                len += depth.consensus_encode(w)?;
+                match depth {
+                    Some(dep) => {
+                        len += VarInt(33).consensus_encode(w)?;
+                        len += dep.consensus_encode(w)?;
+                    }
+                    None => len += VarInt(32).consensus_encode(w)?,
+                }
                 Ok(len + merkle_root.consensus_encode(w)?)
             }
             SubField::AdditionalPublickKey(ref pubkeys) => {
                 len += 0x4u8.consensus_encode(w)?;
                 Ok(len + pubkeys.consensus_encode(w)?)
             }
-            SubField::MysteriousMinerGate(ref string) => {
+            SubField::MysteriousMinerGate(ref data) => {
                 len += 0xdeu8.consensus_encode(w)?;
-                Ok(len + string.consensus_encode(w)?)
+                data.consensus_encode(w)?;
+                Ok(len)
             }
         }
     }
