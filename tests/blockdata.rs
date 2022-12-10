@@ -13,9 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-use monero::blockdata::transaction::{
-    ExtraField, Transaction, TransactionPrefix, TxIn, TxOut, TxOutTarget,
-};
+use monero::blockdata::transaction::{Transaction, TransactionPrefix, TxIn, TxOut, TxOutTarget};
 use monero::consensus::encode::{deserialize, serialize, VarInt};
 use monero::cryptonote::hash::Hashable;
 use monero::util::key::PublicKey;
@@ -175,7 +173,7 @@ fn deserialize_transaction_11() {
 
     println!("{:#?}", tx);
 
-    let extra = hex::decode("3e01eef7d65dcbe97e40bc1e79d0b810b662981a2f402005e07bc61340abb3813d9b021b6d696e65786d722e636f6d29011300000000030000000000000000").unwrap();
+    let extra = deserialize(&hex::decode("3e01eef7d65dcbe97e40bc1e79d0b810b662981a2f402005e07bc61340abb3813d9b021b6d696e65786d722e636f6d29011300000000030000000000000000").unwrap()).unwrap();
     let key =
         PublicKey::from_str("6cb8ab2153b04c9b955e444b026c38b3dab0b033a8607c66aa59e45b30586601")
             .expect("correct pubkey")
@@ -191,7 +189,7 @@ fn deserialize_transaction_11() {
                 amount: VarInt(600862090000),
                 target: TxOutTarget::ToKey { key },
             }],
-            extra: deserialize::<ExtraField>(&extra[..]).unwrap(),
+            extra,
         },
         *tx.prefix()
     );
