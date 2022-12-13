@@ -110,12 +110,12 @@ pub enum TxOutTarget {
     /// A one-time public key output.
     ToKey {
         /// The one-time public key of that output.
-        key: PublicKey,
+        key: [u8; 32],
     },
     /// A one-time public key output with a view tag.
     ToTaggedKey {
         /// The one-time public key of that output.
-        key: PublicKey,
+        key: [u8; 32],
         /// The view tag of that output.
         view_tag: u8,
     },
@@ -131,17 +131,41 @@ impl TxOutTarget {
     pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
         match self {
             TxOutTarget::ToScript { keys, .. } => Some(keys.clone()),
-            TxOutTarget::ToKey { key } => Some(vec![*key]),
-            TxOutTarget::ToTaggedKey { key, .. } => Some(vec![*key]),
+            TxOutTarget::ToKey { key } => {
+                let key = PublicKey::from_slice(key);
+                if let Ok(key) = key {
+                    return Some(vec![key]);
+                }
+                None
+            }
+            TxOutTarget::ToTaggedKey { key, .. } => {
+                let key = PublicKey::from_slice(key);
+                if let Ok(key) = key {
+                    return Some(vec![key]);
+                }
+                None
+            }
             TxOutTarget::ToScriptHash { .. } => None,
         }
     }
 
     /// Returns the one-time public key if this is a [`TxOutTarget::ToKey`] or [`TxOutTarget::ToTaggedKey`] and `None` otherwise.
-    pub fn as_one_time_key(&self) -> Option<&PublicKey> {
+    pub fn as_one_time_key(&self) -> Option<PublicKey> {
         match self {
-            TxOutTarget::ToKey { key } => Some(key),
-            TxOutTarget::ToTaggedKey { key, .. } => Some(key),
+            TxOutTarget::ToKey { key } => {
+                let key = PublicKey::from_slice(key);
+                if let Ok(key) = key {
+                    return Some(key);
+                }
+                None
+            }
+            TxOutTarget::ToTaggedKey { key, .. } => {
+                let key = PublicKey::from_slice(key);
+                if let Ok(key) = key {
+                    return Some(key);
+                }
+                None
+            }
             _ => None,
         }
     }
@@ -539,7 +563,7 @@ impl TransactionPrefix {
                 if !out.target.check_view_tag(keygen.rv, i as u8) {
                     return None;
                 }
-                let sub_index = checker.check_with_key_generator(keygen, i, key)?;
+                let sub_index = checker.check_with_key_generator(keygen, i, &key)?;
 
                 Some((i, out, sub_index, tx_pubkey))
             })
@@ -1226,7 +1250,8 @@ mod tests {
                             .unwrap()
                             .as_slice(),
                         )
-                        .unwrap(),
+                        .unwrap()
+                        .to_bytes(),
                     },
                 }],
                 extra: ExtraField(vec![
@@ -1281,7 +1306,8 @@ mod tests {
                             .unwrap()
                             .as_slice(),
                         )
-                        .unwrap(),
+                        .unwrap()
+                        .to_bytes(),
                     },
                 }],
                 extra: ExtraField(vec![

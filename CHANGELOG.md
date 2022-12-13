@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix deserialization of certain `ExtraField` fields and remove the need for the extra data to be parsable by [@Boog900](https://github.com/Boog900) ([#123](https://github.com/monero-rs/monero-rs/pull/123)) and [@vorot93](https://github.com/vorot93) ([#136](https://github.com/monero-rs/monero-rs/pull/136))
+- Deserialization of transactions with outputs to invalid points on Edwards curve [@Boog900](https://github.com/Boog900) ([#132](https://github.com/monero-rs/monero-rs/pull/132))
 
 ## [0.18.0] - 2022-09-05
 
