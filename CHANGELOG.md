@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tree hash algorithm to compute tree hash as defined by Cryptonote by [@vorot93](https://github.com/vorot93) ([#130](https://github.com/monero-rs/monero-rs/pull/130))
+
 ### Changed
 
-- Minimum Supported Rust Version is now `1.56.1` and `edition 2021` is enabled by @vorot93 ([#125](https://github.com/monero-rs/monero-rs/pull/125))
-- Update `fixed-hash` version to `0.8.0` by @vorot93 ([#125](https://github.com/monero-rs/monero-rs/pull/125))
+- Minimum Supported Rust Version is now `1.56.1` and `edition 2021` is enabled by [@vorot93](https://github.com/vorot93) ([#125](https://github.com/monero-rs/monero-rs/pull/125))
+- Update `fixed-hash` version to `0.8.0` by [@vorot93](https://github.com/vorot93) ([#125](https://github.com/monero-rs/monero-rs/pull/125))
 
 ### Fixed
 
