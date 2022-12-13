@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Minimum Supported Rust Version is now `1.56.1` and `edition 2021` is enabled by @vorot93 ([#125](https://github.com/monero-rs/monero-rs/pull/125))
+- Update `fixed-hash` version to `0.8.0` by @vorot93 ([#125](https://github.com/monero-rs/monero-rs/pull/125))
+
+### Fixed
+
+- Fix deserialization of certain `ExtraField` fields and remove the need for the extra data to be parsable by [@Boog900](https://github.com/Boog900) ([#123](https://github.com/monero-rs/monero-rs/pull/123)) and [@vorot93](https://github.com/vorot93) ([#136](https://github.com/monero-rs/monero-rs/pull/136))
+
 ## [0.18.0] - 2022-09-05
 
 ### Added

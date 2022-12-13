@@ -330,6 +330,31 @@ impl ExtraField {
             _ => None,
         })
     }
+
+    /// Attempts to parse the extra field if the extra field cannot be parsed completely
+    /// the parts that can be parsed are returned as an Err
+    pub fn try_parse(raw_extra: &RawExtraField) -> Result<Self, Self> {
+        let mut fields: Vec<SubField> = vec![];
+        let bytes = &raw_extra.0;
+        let mut decoder = io::Cursor::new(&bytes[..]);
+
+        let mut err = false;
+        // Decode each extra field
+        while decoder.position() < bytes.len() as u64 {
+            let field: Result<SubField, encode::Error> = Decodable::consensus_decode(&mut decoder);
+            if let Ok(sub_field) = field {
+                fields.push(sub_field);
+            } else {
+                err = true;
+            }
+        }
+
+        if err {
+            Err(ExtraField(fields))
+        } else {
+            Ok(ExtraField(fields))
+        }
+    }
 }
 
 /// Each sub-field contains a sub-field tag followed by sub-field content of fixed or variable
@@ -348,12 +373,12 @@ pub enum SubField {
     Padding(u8),
     /// Merge mining infos: `depth` and `merkle_root`, fixed length of one VarInt and 32 bytes
     /// hash.
-    MergeMining(VarInt, hash::Hash),
+    MergeMining(Option<VarInt>, hash::Hash),
     /// Additional public keys for [`Subaddresses`](crate::cryptonote::subaddress) outputs,
     /// variable length of `n` additional public keys.
     AdditionalPublickKey(Vec<PublicKey>),
     /// Mysterious `MinerGate`, variable length.
-    MysteriousMinerGate(String),
+    MysteriousMinerGate(Vec<u8>),
 }
 
 impl fmt::Display for SubField {
@@ -365,7 +390,9 @@ impl fmt::Display for SubField {
                 writeln!(fmt, "Nonce: {}", nonce_str)
             }
             SubField::Padding(padding) => writeln!(fmt, "Padding: {}", padding),
-            SubField::MergeMining(code, hash) => writeln!(fmt, "Merge mining: {}, {}", code, hash),
+            SubField::MergeMining(code, hash) => {
+                writeln!(fmt, "Merge mining: {:?}, {}", code, hash)
+            }
             SubField::AdditionalPublickKey(keys) => {
                 writeln!(fmt, "Additional publick keys: ")?;
                 for key in keys {
@@ -374,9 +401,51 @@ impl fmt::Display for SubField {
                 Ok(())
             }
             SubField::MysteriousMinerGate(miner_gate) => {
-                writeln!(fmt, "Mysterious miner gate: {}", miner_gate)
+                writeln!(fmt, "Mysterious miner gate: {:?}", miner_gate)
             }
         }
+    }
+}
+
+/// Raw extra data.
+///
+/// Exact contents of this field are not covered by consensus
+/// therefore an additional best-effort parse method is provided separately.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate", transparent))]
+pub struct RawExtraField(pub Vec<u8>);
+
+impl RawExtraField {
+    /// Try parsing extra data as collection of sub fields. This will return what
+    /// can be parsed from the raw extra field, if you want a function that returns
+    /// an err if the extra can't be parsed use ExtraField::try_parse()
+    pub fn try_parse(&self) -> ExtraField {
+        let extra = ExtraField::try_parse(self);
+        if let Err(extra) = extra {
+            extra
+        } else {
+            extra.unwrap()
+        }
+    }
+}
+
+impl From<ExtraField> for RawExtraField {
+    fn from(extra: ExtraField) -> Self {
+        crate::consensus::encode::deserialize(&serialize(&extra)).unwrap()
+    }
+}
+
+#[sealed::sealed]
+impl crate::consensus::encode::Encodable for RawExtraField {
+    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        self.0.consensus_encode(w)
+    }
+}
+
+impl Decodable for RawExtraField {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
+        Decodable::consensus_decode(r).map(Self)
     }
 }
 
@@ -398,14 +467,14 @@ pub struct TransactionPrefix {
     /// Array of outputs.
     pub outputs: Vec<TxOut>,
     /// Additional data associated with a transaction.
-    pub extra: ExtraField,
+    pub extra: RawExtraField,
 }
 
 impl fmt::Display for TransactionPrefix {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "Version: {}", self.version)?;
         writeln!(fmt, "Unlock time: {}", self.unlock_time)?;
-        writeln!(fmt, "Extra field: {}", self.extra)
+        writeln!(fmt, "Extra field: {}", hex::encode(&self.extra.0))
     }
 }
 
@@ -429,16 +498,6 @@ impl TransactionPrefix {
         self.outputs.len()
     }
 
-    /// Return the transaction public key present in extra field.
-    pub fn tx_pubkey(&self) -> Option<PublicKey> {
-        self.extra.tx_pubkey()
-    }
-
-    /// Return the additional public keys present in extra field.
-    pub fn tx_additional_pubkeys(&self) -> Option<Vec<PublicKey>> {
-        self.extra.tx_additional_pubkeys()
-    }
-
     /// Iterate over transaction outputs and find outputs related to view pair.
     pub fn check_outputs(
         &self,
@@ -458,10 +517,11 @@ impl TransactionPrefix {
         checker: &SubKeyChecker,
         rct_sig_base: Option<&RctSigBase>,
     ) -> Result<Vec<OwnedTxOut>, Error> {
-        let tx_pubkeys = match self.tx_additional_pubkeys() {
+        let extra_field = self.extra.try_parse();
+        let tx_pubkeys = match extra_field.tx_additional_pubkeys() {
             Some(additional_keys) => additional_keys,
             None => {
-                let tx_pubkey = self.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
+                let tx_pubkey = extra_field.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
 
                 // if we don't have additional_pubkeys, we check every output against the single `tx_pubkey`
                 vec![tx_pubkey; self.outputs.len()]
@@ -572,16 +632,6 @@ impl Transaction {
     /// Return the number of transaction's outputs.
     pub fn nb_outputs(&self) -> usize {
         self.prefix().outputs.len()
-    }
-
-    /// Return the transaction public key present in extra field.
-    pub fn tx_pubkey(&self) -> Option<PublicKey> {
-        self.prefix().extra.tx_pubkey()
-    }
-
-    /// Return the additional public keys present in extra field.
-    pub fn tx_additional_pubkeys(&self) -> Option<Vec<PublicKey>> {
-        self.prefix().extra.tx_additional_pubkeys()
     }
 
     /// Iterate over transaction outputs and find outputs related to view pair.
@@ -759,26 +809,6 @@ impl hash::Hashable for Transaction {
 
 // ----------------------------------------------------------------------------------------------------------------
 
-impl Decodable for ExtraField {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<ExtraField, encode::Error> {
-        let mut fields: Vec<SubField> = vec![];
-        let bytes: Vec<u8> = Decodable::consensus_decode(r)?;
-        let mut decoder = io::Cursor::new(&bytes[..]);
-        // Decode each extra field
-        while decoder.position() < bytes.len() as u64 {
-            fields.push(Decodable::consensus_decode(&mut decoder)?);
-        }
-        // Fail if data are not consumed entirely.
-        if decoder.position() as usize == bytes.len() {
-            Ok(ExtraField(fields))
-        } else {
-            Err(encode::Error::ParseFailed(
-                "data not consumed entirely when explicitly deserializing",
-            ))
-        }
-    }
-}
-
 #[sealed]
 impl crate::consensus::encode::Encodable for ExtraField {
     fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
@@ -797,12 +827,10 @@ impl Decodable for SubField {
         match tag {
             0x0 => {
                 let mut i = 0;
-                loop {
-                    // Consume all bytes until the end of cursor
-                    // A new cursor must be created when parsing extra bytes otherwise
-                    // transaction bytes will be consumed
-                    //
-                    // This works because extra padding must be the last one
+                for _ in 1..u8::MAX {
+                    // Consume all bytes until the end of cursor or until 255 bytes have
+                    // been consumed. A new cursor must be created when parsing extra bytes
+                    // otherwise transaction bytes will be consumed
                     let byte: Result<u8, encode::Error> = Decodable::consensus_decode(r);
                     match byte {
                         Ok(_) => {
@@ -815,10 +843,17 @@ impl Decodable for SubField {
             }
             0x1 => Ok(SubField::TxPublicKey(Decodable::consensus_decode(r)?)),
             0x2 => Ok(SubField::Nonce(Decodable::consensus_decode(r)?)),
-            0x3 => Ok(SubField::MergeMining(
-                Decodable::consensus_decode(r)?,
-                Decodable::consensus_decode(r)?,
-            )),
+            0x3 => {
+                let size = VarInt::consensus_decode(r)?;
+                let mut depth = None;
+                if size.0 == 33 {
+                    depth = Some(VarInt::consensus_decode(r)?);
+                }
+                Ok(SubField::MergeMining(
+                    depth,
+                    Decodable::consensus_decode(r)?,
+                ))
+            }
             0x4 => Ok(SubField::AdditionalPublickKey(Decodable::consensus_decode(
                 r,
             )?)),
@@ -852,16 +887,23 @@ impl crate::consensus::encode::Encodable for SubField {
             }
             SubField::MergeMining(ref depth, ref merkle_root) => {
                 len += 0x3u8.consensus_encode(w)?;
-                len += depth.consensus_encode(w)?;
+                match depth {
+                    Some(dep) => {
+                        len += VarInt(33).consensus_encode(w)?;
+                        len += dep.consensus_encode(w)?;
+                    }
+                    None => len += VarInt(32).consensus_encode(w)?,
+                }
                 Ok(len + merkle_root.consensus_encode(w)?)
             }
             SubField::AdditionalPublickKey(ref pubkeys) => {
                 len += 0x4u8.consensus_encode(w)?;
                 Ok(len + pubkeys.consensus_encode(w)?)
             }
-            SubField::MysteriousMinerGate(ref string) => {
+            SubField::MysteriousMinerGate(ref data) => {
                 len += 0xdeu8.consensus_encode(w)?;
-                Ok(len + string.consensus_encode(w)?)
+                data.consensus_encode(w)?;
+                Ok(len)
             }
         }
     }
@@ -1047,16 +1089,16 @@ impl crate::consensus::encode::Encodable for Transaction {
 mod tests {
     use std::str::FromStr;
 
-    use super::{ExtraField, Transaction, TransactionPrefix};
+    use super::{ExtraField, RawExtraField, Transaction, TransactionPrefix};
     use crate::consensus::encode::{deserialize, deserialize_partial, serialize, VarInt};
     use crate::cryptonote::hash::Hashable;
     use crate::util::key::{PrivateKey, PublicKey, ViewPair};
     use crate::util::ringct::{RctSig, RctSigBase, RctType};
-    use crate::TxOut;
     use crate::{
         blockdata::transaction::{SubField, TxIn, TxOutTarget},
         cryptonote::onetime_key::SubKeyChecker,
     };
+    use crate::{Hash, TxOut};
 
     #[test]
     fn deserialize_transaction_prefix() {
@@ -1192,7 +1234,8 @@ mod tests {
                     SubField::Nonce(vec![
                         196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     ]),
-                ]),
+                ])
+                .into(),
             },
             signatures: vec![],
             rct_signatures: RctSig {
@@ -1246,7 +1289,8 @@ mod tests {
                     SubField::Nonce(vec![
                         196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     ]),
-                ]),
+                ])
+                .into(),
             },
             signatures: vec![],
             rct_signatures: RctSig { sig: None, p: None },
@@ -1255,5 +1299,154 @@ mod tests {
             tx.as_bytes().to_vec(),
             hex::encode(transaction.hash().0).as_bytes().to_vec()
         );
+    }
+
+    #[test]
+    fn merge_mining() {
+        // tx with MergeMining in extra field
+        // hash: 36817336e72ecf7adcff92815de96a0893c1ef777701f1386ebce5f7d9272151
+        let blob: &[u8] = &[
+            87, 1, 148, 79, 157, 245, 14, 118, 157, 164, 156, 100, 224, 252, 180, 225, 215, 127,
+            137, 5, 5, 101, 72, 235, 154, 127, 4, 145, 76, 45, 116, 177, 187, 175, 2, 17, 62, 19,
+            29, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 33, 1, 98, 184, 83, 234, 127, 87, 79,
+            180, 203, 221, 41, 173, 81, 137, 75, 171, 186, 235, 214, 142, 161, 82, 37, 80, 124, 82,
+            217, 229, 81, 235, 25, 149,
+        ];
+        let parsed_extra_field = vec![
+            SubField::TxPublicKey(
+                PublicKey::from_slice(
+                    hex::decode("944f9df50e769da49c64e0fcb4e1d77f8905056548eb9a7f04914c2d74b1bbaf")
+                        .unwrap()
+                        .as_slice(),
+                )
+                .unwrap(),
+            ),
+            SubField::Nonce(vec![62, 19, 29, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+            SubField::MergeMining(
+                Some(VarInt(1)),
+                Hash::from_slice(
+                    hex::decode("62b853ea7f574fb4cbdd29ad51894babbaebd68ea15225507c52d9e551eb1995")
+                        .unwrap()
+                        .as_slice(),
+                ),
+            ),
+        ];
+
+        let raw_extra_field = deserialize::<RawExtraField>(blob);
+        assert!(raw_extra_field.is_ok());
+        let extra_field = raw_extra_field.unwrap().try_parse();
+        assert_eq!(parsed_extra_field, extra_field.0);
+        assert_eq!(blob, serialize(&extra_field));
+    }
+
+    #[test]
+    fn mysterious_miner_gate() {
+        // tx with MysteriousMinerGate in extra field
+        // hash: 550e9d2e1cc8d1940d0215e1fec33b4970b2f19520fe0c5bda26e9d4a4dc029d
+        let blob: &[u8] = &[
+            67, 1, 236, 193, 11, 242, 79, 176, 138, 91, 10, 64, 84, 148, 97, 72, 251, 45, 228, 99,
+            152, 194, 246, 227, 241, 202, 198, 217, 26, 176, 237, 16, 20, 137, 222, 32, 207, 178,
+            51, 151, 236, 243, 250, 53, 101, 231, 200, 74, 181, 168, 88, 192, 92, 120, 213, 36,
+            147, 125, 53, 253, 90, 5, 164, 31, 186, 125, 50, 16,
+        ];
+        let parsed_extra_field = vec![
+            SubField::TxPublicKey(
+                PublicKey::from_slice(
+                    hex::decode("ecc10bf24fb08a5b0a4054946148fb2de46398c2f6e3f1cac6d91ab0ed101489")
+                        .unwrap()
+                        .as_slice(),
+                )
+                .unwrap(),
+            ),
+            SubField::MysteriousMinerGate(vec![
+                207, 178, 51, 151, 236, 243, 250, 53, 101, 231, 200, 74, 181, 168, 88, 192, 92,
+                120, 213, 36, 147, 125, 53, 253, 90, 5, 164, 31, 186, 125, 50, 16,
+            ]),
+        ];
+        let raw_extra_field = deserialize::<RawExtraField>(blob);
+        assert!(raw_extra_field.is_ok());
+        let extra_field = raw_extra_field.unwrap().try_parse();
+        assert_eq!(parsed_extra_field, extra_field.0);
+        assert_eq!(blob, serialize(&extra_field));
+    }
+
+    #[test]
+    fn additional_public_keys() {
+        // tx with AdditionalPublickKeys in extra field
+        // hash: 23fbc9f5b8ac1b6f896756c4a1382658daf1e8d371c1e01c5baf66c1fbaf39bd
+        let blob: &[u8] = &[
+            163, 1, 1, 198, 185, 25, 5, 10, 65, 48, 68, 117, 110, 50, 143, 10, 181, 20, 111, 64,
+            166, 2, 88, 181, 103, 30, 157, 108, 201, 114, 53, 124, 157, 250, 11, 4, 4, 242, 224,
+            19, 160, 246, 150, 183, 175, 255, 128, 175, 129, 246, 83, 247, 75, 39, 6, 81, 48, 10,
+            180, 15, 93, 21, 202, 5, 83, 205, 66, 79, 23, 114, 169, 134, 129, 169, 33, 57, 255,
+            108, 140, 75, 243, 61, 145, 131, 76, 15, 167, 117, 87, 106, 97, 236, 120, 45, 193, 237,
+            167, 21, 103, 154, 203, 113, 100, 26, 233, 137, 111, 149, 154, 72, 178, 134, 115, 143,
+            127, 54, 160, 10, 201, 30, 215, 236, 172, 18, 232, 129, 72, 139, 72, 177, 139, 236,
+            103, 244, 57, 193, 253, 117, 191, 34, 162, 247, 158, 8, 16, 150, 42, 219, 14, 207, 156,
+            16, 231, 116, 147, 79, 76, 213, 186, 255, 53, 79, 171, 246, 22,
+        ];
+
+        let parsed_extra_field = vec![
+            SubField::TxPublicKey(
+                PublicKey::from_slice(
+                    hex::decode("c6b919050a413044756e328f0ab5146f40a60258b5671e9d6cc972357c9dfa0b")
+                        .unwrap()
+                        .as_slice(),
+                )
+                .unwrap(),
+            ),
+            SubField::AdditionalPublickKey(vec![
+                PublicKey::from_slice(
+                    hex::decode("f2e013a0f696b7afff80af81f653f74b270651300ab40f5d15ca0553cd424f17")
+                        .unwrap()
+                        .as_slice(),
+                )
+                .unwrap(),
+                PublicKey::from_slice(
+                    hex::decode("72a98681a92139ff6c8c4bf33d91834c0fa775576a61ec782dc1eda715679acb")
+                        .unwrap()
+                        .as_slice(),
+                )
+                .unwrap(),
+                PublicKey::from_slice(
+                    hex::decode("71641ae9896f959a48b286738f7f36a00ac91ed7ecac12e881488b48b18bec67")
+                        .unwrap()
+                        .as_slice(),
+                )
+                .unwrap(),
+                PublicKey::from_slice(
+                    hex::decode("f439c1fd75bf22a2f79e0810962adb0ecf9c10e774934f4cd5baff354fabf616")
+                        .unwrap()
+                        .as_slice(),
+                )
+                .unwrap(),
+            ]),
+        ];
+
+        let raw_extra_field = deserialize::<RawExtraField>(blob);
+        assert!(raw_extra_field.is_ok());
+        let extra_field = raw_extra_field.unwrap().try_parse();
+        assert_eq!(parsed_extra_field, extra_field.0);
+        assert_eq!(blob, serialize(&extra_field));
+    }
+
+    #[test]
+    fn bad_extra() {
+        // tx with a bad extra field
+        // coinbase tx of block 2742099
+        let blob: &[u8] = &hex_literal::hex!("3e01e3a5d36abb941d7472195f1cf94a7a8913655f07738fa542315caa004f1ec3d0027571776b78754b728e9275804d2b0000000001000000080000000100");
+
+        let parsed_extra_field = vec![SubField::TxPublicKey(
+            PublicKey::from_slice(
+                hex::decode("e3a5d36abb941d7472195f1cf94a7a8913655f07738fa542315caa004f1ec3d0")
+                    .unwrap()
+                    .as_slice(),
+            )
+            .unwrap(),
+        )];
+        let raw_extra_field = deserialize::<RawExtraField>(blob);
+        assert!(raw_extra_field.is_ok());
+        let extra_field = raw_extra_field.unwrap().try_parse();
+        assert_eq!(parsed_extra_field, extra_field.0);
     }
 }
