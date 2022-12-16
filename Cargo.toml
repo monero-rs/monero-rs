@@ -23,6 +23,7 @@ default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
 serde = ["serde-crate", "serde-big-array", "curve25519-dalek/serde"]
 experimental = []
+database = []
 
 [dependencies]
 base58-monero = { version = "1", default-features = false }
