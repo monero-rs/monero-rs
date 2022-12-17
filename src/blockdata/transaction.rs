@@ -610,7 +610,7 @@ impl TransactionPrefix {
 // To get transaction prefix hash
 impl hash::Hashable for TransactionPrefix {
     fn hash(&self) -> hash::Hash {
-        hash::Hash::new(&serialize(self))
+        hash::Hash::new(serialize(self))
     }
 }
 
@@ -795,7 +795,7 @@ pub enum SignatureHashError {
 impl hash::Hashable for Transaction {
     fn hash(&self) -> hash::Hash {
         match *self.prefix.version {
-            1 => hash::Hash::new(&serialize(self)),
+            1 => hash::Hash::new(serialize(self)),
             _ => {
                 let mut hashes: Vec<hash::Hash> = vec![self.prefix.hash()];
                 if let Some(sig_base) = &self.rct_signatures.sig {
@@ -807,7 +807,7 @@ impl hash::Hashable for Transaction {
                             Some(p) => {
                                 let mut encoder = io::Cursor::new(vec![]);
                                 p.consensus_encode(&mut encoder, sig_base.rct_type).unwrap();
-                                hashes.push(hash::Hash::new(&encoder.into_inner()));
+                                hashes.push(hash::Hash::new(encoder.into_inner()));
                             }
                             None => {
                                 let empty_hash = hash::Hash::from_slice(&[
@@ -825,7 +825,7 @@ impl hash::Hashable for Transaction {
                     .into_iter()
                     .flat_map(|h| Vec::from(&h.to_bytes()[..]))
                     .collect();
-                hash::Hash::new(&bytes)
+                hash::Hash::new(bytes)
             }
         }
     }
