@@ -24,7 +24,7 @@ use serde_crate::{Deserialize, Serialize};
 /// Used in table "block_info"
 /// mdb_block_info_4 in the Monero codebase
 ///
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct BlockInfo {
@@ -55,7 +55,7 @@ impl BlockInfo {
     }
 
     /// Returns the cumulative difficulty for this block
-    pub fn cum_difficulty(&self) -> u128 {
+    pub fn cumulative_difficulty(&self) -> u128 {
         let mut ret: u128 = self.diff_hi as u128;
         ret <<= 64;
         ret | self.diff_lo as u128
@@ -78,7 +78,7 @@ impl_consensus_encoding!(
 /// Used in table "block_heights"
 /// blk_height in the Monero codebase
 ///
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct BlockHeight {
@@ -93,7 +93,7 @@ impl_consensus_encoding!(BlockHeight, block_hash, block_height);
 /// Used in table "alt_blocks"
 /// alt_block_data_t in the Monero codebase
 ///
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct AltBlock {
@@ -114,12 +114,12 @@ pub struct AltBlock {
 
 impl AltBlock {
     /// Returns the `total_coins_generated` field as [`Amount`]
-    pub fn get_coins_generated_as_amount(&self) -> Amount {
+    pub fn get_total_coins_generated_as_amount(&self) -> Amount {
         Amount::from_pico(self.already_generated_coins)
     }
 
     /// Returns the cumulative difficulty for this block
-    pub fn cum_difficulty(&self) -> u128 {
+    pub fn cumulative_difficulty(&self) -> u128 {
         let mut ret: u128 = self.cumulative_difficulty_high as u128;
         ret <<= 64;
         ret | self.cumulative_difficulty_low as u128
@@ -135,3 +135,65 @@ impl_consensus_encoding!(
     already_generated_coins,
     block
 );
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::{
+        consensus::{deserialize, serialize},
+        database_types::block::BlockHeight,
+        Hash,
+    };
+
+    use super::BlockInfo;
+
+    #[test]
+    fn test_ser_block_info() {
+        let bytes = [
+            50, 68, 42, 0, 0, 0, 0, 0, 176, 145, 140, 99, 0, 0, 0, 0, 98, 218, 225, 186, 8, 1, 180,
+            252, 81, 84, 1, 0, 0, 0, 0, 0, 119, 64, 108, 206, 101, 202, 91, 3, 0, 0, 0, 0, 0, 0, 0,
+            0, 173, 77, 90, 142, 119, 29, 98, 95, 222, 25, 30, 28, 223, 134, 138, 66, 0, 148, 65,
+            190, 48, 139, 54, 84, 70, 107, 138, 53, 2, 220, 88, 114, 152, 72, 227, 3, 0, 0, 0, 0,
+            86, 177, 2, 0, 0, 0, 0, 0,
+        ];
+        let block_info = deserialize::<BlockInfo>(&bytes).unwrap();
+        let deserialized_block_info = BlockInfo {
+            block_height: 2769970,
+            timestamp: 1670156720,
+            total_coins_generated: 18209180330372487778,
+            weight: 87121,
+            diff_lo: 242009543598162039,
+            diff_hi: 0,
+            block_hash: Hash::from_str(
+                "ad4d5a8e771d625fde191e1cdf868a42009441be308b3654466b8a3502dc5872",
+            )
+            .unwrap(),
+            cum_rct: 65226904,
+            long_term_block_weight: 176470,
+        };
+        assert_eq!(block_info, deserialized_block_info);
+        assert_eq!(block_info.cumulative_difficulty(), 242009543598162039);
+        assert_eq!(serialize(&block_info), bytes);
+    }
+
+    #[test]
+    fn test_ser_block_height() {
+        let bytes = [
+            173, 77, 90, 142, 119, 29, 98, 95, 222, 25, 30, 28, 223, 134, 138, 66, 0, 148, 65, 190,
+            48, 139, 54, 84, 70, 107, 138, 53, 2, 220, 88, 114, 50, 68, 42, 0, 0, 0, 0, 0,
+        ];
+        let deserialized_block_height = BlockHeight {
+            block_hash: Hash::from_str(
+                "ad4d5a8e771d625fde191e1cdf868a42009441be308b3654466b8a3502dc5872",
+            )
+            .unwrap(),
+            block_height: 2769970,
+        };
+        let block_height = deserialize::<BlockHeight>(&bytes).unwrap();
+        assert_eq!(block_height, deserialized_block_height);
+        assert_eq!(serialize(&block_height), bytes);
+    }
+
+    // TODO: add test for alt block
+}
