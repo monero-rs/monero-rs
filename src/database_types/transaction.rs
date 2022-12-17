@@ -33,6 +33,9 @@ pub enum PrunedHashError {
     /// Can't get hash of pruned V1 transactions
     #[error("Can't get hash of pruned V1 transactions")]
     V1TransactionHash,
+    /// The prunable hash is needed to compute the transactions hash
+    #[error("The prunable hash is needed to compute the transactions hash")]
+    PrunableHashRequired,
 }
 
 /// Used in table "txs_pruned"
@@ -57,7 +60,7 @@ impl TransactionPruned {
 
     /// Calculates the transactions hash with the missing prunable hash
     /// Will Error if the transaction is version 1.
-    pub fn hash(&self, prunable_hash: Hash) -> Result<Hash, PrunedHashError> {
+    pub fn hash(&self, prunable_hash: Option<Hash>) -> Result<Hash, PrunedHashError> {
         match self.prefix.version.0 {
             1 => Err(PrunedHashError::V1TransactionHash),
             _ => {
@@ -66,8 +69,10 @@ impl TransactionPruned {
                     hashes.push(sig_base.hash());
                     if sig_base.rct_type == RctType::Null {
                         hashes.push(hash::Hash::null());
+                    } else if let Some(hash) = prunable_hash {
+                        hashes.push(hash);
                     } else {
-                        hashes.push(prunable_hash);
+                        return Err(PrunedHashError::PrunableHashRequired);
                     }
                 }
                 let bytes: Vec<u8> = hashes
@@ -447,7 +452,7 @@ mod tests {
         let expected_hash =
             Hash::from_str("50062431e5c6a389cb379dc4d28e17cbe7d15df117611e4564676936b68f1b5d")
                 .unwrap();
-        assert_eq!(tx_pruned.hash(prunable_hash).unwrap(), expected_hash);
+        assert_eq!(tx_pruned.hash(Some(prunable_hash)).unwrap(), expected_hash);
         assert_eq!(serialize(&tx_pruned), bytes);
     }
 
