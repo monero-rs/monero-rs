@@ -1,4 +1,4 @@
-[![Build Status](https://img.shields.io/github/workflow/status/monero-rs/monero-rs/CI/main)](https://github.com/monero-rs/monero-rs/actions/workflows/ci.yml)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/monero-rs/monero-rs/ci.yml?branch=main)](https://github.com/monero-rs/monero-rs/actions/workflows/ci.yml)
 [![Codecov branch](https://img.shields.io/codecov/c/gh/monero-rs/monero-rs/main)](https://app.codecov.io/gh/monero-rs/monero-rs)
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 [![Crates.io](https://img.shields.io/crates/v/monero.svg)](https://crates.io/crates/monero)
