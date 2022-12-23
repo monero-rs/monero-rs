@@ -79,7 +79,7 @@ impl TransactionPruned {
                     .into_iter()
                     .flat_map(|h| Vec::from(&h.to_bytes()[..]))
                     .collect();
-                Ok(hash::Hash::new(&bytes))
+                Ok(hash::Hash::new(bytes))
             }
         }
     }
