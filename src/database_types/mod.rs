@@ -20,4 +20,5 @@
 //!
 
 pub mod block;
+pub mod pruning;
 pub mod transaction;
