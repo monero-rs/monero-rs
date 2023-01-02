@@ -119,7 +119,7 @@ impl KeyGenerator {
         // The hash function H is the same Keccak function that is used in CryptoNote. When the
         // value of the hash function is interpreted as a scalar, it is converted into a
         // little-endian integer and taken modulo l.
-        hash::Hash::hash_to_scalar(&encoder.into_inner())
+        hash::Hash::hash_to_scalar(encoder.into_inner())
     }
 }
 

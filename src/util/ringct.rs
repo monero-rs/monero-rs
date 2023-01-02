@@ -600,7 +600,7 @@ impl crate::consensus::encode::Encodable for RctSigBase {
 
 impl hash::Hashable for RctSigBase {
     fn hash(&self) -> hash::Hash {
-        hash::Hash::new(&serialize(self))
+        hash::Hash::new(serialize(self))
     }
 }
 
