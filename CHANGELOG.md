@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.2] - 2023-01-02
+
 ### Changed
 
 - Allow more amount denomination variants (e.g `xmr|XMR|monero`), prefer lower case in `Display` by @h4sh3d ([#141](https://github.com/monero-rs/monero-rs/pull/141))
@@ -287,7 +289,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Address and subaddress creation, de/serialization and validation
 - Private keys and one-time keys creation, de/serialization and validation
 
-[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.18.2...HEAD
+[0.18.2]: https://github.com/monero-rs/monero-rs/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/monero-rs/monero-rs/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/monero-rs/monero-rs/compare/v0.17.2...v0.18.0
 [0.17.3]: https://github.com/monero-rs/monero-rs/compare/v0.17.2...v0.17.3
