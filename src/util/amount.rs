@@ -31,7 +31,7 @@ use thiserror::Error;
 /// A set of denominations in which amounts can be expressed.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Denomination {
-    /// XMR
+    /// xmr
     Monero,
     /// millinero
     Millinero,
@@ -59,7 +59,7 @@ impl Denomination {
 impl fmt::Display for Denomination {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            Denomination::Monero => "XMR",
+            Denomination::Monero => "xmr",
             Denomination::Millinero => "millinero",
             Denomination::Micronero => "micronero",
             Denomination::Nanonero => "nanonero",
@@ -73,11 +73,11 @@ impl FromStr for Denomination {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "XMR" => Ok(Denomination::Monero),
-            "millinero" => Ok(Denomination::Millinero),
-            "micronero" => Ok(Denomination::Micronero),
-            "nanonero" => Ok(Denomination::Nanonero),
-            "piconero" => Ok(Denomination::Piconero),
+            "xmr" | "XMR" | "monero" => Ok(Denomination::Monero),
+            "millinero" | "mXMR" => Ok(Denomination::Millinero),
+            "micronero" | "µXMR" | "mcXMR" => Ok(Denomination::Micronero),
+            "nanonero" | "nXMR" => Ok(Denomination::Nanonero),
+            "piconero" | "pXMR" => Ok(Denomination::Piconero),
             d => Err(ParsingError::UnknownDenomination(d.to_owned())),
         }
     }
@@ -405,7 +405,7 @@ impl default::Default for Amount {
 
 impl fmt::Debug for Amount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Amount({:.12} XMR)", self.as_xmr())
+        write!(f, "Amount({:.12} xmr)", self.as_xmr())
     }
 }
 
@@ -720,7 +720,7 @@ impl default::Default for SignedAmount {
 
 impl fmt::Debug for SignedAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SignedAmount({:.12} XMR)", self.as_xmr())
+        write!(f, "SignedAmount({:.12} xmr)", self.as_xmr())
     }
 }
 
@@ -1134,7 +1134,7 @@ pub mod serde {
         // methods are implementation of a standardized serde-specific signature
         #![allow(missing_docs)]
 
-        //! Serialize and deserialize [`Amount`] as a string denominated in XMR.
+        //! Serialize and deserialize [`Amount`] as a string denominated in xmr.
         //! Use with `#[serde(with = "amount::serde::as_xmr")]`.
         //!
         //! [`Amount`]: crate::util::amount::Amount
@@ -1151,7 +1151,7 @@ pub mod serde {
         }
 
         pub mod opt {
-            //! Serialize and deserialize [Option] as a number denominated in XMR.
+            //! Serialize and deserialize [Option] as a number denominated in xmr.
             //! Use with `#[serde(default, with = "amount::serde::as_xmr::opt")]`.
 
             use super::super::SerdeAmountForOpt;
@@ -1199,7 +1199,7 @@ pub mod serde {
         }
 
         pub mod slice {
-            //! Serialize `&[Amount]` and `&[SignedAmount]` as an array of numbers denoted in XMR.
+            //! Serialize `&[Amount]` and `&[SignedAmount]` as an array of numbers denoted in xmr.
             //! Use with `#[serde(default, serialize_with = "amount::serde::as_xmr::slice::serialize")]`.
 
             use super::super::SerdeAmountForSlice;
@@ -1220,7 +1220,7 @@ pub mod serde {
         }
 
         pub mod vec {
-            //! Deserialize an array of numbers (in XMR) into `Vec<Amount>` or
+            //! Deserialize an array of numbers (in xmr) into `Vec<Amount>` or
             //! `Vec<SignedAmount>`.
             //! It is possible to use `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_amount")]`
             //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_signed_amount")]`
@@ -1503,7 +1503,7 @@ mod tests {
 
         assert_eq!(
             Amount::ONE_XMR.to_string_with_denomination(D::Monero),
-            "1.000000000000 XMR"
+            "1.000000000000 xmr"
         );
         assert_eq!(
             SignedAmount::ONE_XMR.to_string_with_denomination(D::Piconero),
@@ -1511,11 +1511,11 @@ mod tests {
         );
         assert_eq!(
             Amount::ONE_PICO.to_string_with_denomination(D::Monero),
-            "0.000000000001 XMR"
+            "0.000000000001 xmr"
         );
         assert_eq!(
             SignedAmount::from_pico(-42).to_string_with_denomination(D::Monero),
-            "-0.000000000042 XMR"
+            "-0.000000000042 xmr"
         );
     }
 

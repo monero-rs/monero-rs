@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Allow more amount denomination variants (e.g `xmr|XMR|monero`), prefer lower case in `Display` by @h4sh3d ([#141](https://github.com/monero-rs/monero-rs/pull/141))
+
 ## [0.18.1] - 2022-12-13
 
 ### Added
@@ -35,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Use view tags, when available, to speedup owned output finding by [@Boog900](https://github.com/Boog900) ([#116](https://github.com/monero-rs/monero-rs/pull/116))
+
+## [0.17.3] - 2023-01-02
+
+### Changed
+
+- Allow more amount denomination variants (e.g `xmr|XMR|monero`), prefer lower case in `Display` by @h4sh3d
 
 ## [0.17.2] - 2022-07-19
 
@@ -280,6 +290,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.18.1...HEAD
 [0.18.1]: https://github.com/monero-rs/monero-rs/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/monero-rs/monero-rs/compare/v0.17.2...v0.18.0
+[0.17.3]: https://github.com/monero-rs/monero-rs/compare/v0.17.2...v0.17.3
 [0.17.2]: https://github.com/monero-rs/monero-rs/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/monero-rs/monero-rs/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/monero-rs/monero-rs/compare/v0.16.0...v0.17.0
