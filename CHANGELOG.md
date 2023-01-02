@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Allow more amount denomination variants (e.g `xmr|XMR|monero`), prefer lower case in `Display` by @h4sh3d
+
 ## [0.18.1] - 2022-12-13
 
 ### Added
