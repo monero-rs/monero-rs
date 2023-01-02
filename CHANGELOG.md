@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.3] - 2023-01-02
+
+### Changed
+
+- Allow more amount denomination variants by @h4sh3d
+
 ## [0.17.2] - 2022-07-19
 
 ### Added
