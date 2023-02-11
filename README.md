@@ -32,6 +32,10 @@ The `serde` feature enables implementation of [`serde`](https://docs.rs/serde/la
 
 The `experimental` feature enable the method `signature_hash` in `Transaction`, the method computes the message to be signed by the CLSAG signature algorithm. This method is featured as experimental at the moment because it lacks reviews and tests.
 
+### `database`
+
+The `database` feature enables the use of the `database` submodule which has types for interacting with a Monero database like `TransactionPruned`. It also enables the `pruning` module to help with interacting with a pruned database or peer.
+
 ## Contributing
 
 Contributions are generally welcome. If you intend to make larger changes please discuss them in an issue before PRing them to avoid duplicate work and architectural mismatches.
