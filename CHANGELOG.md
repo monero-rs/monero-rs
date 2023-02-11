@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The database submodule by [@Boog900](https://github.com/Boog900) ([#138](https://github.com/monero-rs/monero-rs/pull/138))
+
 ## [0.18.2] - 2023-01-02
 
 ### Changed
