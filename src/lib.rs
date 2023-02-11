@@ -68,8 +68,8 @@ mod internal_macros;
 pub mod consensus;
 pub mod blockdata;
 pub mod cryptonote;
-#[cfg(feature = "database")]
-pub mod database_types;
+//#[cfg(feature = "database")]
+pub mod database;
 pub mod network;
 pub mod util;
 

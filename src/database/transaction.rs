@@ -293,8 +293,8 @@ pub struct TxPoolPadding;
 impl Decodable for TxPoolPadding {
     fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
         let mut buf: Vec<u8> = vec![];
-        r.read_to_end(&mut buf)?;
-        if buf.len() != TxPoolMeta::SIZE - TxPoolMeta::SIZE_WITHOUT_PADDING {
+        let len = r.read_to_end(&mut buf)?;
+        if len != TxPoolMeta::SIZE - TxPoolMeta::SIZE_WITHOUT_PADDING {
             return Err(encode::Error::ParseFailed("Padding has incorrect length"));
         }
         Ok(TxPoolPadding)

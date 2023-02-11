@@ -142,7 +142,7 @@ mod tests {
 
     use crate::{
         consensus::{deserialize, serialize},
-        database_types::block::BlockHeight,
+        database::block::BlockHeight,
         Hash,
     };
 
@@ -194,6 +194,4 @@ mod tests {
         assert_eq!(block_height, deserialized_block_height);
         assert_eq!(serialize(&block_height), bytes);
     }
-
-    // TODO: add test for alt block
 }
