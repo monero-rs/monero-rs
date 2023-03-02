@@ -45,6 +45,12 @@
 //! computes the message to be signed by the CLSAG signature algorithm. This method is featured as
 //! experimental at the moment because it lacks reviews and tests.
 //!
+//! ### `database`
+//!
+//! The `database` feature enables the use of the `database` submodule which has types for
+//! interacting with a Monero database like `TransactionPruned`. It also enables the `pruning`
+//! module to help with interacting with a pruned database or peer.
+//!
 //! ## Caution
 //!
 //! The Software is provided “as is”, without warranty of any kind, express or implied, including
@@ -68,7 +74,7 @@ mod internal_macros;
 pub mod consensus;
 pub mod blockdata;
 pub mod cryptonote;
-//#[cfg(feature = "database")]
+#[cfg(feature = "database")]
 pub mod database;
 pub mod network;
 pub mod util;
