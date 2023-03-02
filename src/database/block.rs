@@ -93,6 +93,10 @@ impl_consensus_encoding!(BlockHeight, block_hash, block_height);
 /// Used in table "alt_blocks"
 /// alt_block_data_t in the Monero codebase
 ///
+/// This struct stores the alt block however alt_block_data_t in
+/// the Monero codebase does not, this is done because the block
+/// is still in the table alt_blocks.
+///
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]

@@ -265,7 +265,7 @@ pub struct OutTx {
 impl_consensus_encoding!(OutTx, output_id, tx_hash, local_index);
 
 /// Used in table "tx_indices"
-/// outtx in the Monero codebase
+/// txindex in the Monero codebase
 ///
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
