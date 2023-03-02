@@ -87,6 +87,12 @@ jobs:
         command: build
         args: --verbose --no-default-features --features experimental
 
+    - name: Build (database)
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --verbose --no-default-features --features database
+
     - name: Build (all features)
       uses: actions-rs/cargo@v1
       with:
