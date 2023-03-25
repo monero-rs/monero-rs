@@ -27,8 +27,6 @@ pub const CRYPTONOTE_PRUNING_LOG_STRIPES: u32 = 3; // the higher, the more space
 
 const CRYPTONOTE_PRUNING_STRIPE_SIZE: u64 = 4096; // the smaller, the smoother the increase
 
-const CRYPTONOTE_MAX_BLOCK_NUMBER: u64 = 500000000;
-
 const PRUNING_SEED_LOG_STRIPES_SHIFT: u32 = 7;
 const PRUNING_SEED_STRIPE_SHIFT: u32 = 0;
 const PRUNING_SEED_LOG_STRIPES_MASK: u32 = 0x7;
@@ -153,10 +151,10 @@ pub fn get_next_unpruned_block_height(
     blockchain_height: u64,
     pruning_seed: u32,
 ) -> Result<u64, PruningError> {
-    if block_height > CRYPTONOTE_MAX_BLOCK_NUMBER + 1 {
+    if block_height > super::CRYPTONOTE_MAX_BLOCK_NUMBER + 1 {
         return Err(PruningError::BlockHeightTooHigh(block_height));
     }
-    if blockchain_height > CRYPTONOTE_MAX_BLOCK_NUMBER + 1 {
+    if blockchain_height > super::CRYPTONOTE_MAX_BLOCK_NUMBER + 1 {
         return Err(PruningError::BlockHeightTooHigh(block_height));
     }
     let stripe = get_pruning_stripe_for_seed(pruning_seed);
