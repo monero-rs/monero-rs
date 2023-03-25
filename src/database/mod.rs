@@ -20,9 +20,8 @@
 //!
 
 /// The maximum Monero block number as defined here:
-/// https://github.com/monero-project/monero/blob/abe74fda35621f9895439379eb7e49b586fb0edb/src/cryptonote_config.h#L39 
+/// https://github.com/monero-project/monero/blob/abe74fda35621f9895439379eb7e49b586fb0edb/src/cryptonote_config.h#L39
 pub const CRYPTONOTE_MAX_BLOCK_NUMBER: u64 = 500000000;
-
 
 pub mod block;
 pub mod pruning;
