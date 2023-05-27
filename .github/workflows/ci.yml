@@ -49,7 +49,7 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2.2.0
 
-    - run: cargo build
+    - run: cargo build --workspace --all-features
 
   build_features:
     steps:
