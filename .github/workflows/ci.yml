@@ -52,6 +52,7 @@ jobs:
     - run: cargo build --workspace --all-features
 
   build_features:
+    name: Build with varying features
     steps:
     - uses: actions/checkout@v3
 
