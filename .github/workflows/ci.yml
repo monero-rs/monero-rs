@@ -19,6 +19,7 @@ jobs:
 
     - uses: dtolnay/rust-toolchain@master
       with:
+        components: clippy,rustfmt
         toolchain: stable
 
     - run: cargo fmt --all --check
