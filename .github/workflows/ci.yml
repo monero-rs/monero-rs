@@ -1,16 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
-
-env:
-  CARGO_TERM_COLOR: always
+  push:
+    branches:
+      - main
 
 jobs:
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -54,6 +50,7 @@ jobs:
 
   build_features:
     name: Build with varying features
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
 
