@@ -107,7 +107,8 @@ impl Block {
         )
     }
 
-    fn serialize_hashable(&self) -> Vec<u8> {
+    /// Serializes the block into the format required to get the block id or to calculate the proof of work.
+    pub fn serialize_hashable(&self) -> Vec<u8> {
         let mut blob = crate::consensus::serialize(&self.header);
         blob.extend_from_slice(&self.tx_root()[..]);
         blob.append(&mut crate::consensus::serialize(&VarInt(
