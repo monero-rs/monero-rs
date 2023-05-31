@@ -8,7 +8,7 @@ on:
 jobs:
   release_to_crates:
     name: Publish the new release to crates.io
-    uses: monero-rs/workflows/.github/workflows/release-to-crates-io.yml@v2.0.1
+    uses: monero-rs/workflows/.github/workflows/release-to-crates-io.yml@v2.0.2
     secrets:
       cratesio_token: ${{ secrets.H4SH3D_CARGO_REGISTRY_TOKEN }}
 
