@@ -1,39 +1,26 @@
 name: CI
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
-
-env:
-  CARGO_TERM_COLOR: always
+  push:
+    branches:
+      - main
 
 jobs:
-
-  static_analysis:
-    name: Static Analysis
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
 
-    - name: Install Rust Stable
-      uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@master
       with:
+        components: clippy,rustfmt
         toolchain: stable
-        components: rustfmt, clippy
 
-    - name: Run format
-      uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: -- --check
+    - run: cargo fmt --all --check
 
-    - name: Run clippy
-      uses: actions-rs/cargo@v1
-      with:
-        command: clippy
-        args: --workspace --all-targets --all-features -- -D warnings
+    - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   mdtomlfmt:
     name: Generic format (md,toml)
@@ -47,75 +34,46 @@ jobs:
         curl -fsSL https://dprint.dev/install.sh | sh
         /home/runner/.dprint/bin/dprint check
 
-  build:
+  build_msrv:
     name: Build
-    strategy:
-      matrix:
-        rust: [
-          1.56.1,
-          stable,
-          nightly
-        ]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
 
-    - name: Install Rust ${{ matrix.rust }}
-      uses: actions-rs/toolchain@v1.0.7
+    - uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ matrix.rust }}
-        override: true
-        profile: minimal
+        toolchain: 1.56.1
 
-    - uses: Swatinem/rust-cache@v2.2.0
+    - uses: Swatinem/rust-cache@v2.4.0
 
-    - name: Build (default)
-      uses: actions-rs/cargo@v1
+    - run: cargo build --workspace --all-features
+
+  build_features:
+    name: Build with varying features
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: dtolnay/rust-toolchain@master
       with:
-        command: build
-        args: --verbose
+        toolchain: stable
 
-    - name: Build (serde)
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --verbose --no-default-features --features serde
+    - run: cargo install cargo-hack
 
-    - name: Build (experimental)
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --verbose --no-default-features --features experimental
+    - uses: Swatinem/rust-cache@v2.4.0
 
-    - name: Build (all features)
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --verbose --all-features
+    - run: cargo hack build --workspace --each-feature
 
   test:
     name: Test
-    strategy:
-      matrix:
-        rust: [
-          stable,
-          nightly
-        ]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
 
-    - name: Install Rust ${{ matrix.rust }}
-      uses: actions-rs/toolchain@v1.0.7
+    - uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ matrix.rust }}
-        override: true
-        profile: minimal
+        toolchain: stable
 
-    - uses: Swatinem/rust-cache@v2.2.0
+    - uses: Swatinem/rust-cache@v2.4.0
 
-    - name: Run tests
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --verbose --all-features
+    - run: cargo test --workspace --all-features

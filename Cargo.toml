@@ -30,7 +30,7 @@ curve25519-dalek = { version = "3.0.2" }
 hex = "0.4.3"
 hex-literal = "0.4.1"
 sealed = "0.4"
-serde-big-array = { version = "0.4.1", optional = true }
+serde-big-array = { version = "0.5.1", optional = true }
 serde-crate = { package = "serde", version = "1.0.124", features = ["derive"], optional = true }
 thiserror = "1.0.24"
 tiny-keccak = { version = "2", features = ["keccak"] }
