@@ -19,7 +19,7 @@
 //! designed for Rust programs built to work with the Monero ecosystem.
 //!
 //! The library currently focuses on manipulating types such as addresses, transactions, blocks and
-//! public keys, but do **NOT** implementat transaction signing. There is no immediate plan to add
+//! public keys, but does **NOT** implement transaction signing. There is no immediate plan to add
 //! such support.
 //!
 //! ## Features
