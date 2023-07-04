@@ -44,7 +44,7 @@ jobs:
       with:
         toolchain: 1.57
 
-    - uses: Swatinem/rust-cache@v2.4.0
+    - uses: Swatinem/rust-cache@v2.5.1
 
     - run: cargo build --workspace --all-features
 
@@ -60,7 +60,7 @@ jobs:
 
     - run: cargo install cargo-hack
 
-    - uses: Swatinem/rust-cache@v2.4.0
+    - uses: Swatinem/rust-cache@v2.5.1
 
     - run: cargo hack build --workspace --each-feature
 
@@ -74,6 +74,6 @@ jobs:
       with:
         toolchain: stable
 
-    - uses: Swatinem/rust-cache@v2.4.0
+    - uses: Swatinem/rust-cache@v2.5.1
 
     - run: cargo test --workspace --all-features
