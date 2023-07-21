@@ -1085,7 +1085,7 @@ pub mod serde {
                     where
                         S: de::SeqAccess<'de>,
                     {
-                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious::<Amount>(seq.size_hint()));
 
                         while let Some(amt) = seq.next_element::<u64>()? {
                             amt_vec.push(Amount::from_pico(amt));
@@ -1115,7 +1115,7 @@ pub mod serde {
                     where
                         S: de::SeqAccess<'de>,
                     {
-                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious::<Amount>(seq.size_hint()));
 
                         while let Some(amt) = seq.next_element::<i64>()? {
                             amt_vec.push(SignedAmount::from_pico(amt));
@@ -1247,7 +1247,7 @@ pub mod serde {
                     where
                         S: de::SeqAccess<'de>,
                     {
-                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious::<Amount>(seq.size_hint()));
 
                         while let Some(amt) = seq.next_element()? {
                             let amt = Amount::from_str_in(amt, Denomination::Monero)
@@ -1280,7 +1280,7 @@ pub mod serde {
                     where
                         S: de::SeqAccess<'de>,
                     {
-                        let mut amt_vec = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+                        let mut amt_vec = Vec::with_capacity(size_hint::cautious::<Amount>(seq.size_hint()));
 
                         while let Some(amt) = seq.next_element()? {
                             let amt = SignedAmount::from_str_in(amt, Denomination::Monero)
