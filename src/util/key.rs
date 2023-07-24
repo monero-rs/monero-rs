@@ -122,12 +122,8 @@ impl PrivateKey {
         }
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(data);
-        let scalar = match Scalar::from_canonical_bytes(bytes) {
-            Some(scalar) => scalar,
-            None => {
-                return Err(Error::NotCanonicalScalar);
-            }
-        };
+        let scalar =
+            Option::from(Scalar::from_canonical_bytes(bytes)).ok_or(Error::NotCanonicalScalar)?;
         Ok(PrivateKey { scalar })
     }
 
@@ -292,7 +288,7 @@ impl PublicKey {
         if data.len() != 32 {
             return Err(Error::InvalidLength);
         }
-        let point = CompressedEdwardsY::from_slice(data);
+        let point = CompressedEdwardsY::from_slice(data).map_err(|_| Error::InvalidPoint)?;
         match point.decompress() {
             Some(_) => (),
             None => {
@@ -304,7 +300,7 @@ impl PublicKey {
 
     /// Generate a public key from the private key.
     pub fn from_private_key(privkey: &PrivateKey) -> PublicKey {
-        let point = &privkey.scalar * &ED25519_BASEPOINT_TABLE;
+        let point = &privkey.scalar * ED25519_BASEPOINT_TABLE;
         PublicKey {
             point: point.compress(),
         }

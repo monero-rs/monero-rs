@@ -13,7 +13,7 @@
 // copies or substantial portions of the Software.
 //
 
-#![cfg(any(feature = "serde"))]
+#![cfg(feature = "serde")]
 
 use monero::util::amount::{
     serde::{SerdeAmount, SerdeAmountForOpt},
