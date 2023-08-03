@@ -1066,7 +1066,7 @@ pub mod serde {
 
             use super::super::{Amount, SignedAmount};
             use core::marker::PhantomData;
-            use serde_crate::{de, Deserializer, __private::size_hint};
+            use serde_crate::{de, Deserializer};
 
             /// Use with `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_amount")]`.
             pub fn deserialize_amount<'d, D: Deserializer<'d>>(
@@ -1085,14 +1085,9 @@ pub mod serde {
                     where
                         S: de::SeqAccess<'de>,
                     {
-                        let mut amt_vec =
-                            Vec::with_capacity(size_hint::cautious::<u64>(seq.size_hint()));
-
-                        while let Some(amt) = seq.next_element::<u64>()? {
-                            amt_vec.push(Amount::from_pico(amt));
-                        }
-
-                        Ok(amt_vec)
+                        std::iter::repeat_with(|| seq.next_element())
+                            .map_while(|e| e.transpose().map(|res| res.map(Amount::from_pico)))
+                            .collect()
                     }
                 }
 
@@ -1116,14 +1111,11 @@ pub mod serde {
                     where
                         S: de::SeqAccess<'de>,
                     {
-                        let mut amt_vec =
-                            Vec::with_capacity(size_hint::cautious::<i64>(seq.size_hint()));
-
-                        while let Some(amt) = seq.next_element::<i64>()? {
-                            amt_vec.push(SignedAmount::from_pico(amt));
-                        }
-
-                        Ok(amt_vec)
+                        std::iter::repeat_with(|| seq.next_element())
+                            .map_while(|e| {
+                                e.transpose().map(|res| res.map(SignedAmount::from_pico))
+                            })
+                            .collect()
                     }
                 }
 
@@ -1230,7 +1222,7 @@ pub mod serde {
 
             use super::super::{super::Denomination, Amount, SignedAmount};
             use core::marker::PhantomData;
-            use serde_crate::{de, Deserializer, __private::size_hint};
+            use serde_crate::{de, Deserializer};
 
             /// Use with `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_amount")]`.
             pub fn deserialize_amount<'d, D: Deserializer<'d>>(
@@ -1249,17 +1241,16 @@ pub mod serde {
                     where
                         S: de::SeqAccess<'de>,
                     {
-                        let mut amt_vec =
-                            Vec::with_capacity(size_hint::cautious::<&str>(seq.size_hint()));
-
-                        while let Some(amt) = seq.next_element()? {
-                            let amt = Amount::from_str_in(amt, Denomination::Monero)
-                                .map_err(|e| de::Error::custom(e.to_string()))?;
-
-                            amt_vec.push(amt);
-                        }
-
-                        Ok(amt_vec)
+                        std::iter::repeat_with(|| seq.next_element())
+                            .map_while(|e| {
+                                e.transpose().map(|res| {
+                                    res.and_then(|amt| {
+                                        Amount::from_str_in(amt, Denomination::Monero)
+                                            .map_err(|e| de::Error::custom(e.to_string()))
+                                    })
+                                })
+                            })
+                            .collect()
                     }
                 }
 
@@ -1283,16 +1274,16 @@ pub mod serde {
                     where
                         S: de::SeqAccess<'de>,
                     {
-                        let mut amt_vec =
-                            Vec::with_capacity(size_hint::cautious::<&str>(seq.size_hint()));
-
-                        while let Some(amt) = seq.next_element()? {
-                            let amt = SignedAmount::from_str_in(amt, Denomination::Monero)
-                                .map_err(|e| de::Error::custom(e.to_string()))?;
-                            amt_vec.push(amt);
-                        }
-
-                        Ok(amt_vec)
+                        std::iter::repeat_with(|| seq.next_element())
+                            .map_while(|e| {
+                                e.transpose().map(|res| {
+                                    res.and_then(|amt| {
+                                        SignedAmount::from_str_in(amt, Denomination::Monero)
+                                            .map_err(|e| de::Error::custom(e.to_string()))
+                                    })
+                                })
+                            })
+                            .collect()
                     }
                 }
 
