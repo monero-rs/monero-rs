@@ -15,7 +15,7 @@ keywords = ["monero"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/monero-rs/monero-rs"
-rust-version = "1.57"
+rust-version = "1.61"
 description = "Rust Monero Library."
 
 [features]
@@ -26,7 +26,7 @@ experimental = []
 
 [dependencies]
 base58-monero = { version = "1", default-features = false }
-curve25519-dalek = { version = "3.0.2" }
+curve25519-dalek = { version = "4" }
 hex = "0.4.3"
 hex-literal = "0.4.1"
 sealed = "0.5"
