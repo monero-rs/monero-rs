@@ -15,7 +15,7 @@ keywords = ["monero"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/monero-rs/monero-rs"
-rust-version = "1.60"
+rust-version = "1.61"
 description = "Rust Monero Library."
 
 [features]
