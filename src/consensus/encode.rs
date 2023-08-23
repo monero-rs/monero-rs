@@ -354,6 +354,11 @@ impl Decodable for VarInt {
         let mut res: Vec<u8> = vec![];
         loop {
             let n = r.read_u8()?;
+            // Zero in any position other than the first is invalid
+            // since it is not the shortest encoding.
+            if n == 0 && !res.is_empty() {
+                return Err(Error::ParseFailed("VarInt has a zero in a position other than the first. This is not the shortest encoding."));
+            }
             res.push(n & 0b0111_1111);
             if n & 0b1000_0000 == 0 {
                 break;
@@ -550,6 +555,11 @@ mod tests {
         let data = serialize(&max);
         let int: VarInt = deserialize(&data).unwrap();
         assert_eq!(max, int);
+
+        // varint must be shortest encoding
+        let res = deserialize::<VarInt>(&[152,0]);
+        assert!(matches!(res.unwrap_err(), Error::ParseFailed(_)));
+
     }
 
     #[test]
