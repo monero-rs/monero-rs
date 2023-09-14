@@ -1056,7 +1056,16 @@ impl Decodable for Transaction {
                         if sig.rct_type != RctType::Null {
                             let mixin_size = if inputs > 0 {
                                 match &prefix.inputs[0] {
-                                    TxIn::ToKey { key_offsets, .. } => key_offsets.len() - 1,
+                                    TxIn::ToKey { key_offsets, .. } => {
+                                        match key_offsets.len().checked_sub(1) {
+                                            Some(val) => val,
+                                            None => {
+                                                return Err(encode::Error::ParseFailed(
+                                                    "Invalid input type",
+                                                ))
+                                            }
+                                        }
+                                    }
                                     _ => 0,
                                 }
                             } else {

@@ -371,9 +371,8 @@ impl Decodable for VarInt {
             int |= *bits as u64;
             int = if int.leading_zeros() >= 7 {
                 int << 7
-            }
-            else {
-                 return Err(Error::ParseFailed("VarInt overflows u64"));
+            } else {
+                return Err(Error::ParseFailed("VarInt overflows u64"));
             };
         }
         int |= *last as u64;
@@ -563,21 +562,22 @@ mod tests {
         assert_eq!(max, int);
 
         // varint must be shortest encoding
-        let res = deserialize::<VarInt>(&[152,0]);
+        let res = deserialize::<VarInt>(&[152, 0]);
         assert!(matches!(res.unwrap_err(), Error::ParseFailed(_)));
 
         // If the last number is not a 0, it will error with an IO error (UnexpectedEof)
         let res = deserialize::<VarInt>(&[255u8; 1]);
         assert!(matches!(res.unwrap_err(), Error::Io(_)));
 
-
         // Add one to the max u64 data.
-        assert_eq!(max_u64_data[len_max-1], 0x01);
-        max_u64_data[len_max-1] += 1;
+        assert_eq!(max_u64_data[len_max - 1], 0x01);
+        max_u64_data[len_max - 1] += 1;
         let res = deserialize::<VarInt>(&max_u64_data);
         assert!(matches!(res.unwrap_err(), Error::ParseFailed(_)));
 
-        let res = deserialize::<VarInt>(&[255u8, 255u8,255u8,255u8,255u8,255u8,255u8,255u8,255u8,255u8, 1u8 ]);
+        let res = deserialize::<VarInt>(&[
+            255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 1u8,
+        ]);
         assert!(matches!(res.unwrap_err(), Error::ParseFailed(_)));
     }
 
