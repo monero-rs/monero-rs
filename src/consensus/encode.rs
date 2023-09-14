@@ -26,7 +26,10 @@
 
 use hex::encode as hex_encode;
 
+use std::cmp::{max, min};
 use std::convert::TryFrom;
+use std::fmt::Debug;
+use std::io::Seek;
 use std::ops::Deref;
 use std::{fmt, io, mem, u32};
 
@@ -34,68 +37,87 @@ use sealed::sealed;
 use thiserror::Error;
 
 use super::endian;
-use crate::blockdata::transaction;
-use crate::util::{address, key, ringct};
 
+use crate::util::address::AddressError;
+use crate::util::key::KeyError;
+use crate::util::ringct::RingCtError;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
 /// Errors encountered when encoding or decoding data.
-#[derive(Error, Debug)]
-pub enum Error {
+#[derive(Error, Debug, PartialEq)]
+pub enum EncodeError {
     /// And I/O error.
     #[error("IO error: {0}")]
-    Io(#[from] io::Error),
+    Io(String),
     /// Key error.
     #[error("Key error: {0}")]
-    Key(#[from] key::Error),
-    /// Transaction error.
-    #[error("Transaction error: {0}")]
-    Transaction(#[from] transaction::Error),
+    Key(#[from] KeyError),
     /// RingCt error.
     #[error("RingCt error: {0}")]
-    RingCt(#[from] ringct::Error),
+    RingCt(#[from] RingCtError),
     /// Address error.
     #[error("Address error: {0}")]
-    Address(#[from] address::Error),
+    Address(#[from] AddressError),
     /// A generic parsing error.
     #[error("Parsing error: {0}")]
-    ParseFailed(&'static str),
+    ParseFailed(String),
+    /// A consensus encoding parsing error.
+    #[error("Parsing error: {0}")]
+    ConsensusEncodingFailed(String),
 }
 
 /// Encode an object into a vector of byte.
-pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
+pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(
+    data: &T,
+) -> Result<Vec<u8>, EncodeError> {
     let mut encoder = Vec::new();
-    let len = data.consensus_encode(&mut encoder).unwrap();
+    let len = data.consensus_encode(&mut encoder).map_err(|e| {
+        EncodeError::ConsensusEncodingFailed(format!("failed to encode object ({})", e))
+    })?;
     debug_assert_eq!(len, encoder.len());
-    encoder
+    Ok(encoder)
 }
 
 /// Encode an object into a hex-encoded string.
-pub fn serialize_hex<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> String {
-    hex_encode(serialize(data))
+pub fn serialize_hex<T: Encodable + std::fmt::Debug + ?Sized>(
+    data: &T,
+) -> Result<String, EncodeError> {
+    Ok(hex_encode(serialize(data)?))
 }
 
 /// Deserialize an object from a byte vector, will error if said deserialization doesn't consume
 /// the entire vector.
-pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
+pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, EncodeError> {
     let (rv, consumed) = deserialize_partial(data)?;
 
     // Fail if data are not consumed entirely.
     if consumed == data.len() {
         Ok(rv)
     } else {
-        Err(Error::ParseFailed(
-            "data not consumed entirely when explicitly deserializing",
-        ))
+        Err(EncodeError::ParseFailed(format!(
+            "data not consumed entirely when explicitly deserializing: input data {}, consumed {}",
+            data.len(),
+            consumed
+        )))
     }
+}
+
+// This limit must always be greater than the maximum number of bytes that can be allocated, so a conservative guess is
+// fine. For complex data types the length of the data buffer does not represent the number of bytes that will be
+// allocated.
+fn bytes_upper_limit_calc<T: Decodable>(data: &[u8]) -> usize {
+    mem::size_of::<T>()
+        .saturating_mul(5) // This is a conservative safety limit
+        .saturating_mul(data.len())
 }
 
 /// Deserialize an object from a vector, but will not report an error if said deserialization
 /// doesn't consume the entire vector.
-pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Error> {
+pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), EncodeError> {
+    let bytes_upper_limit = bytes_upper_limit_calc::<T>(data);
     let mut decoder = io::Cursor::new(data);
-    let rv = Decodable::consensus_decode(&mut decoder)?;
+    let rv = Decodable::consensus_decode(&mut decoder, bytes_upper_limit)?;
     let consumed = decoder.position() as usize;
 
     Ok((rv, consumed))
@@ -131,28 +153,28 @@ pub trait WriteExt: io::Write {
 /// Extensions of [`io::Read`] to decode data as per Monero consensus.
 pub trait ReadExt: io::Read {
     /// Read a 64-bit uint.
-    fn read_u64(&mut self) -> Result<u64, Error>;
+    fn read_u64(&mut self) -> Result<u64, EncodeError>;
     /// Read a 32-bit uint.
-    fn read_u32(&mut self) -> Result<u32, Error>;
+    fn read_u32(&mut self) -> Result<u32, EncodeError>;
     /// Read a 16-bit uint.
-    fn read_u16(&mut self) -> Result<u16, Error>;
+    fn read_u16(&mut self) -> Result<u16, EncodeError>;
     /// Read a 8-bit uint.
-    fn read_u8(&mut self) -> Result<u8, Error>;
+    fn read_u8(&mut self) -> Result<u8, EncodeError>;
 
     /// Read a 64-bit int.
-    fn read_i64(&mut self) -> Result<i64, Error>;
+    fn read_i64(&mut self) -> Result<i64, EncodeError>;
     /// Read a 32-bit int.
-    fn read_i32(&mut self) -> Result<i32, Error>;
+    fn read_i32(&mut self) -> Result<i32, EncodeError>;
     /// Read a 16-bit int.
-    fn read_i16(&mut self) -> Result<i16, Error>;
+    fn read_i16(&mut self) -> Result<i16, EncodeError>;
     /// Read a 8-bit int.
-    fn read_i8(&mut self) -> Result<i8, Error>;
+    fn read_i8(&mut self) -> Result<i8, EncodeError>;
 
     /// Read a boolean.
-    fn read_bool(&mut self) -> Result<bool, Error>;
+    fn read_bool(&mut self) -> Result<bool, EncodeError>;
 
     /// Read a byte slice.
-    fn read_slice(&mut self, slice: &mut [u8]) -> Result<(), Error>;
+    fn read_slice(&mut self, slice: &mut [u8]) -> Result<(), EncodeError>;
 }
 
 macro_rules! encoder_fn {
@@ -167,9 +189,10 @@ macro_rules! encoder_fn {
 macro_rules! decoder_fn {
     ($name:ident, $val_type:ty, $readfn:ident, $byte_len: expr) => {
         #[inline]
-        fn $name(&mut self) -> Result<$val_type, Error> {
+        fn $name(&mut self) -> Result<$val_type, EncodeError> {
             let mut val = [0; $byte_len];
-            self.read_exact(&mut val[..]).map_err(Error::Io)?;
+            self.read_exact(&mut val[..])
+                .map_err(|e| EncodeError::Io(e.to_string()))?;
             Ok(endian::$readfn(&val))
         }
     };
@@ -213,27 +236,30 @@ impl<R: io::Read + ?Sized> ReadExt for R {
     decoder_fn!(read_i16, i16, slice_to_i16_le, 2);
 
     #[inline]
-    fn read_u8(&mut self) -> Result<u8, Error> {
+    fn read_u8(&mut self) -> Result<u8, EncodeError> {
         let mut slice = [0u8; 1];
-        self.read_exact(&mut slice)?;
+        self.read_exact(&mut slice)
+            .map_err(|e| EncodeError::Io(e.to_string()))?;
         Ok(slice[0])
     }
 
     #[inline]
-    fn read_i8(&mut self) -> Result<i8, Error> {
+    fn read_i8(&mut self) -> Result<i8, EncodeError> {
         let mut slice = [0u8; 1];
-        self.read_exact(&mut slice)?;
+        self.read_exact(&mut slice)
+            .map_err(|e| EncodeError::Io(e.to_string()))?;
         Ok(slice[0] as i8)
     }
 
     #[inline]
-    fn read_bool(&mut self) -> Result<bool, Error> {
+    fn read_bool(&mut self) -> Result<bool, EncodeError> {
         ReadExt::read_i8(self).map(|bit| bit != 0)
     }
 
     #[inline]
-    fn read_slice(&mut self, slice: &mut [u8]) -> Result<(), Error> {
-        self.read_exact(slice).map_err(Error::Io)
+    fn read_slice(&mut self, slice: &mut [u8]) -> Result<(), EncodeError> {
+        self.read_exact(slice)
+            .map_err(|e| EncodeError::Io(e.to_string()))
     }
 }
 
@@ -255,7 +281,10 @@ pub trait Encodable {
 /// Data which can be decoded in a consensus-consistent way.
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format.
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error>;
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<Self, EncodeError>;
 }
 
 /// A variable-length unsigned integer type as defined by the Monero codebase.
@@ -289,7 +318,10 @@ macro_rules! impl_int_encodable {
     ($ty:ident, $meth_dec:ident, $meth_enc:ident) => {
         impl Decodable for $ty {
             #[inline]
-            fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+            fn consensus_decode<R: io::Read + ?Sized + Seek>(
+                r: &mut R,
+                _max_mem_bytes: usize,
+            ) -> Result<Self, EncodeError> {
                 ReadExt::$meth_dec(r).map($ty::from_le)
             }
         }
@@ -350,29 +382,46 @@ impl Encodable for VarInt {
 
 impl Decodable for VarInt {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        max_mem_bytes: usize,
+    ) -> Result<Self, EncodeError> {
         let mut res: Vec<u8> = vec![];
         loop {
             let n = r.read_u8()?;
             // Zero in any position other than the first is invalid
             // since it is not the shortest encoding.
             if n == 0 && !res.is_empty() {
-                return Err(Error::ParseFailed("VarInt has a zero in a position other than the first. This is not the shortest encoding."));
+                return Err(EncodeError::ParseFailed("VarInt has a zero in a position other than the first. This is not the shortest encoding.".to_string()));
             }
             res.push(n & 0b0111_1111);
             if n & 0b1000_0000 == 0 {
                 break;
             }
         }
+        if res.len() > max_mem_bytes {
+            return Err(EncodeError::ParseFailed(format!(
+                "VarInt overflows upper allocatable bytes limit: {} > {}",
+                res.len(),
+                max_mem_bytes
+            )));
+        }
         let mut int = 0u64;
         res.reverse();
-        let (last, arr) = res.split_last().unwrap();
+        let (last, arr) = match res.split_last() {
+            Some((v1, v2)) => (v1, v2),
+            None => {
+                return Err(EncodeError::ParseFailed(
+                    "VarInt has empty data.".to_string(),
+                ))
+            }
+        };
         for bits in arr {
             int |= *bits as u64;
             int = if int.leading_zeros() >= 7 {
                 int << 7
             } else {
-                return Err(Error::ParseFailed("VarInt overflows u64"));
+                return Err(EncodeError::ParseFailed("VarInt overflows u64".to_string()));
             };
         }
         int |= *last as u64;
@@ -392,7 +441,10 @@ impl Encodable for bool {
 
 impl Decodable for bool {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<bool, Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        _max_mem_bytes: usize,
+    ) -> Result<bool, EncodeError> {
         ReadExt::read_bool(r)
     }
 }
@@ -411,9 +463,12 @@ impl Encodable for String {
 
 impl Decodable for String {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<String, Error> {
-        String::from_utf8(Decodable::consensus_decode(r)?)
-            .map_err(|_| self::Error::ParseFailed("String was not valid UTF8"))
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<String, EncodeError> {
+        String::from_utf8(Decodable::consensus_decode(r, bytes_upper_limit)?)
+            .map_err(|_| self::EncodeError::ParseFailed("String was not valid UTF8".to_string()))
     }
 }
 
@@ -437,12 +492,15 @@ macro_rules! impl_array {
 
         impl<T: Decodable + Copy> Decodable for [T; $size] {
             #[inline]
-            fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+            fn consensus_decode<R: io::Read + ?Sized + Seek>(
+                r: &mut R,
+                bytes_upper_limit: usize,
+            ) -> Result<Self, EncodeError> {
                 // Set everything to the first decode
-                let mut ret = [Decodable::consensus_decode(r)?; $size];
+                let mut ret = [Decodable::consensus_decode(r, bytes_upper_limit)?; $size];
                 // Set the rest
                 for item in ret.iter_mut().take($size).skip(1) {
-                    *item = Decodable::consensus_decode(r)?;
+                    *item = Decodable::consensus_decode(r, bytes_upper_limit)?;
                 }
                 Ok(ret)
             }
@@ -480,35 +538,65 @@ impl<T: Encodable> Encodable for Vec<T> {
 
 impl<T: Decodable> Decodable for Vec<T> {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
-        const MAX_VEC_ALLOC_SIZE: usize = 4 * 1024 * 1024;
-        let len = usize::try_from(*VarInt::consensus_decode(r)?)
-            .map_err(|_| self::Error::ParseFailed("VarInt overflows usize"))?;
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<Self, EncodeError> {
+        let len = usize::try_from(*VarInt::consensus_decode(r, mem::size_of::<VarInt>() * 2)?)
+            .map_err(|e| {
+                self::EncodeError::ParseFailed(format!("VarInt overflows usize ({})", e))
+            })?;
 
-        // Prevent allocations larger than 4 MiB
+        // Prevent allocations larger than the maximum allowed size
         let layout_size = mem::size_of::<T>().saturating_mul(len);
-        if layout_size > MAX_VEC_ALLOC_SIZE {
-            return Err(self::Error::ParseFailed(
-                "length exceeds maximum allocatable bytes (4 MiB)",
-            ));
+        if layout_size > max_allocatable_mem_bytes_size(bytes_upper_limit) {
+            return Err(self::EncodeError::ParseFailed(format!(
+                "length ({} x {} = {}) exceeds maximum allocatable bytes ({}) by {} bytes",
+                mem::size_of::<T>(),
+                len,
+                layout_size,
+                max_allocatable_mem_bytes_size(bytes_upper_limit),
+                layout_size.saturating_sub(max_allocatable_mem_bytes_size(bytes_upper_limit)),
+            )));
         }
 
         let mut ret = Vec::with_capacity(len);
         for _ in 0..len {
-            ret.push(Decodable::consensus_decode(r)?);
+            ret.push(Decodable::consensus_decode(r, bytes_upper_limit)?);
         }
         Ok(ret)
     }
 }
 
-macro_rules! decode_sized_vec {
-    ( $size:expr, $d:expr ) => {{
-        let mut ret = Vec::with_capacity($size as usize);
-        for _ in 0..$size {
-            ret.push(Decodable::consensus_decode($d)?);
-        }
-        ret
-    }};
+/// Decode a vector of a given size
+pub fn consensus_decode_sized_vec<R: io::Read + ?Sized + Seek, T: Decodable>(
+    r: &mut R,
+    size: usize,
+    bytes_upper_limit: usize,
+) -> Result<Vec<T>, EncodeError> {
+    let layout_size = mem::size_of::<T>().saturating_mul(size);
+    if layout_size > max_allocatable_mem_bytes_size(bytes_upper_limit) {
+        return Err(EncodeError::ParseFailed(format!(
+            "length ({} x {} = {}) exceeds maximum allocatable bytes ({}) by {} bytes",
+            mem::size_of::<T>(),
+            size,
+            layout_size,
+            max_allocatable_mem_bytes_size(bytes_upper_limit),
+            layout_size.saturating_sub(max_allocatable_mem_bytes_size(bytes_upper_limit)),
+        )));
+    }
+    let max_item_size = if size > 0 {
+        // Allow some margin for each item
+        (max_allocatable_mem_bytes_size(bytes_upper_limit) as f64 / size as f64) as usize * 5
+    } else {
+        size
+    };
+    let mut ret = Vec::with_capacity(size);
+    for _ in 0..size {
+        let item = Decodable::consensus_decode(r, max_item_size)?;
+        ret.push(item);
+    }
+    Ok(ret)
 }
 
 macro_rules! encode_sized_vec {
@@ -531,21 +619,52 @@ impl<T: Encodable> Encodable for Box<[T]> {
 
 impl<T: Decodable> Decodable for Box<[T]> {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
-        let len = VarInt::consensus_decode(r)?.0;
-        let len = len as usize;
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<Self, EncodeError> {
+        let len = usize::try_from(*VarInt::consensus_decode(r, mem::size_of::<VarInt>() * 2)?)
+            .map_err(|e| {
+                self::EncodeError::ParseFailed(format!("VarInt overflows usize ({})", e))
+            })?;
+
+        // Prevent allocations larger than the maximum allowed size
+        let layout_size = mem::size_of::<T>().saturating_mul(len);
+        if layout_size > max_allocatable_mem_bytes_size(bytes_upper_limit) {
+            return Err(self::EncodeError::ParseFailed(format!(
+                "length ({} x {} = {}) exceeds maximum allocatable bytes ({}) by {} bytes",
+                mem::size_of::<T>(),
+                len,
+                layout_size,
+                max_allocatable_mem_bytes_size(bytes_upper_limit),
+                layout_size.saturating_sub(max_allocatable_mem_bytes_size(bytes_upper_limit)),
+            )));
+        }
+
         let mut ret = Vec::with_capacity(len);
         for _ in 0..len {
-            ret.push(Decodable::consensus_decode(r)?);
+            ret.push(Decodable::consensus_decode(r, bytes_upper_limit)?);
         }
         Ok(ret.into_boxed_slice())
     }
 }
 
+// Maximum allocatable memory bytes size - this number does not need to be exact, it only needs to be ample, as its
+// primary purpose is to prevent memory overflows during consensus decoding for vectors or arrays.
+pub(crate) fn max_allocatable_mem_bytes_size(bytes_upper_limit: usize) -> usize {
+    const MAX_MEM_ALLOC_SIZE: usize = 32 * 1024 * 1024; // 32 MiB
+    min(MAX_MEM_ALLOC_SIZE, max(bytes_upper_limit, 128))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{deserialize, serialize, Error, VarInt};
-    use crate::{Block, TxIn};
+    use super::{deserialize, serialize, EncodeError, VarInt};
+    use crate::blockdata::transaction::{ExtraField, SubField, TxOutTarget};
+    use crate::consensus::encode::{bytes_upper_limit_calc, max_allocatable_mem_bytes_size};
+    use crate::consensus::Decodable;
+    use crate::util::ringct::{Key, RctSig, RctSigBase, RctType};
+    use crate::{Block, Hash, PublicKey, Transaction, TransactionPrefix, TxIn, TxOut};
+    use std::{io, mem};
 
     #[test]
     fn deserialize_varint() {
@@ -556,36 +675,42 @@ mod tests {
         assert_eq!(VarInt(300), int);
 
         let max = VarInt(u64::MAX);
-        let mut max_u64_data = serialize(&max);
+        let mut max_u64_data = serialize(&max).unwrap();
         let len_max = max_u64_data.len();
         let int: VarInt = deserialize(&max_u64_data).unwrap();
         assert_eq!(max, int);
 
         // varint must be shortest encoding
         let res = deserialize::<VarInt>(&[152, 0]);
-        assert!(matches!(res.unwrap_err(), Error::ParseFailed(_)));
+        assert!(matches!(res.unwrap_err(), EncodeError::ParseFailed(_)));
 
         // If the last number is not a 0, it will error with an IO error (UnexpectedEof)
         let res = deserialize::<VarInt>(&[255u8; 1]);
-        assert!(matches!(res.unwrap_err(), Error::Io(_)));
+        assert!(matches!(res.unwrap_err(), EncodeError::Io(_)));
 
         // Add one to the max u64 data.
         assert_eq!(max_u64_data[len_max - 1], 0x01);
         max_u64_data[len_max - 1] += 1;
         let res = deserialize::<VarInt>(&max_u64_data);
-        assert!(matches!(res.unwrap_err(), Error::ParseFailed(_)));
+        assert!(matches!(res.unwrap_err(), EncodeError::ParseFailed(_)));
 
         let res = deserialize::<VarInt>(&[
             255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 1u8,
         ]);
-        assert!(matches!(res.unwrap_err(), Error::ParseFailed(_)));
+        assert!(matches!(res.unwrap_err(), EncodeError::ParseFailed(_)));
     }
 
     #[test]
     fn serialize_varint() {
-        assert_eq!(vec![0b000_0001], serialize(&VarInt(1)));
-        assert_eq!(vec![0b1010_1100, 0b0000_0010], serialize(&VarInt(300)));
-        assert_eq!("80e497d012", hex::encode(serialize(&VarInt(5000000000))));
+        assert_eq!(vec![0b000_0001], serialize(&VarInt(1)).unwrap());
+        assert_eq!(
+            vec![0b1010_1100, 0b0000_0010],
+            serialize(&VarInt(300)).unwrap()
+        );
+        assert_eq!(
+            "80e497d012",
+            hex::encode(serialize(&VarInt(5000000000)).unwrap())
+        );
     }
 
     #[test]
@@ -595,7 +720,15 @@ mod tests {
         let data = deserialize::<Vec<u8>>(&vec).unwrap();
         assert_eq!(data, vec[1..]);
 
-        let tx_in = serialize(&TxIn::Gen { height: VarInt(1) });
+        let vec = vec![
+            [0u8; 64], [1u8; 64], [2u8; 64], [3u8; 64], [4u8; 64], [5u8; 64], [6u8; 64], [7u8; 64],
+        ];
+        let vec_buffer = serialize(&vec).unwrap();
+        let data = deserialize::<Vec<[u8; 64]>>(&vec_buffer).unwrap();
+        assert_eq!(data, vec);
+
+        let tx_in = serialize(&TxIn::Gen { height: VarInt(1) }).unwrap();
+        // First byte is len = 8
         let mut vec = vec![0x08u8];
         for _ in 0..8 {
             vec.extend(tx_in.clone());
@@ -604,27 +737,83 @@ mod tests {
         assert!(tx_ins.iter().all(|t| *t == TxIn::Gen { height: VarInt(1) }));
     }
     #[test]
-    fn deserialize_vec_max_allocation() {
-        let len = VarInt(((4 * 1024 * 1024) / 64) + 1);
-        let data = serialize(&len);
+    fn deserialize_voc_with_inadequate_buffer() {
+        let err = deserialize::<Vec<[u8; 64]>>(&[]).unwrap_err();
+        assert!(matches!(err, EncodeError::Io(_)));
+        let len = VarInt(1);
+        let data = serialize(&len).unwrap();
         let err = deserialize::<Vec<[u8; 64]>>(&data).unwrap_err();
-        assert!(matches!(err, Error::ParseFailed(_)));
+        assert!(matches!(err, EncodeError::Io(_)));
+    }
+
+    #[test]
+    fn deserialize_varint_with_empty_buffer() {
+        let err = deserialize::<VarInt>(&[]).unwrap_err();
+        assert!(matches!(err, EncodeError::Io(_)));
+    }
+
+    #[test]
+    fn deserialize_vec_max_allocation() {
+        for i in 0..10 {
+            let len = VarInt(i);
+            let data = serialize(&len).unwrap();
+            let res = deserialize::<Vec<[u8; 64]>>(&data);
+            if i == 0 {
+                assert!(res.is_ok());
+            } else {
+                let err = res.unwrap_err();
+                if i <= 2 {
+                    assert!(matches!(err, EncodeError::Io(_)));
+                } else {
+                    assert!(matches!(err, EncodeError::ParseFailed(_)));
+                }
+            }
+        }
+
+        let data_len = 100u64;
+        let mut data = serialize(&VarInt(data_len)).unwrap();
+        for i in 0..data_len {
+            data.push((i % 255) as u8);
+        }
+        assert_eq!(data[1..], deserialize::<Vec<u8>>(&data[..]).unwrap());
+
+        let bytes_upper_limit = bytes_upper_limit_calc::<Vec<u8>>(&data[..]);
+        for length in 0..bytes_upper_limit as u64 + 100 {
+            let replace_len = VarInt(length);
+            let replace_len_bytes = serialize(&replace_len).unwrap();
+            for (i, val) in replace_len_bytes.iter().enumerate() {
+                data[i] = *val;
+            }
+            let res = deserialize::<Vec<u8>>(&data[..]);
+            if length == data_len {
+                assert!(res.is_ok());
+            } else {
+                let err = res.unwrap_err();
+                if length < data_len {
+                    assert!(matches!(err, EncodeError::ParseFailed(_)));
+                } else if length <= bytes_upper_limit as u64 {
+                    assert!(matches!(err, EncodeError::Io(_)));
+                } else {
+                    assert!(matches!(err, EncodeError::ParseFailed(_)));
+                }
+            }
+        }
     }
 
     #[test]
     fn deserialize_vec_overflow_does_not_panic() {
         let overflow_len = VarInt((isize::MAX as u64 / 64) + 1);
-        let data = serialize(&overflow_len);
+        let data = serialize(&overflow_len).unwrap();
         let err = deserialize::<Vec<[u8; 64]>>(&data).unwrap_err();
-        assert!(matches!(err, Error::ParseFailed(_)));
+        assert!(matches!(err, EncodeError::ParseFailed(_)));
     }
 
     #[test]
     fn deserialize_string_overflow_does_not_panic() {
         let overflow_len = VarInt(isize::MAX as u64 + 1);
-        let data = serialize(&overflow_len);
+        let data = serialize(&overflow_len).unwrap();
         let err = deserialize::<String>(&data).unwrap_err();
-        assert!(matches!(err, Error::ParseFailed(_)));
+        assert!(matches!(err, EncodeError::ParseFailed(_)));
     }
 
     #[test]
@@ -642,5 +831,229 @@ mod tests {
             0x00, 0x00, 0x00,
         ];
         let _ = deserialize::<Block>(&data);
+    }
+
+    #[test]
+    fn decode_mem_size() {
+        assert_eq!(max_allocatable_mem_bytes_size(0), 128);
+        assert_eq!(max_allocatable_mem_bytes_size(51), 128);
+        assert_eq!(max_allocatable_mem_bytes_size(128), 128);
+        assert_eq!(max_allocatable_mem_bytes_size(129), 129);
+        assert_eq!(
+            max_allocatable_mem_bytes_size(32 * 1024 * 1024),
+            32 * 1024 * 1024
+        );
+        assert_eq!(
+            max_allocatable_mem_bytes_size(1024 * 1024 * 1024),
+            32 * 1024 * 1024
+        );
+
+        let byte_value_max = 100u8;
+        let buffer_length = (mem::size_of::<Key>() * (byte_value_max as usize + 1)) + 1;
+        for byte_value in 0..=byte_value_max {
+            let serialized_bytes = vec![byte_value; buffer_length];
+            let mut decoder = io::Cursor::new(&serialized_bytes[..]);
+            let res: Result<Key, EncodeError> = Decodable::consensus_decode(&mut decoder, 0);
+            assert!(res.is_ok());
+            let res: Result<Vec<Key>, EncodeError> = Decodable::consensus_decode(
+                &mut decoder,
+                mem::size_of::<Key>() * byte_value as usize,
+            );
+            assert!(res.is_ok());
+        }
+    }
+
+    #[test]
+    fn deserialize_vec_of_transactions() {
+        let transaction = get_transaction();
+        let mut transaction_vec = Vec::new();
+        for _ in 0..1024 {
+            transaction_vec.push(transaction.clone());
+        }
+        let buffer = serialize(&transaction_vec).unwrap();
+        let deserialized = deserialize::<Vec<Transaction>>(&buffer).unwrap();
+        assert_eq!(deserialized, transaction_vec);
+    }
+
+    fn get_transaction() -> Transaction {
+        let pk_extra = vec![
+            179, 155, 220, 223, 213, 23, 81, 160, 95, 232, 87, 102, 151, 63, 70, 249, 139, 40, 110,
+            16, 51, 193, 175, 208, 38, 120, 65, 191, 155, 139, 1, 4,
+        ];
+        Transaction {
+            prefix: TransactionPrefix {
+                version: VarInt(2),
+                unlock_time: VarInt(2143845),
+                inputs: vec![
+                    TxIn::Gen {
+                        height: VarInt(2143785),
+                    },
+                    TxIn::Gen {
+                        height: VarInt(2143786),
+                    },
+                    TxIn::Gen {
+                        height: VarInt(2143787),
+                    },
+                    TxIn::Gen {
+                        height: VarInt(2143788),
+                    },
+                    TxIn::Gen {
+                        height: VarInt(2143789),
+                    },
+                    TxIn::Gen {
+                        height: VarInt(2143790),
+                    },
+                    TxIn::Gen {
+                        height: VarInt(2143791),
+                    },
+                ],
+                outputs: vec![
+                    TxOut {
+                        amount: VarInt(1550800739964),
+                        target: TxOutTarget::ToKey {
+                            key: PublicKey::from_slice(
+                                hex::decode(
+                                    "e2e19d8badb15e77c8e1f441cf6acd9bcde34a07cae82bbe5ff9629bf88e6e81",
+                                )
+                                    .unwrap()
+                                    .as_slice(),
+                            )
+                                .unwrap()
+                                .to_bytes(),
+                        },
+                    },
+                    TxOut {
+                        amount: VarInt(1550800739964),
+                        target: TxOutTarget::ToKey {
+                            key: PublicKey::from_slice(
+                                hex::decode(
+                                    "e2e19d8badb15e77c8e1f441cf6acd9bcde34a07cae82bbe5ff9629bf88e6e81",
+                                )
+                                    .unwrap()
+                                    .as_slice(),
+                            )
+                                .unwrap()
+                                .to_bytes(),
+                        },
+                    },
+                    TxOut {
+                        amount: VarInt(1550800739964),
+                        target: TxOutTarget::ToKey {
+                            key: PublicKey::from_slice(
+                                hex::decode(
+                                    "e2e19d8badb15e77c8e1f441cf6acd9bcde34a07cae82bbe5ff9629bf88e6e81",
+                                )
+                                    .unwrap()
+                                    .as_slice(),
+                            )
+                                .unwrap()
+                                .to_bytes(),
+                        },
+                    },
+                    TxOut {
+                        amount: VarInt(1550800739964),
+                        target: TxOutTarget::ToKey {
+                            key: PublicKey::from_slice(
+                                hex::decode(
+                                    "e2e19d8badb15e77c8e1f441cf6acd9bcde34a07cae82bbe5ff9629bf88e6e81",
+                                )
+                                    .unwrap()
+                                    .as_slice(),
+                            )
+                                .unwrap()
+                                .to_bytes(),
+                        },
+                    },
+                    TxOut {
+                        amount: VarInt(1550800739964),
+                        target: TxOutTarget::ToKey {
+                            key: PublicKey::from_slice(
+                                hex::decode(
+                                    "e2e19d8badb15e77c8e1f441cf6acd9bcde34a07cae82bbe5ff9629bf88e6e81",
+                                )
+                                    .unwrap()
+                                    .as_slice(),
+                            )
+                                .unwrap()
+                                .to_bytes(),
+                        },
+                    },
+                ],
+                extra: ExtraField(vec![
+                    SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),
+                    SubField::Nonce(vec![
+                        196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    ]),
+                    SubField::MysteriousMinerGate(vec![
+                        207, 178, 51, 151, 236, 243, 250, 53, 101, 231, 200, 74, 181, 168, 88, 192, 92,
+                        120, 213, 36, 147, 125, 53, 253, 90, 5, 164, 31, 186, 125, 50, 16,
+                    ]),
+                    SubField::TxPublicKey(
+                        PublicKey::from_slice(
+                            hex::decode("944f9df50e769da49c64e0fcb4e1d77f8905056548eb9a7f04914c2d74b1bbaf")
+                                .unwrap()
+                                .as_slice(),
+                        )
+                            .unwrap(),
+                    ),
+                    SubField::Nonce(vec![62, 19, 29, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                    SubField::MergeMining(
+                        Some(VarInt(1)),
+                        Hash::from_slice(
+                            hex::decode("62b853ea7f574fb4cbdd29ad51894babbaebd68ea15225507c52d9e551eb1995")
+                                .unwrap()
+                                .as_slice(),
+                        ),
+                    ),
+                    SubField::TxPublicKey(
+                        PublicKey::from_slice(
+                            hex::decode("c6b919050a413044756e328f0ab5146f40a60258b5671e9d6cc972357c9dfa0b")
+                                .unwrap()
+                                .as_slice(),
+                        )
+                            .unwrap(),
+                    ),
+                    SubField::AdditionalPublickKey(vec![
+                        PublicKey::from_slice(
+                            hex::decode("f2e013a0f696b7afff80af81f653f74b270651300ab40f5d15ca0553cd424f17")
+                                .unwrap()
+                                .as_slice(),
+                        )
+                            .unwrap(),
+                        PublicKey::from_slice(
+                            hex::decode("72a98681a92139ff6c8c4bf33d91834c0fa775576a61ec782dc1eda715679acb")
+                                .unwrap()
+                                .as_slice(),
+                        )
+                            .unwrap(),
+                        PublicKey::from_slice(
+                            hex::decode("71641ae9896f959a48b286738f7f36a00ac91ed7ecac12e881488b48b18bec67")
+                                .unwrap()
+                                .as_slice(),
+                        )
+                            .unwrap(),
+                        PublicKey::from_slice(
+                            hex::decode("f439c1fd75bf22a2f79e0810962adb0ecf9c10e774934f4cd5baff354fabf616")
+                                .unwrap()
+                                .as_slice(),
+                        )
+                            .unwrap(),
+                    ]),
+                ])
+                    .try_into()
+                    .unwrap(),
+            },
+            signatures: vec![],
+            rct_signatures: RctSig {
+                sig: Option::from(RctSigBase {
+                    rct_type: RctType::Null,
+                    txn_fee: Default::default(),
+                    pseudo_outs: vec![],
+                    ecdh_info: vec![],
+                    out_pk: vec![],
+                }),
+                p: None,
+            },
+        }
     }
 }

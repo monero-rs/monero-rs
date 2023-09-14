@@ -23,7 +23,7 @@
 //! ```rust
 //! use std::str::FromStr;
 //! use monero::{Address, Network};
-//! use monero::util::address::{AddressType, Error};
+//! use monero::util::address::{AddressType, AddressError};
 //!
 //! let addr = "4ADT1BtbxqEWeMKp9GgPr2NeyJXXtNxvoDawpyA4WpzFcGcoHUvXeijE66DNfohE9r1bQYaBiQjEtKE7CtkTdLwiDznFzra";
 //! let address = Address::from_str(addr)?;
@@ -33,7 +33,7 @@
 //!
 //! let public_spend_key = address.public_spend;
 //! let public_view_key = address.public_view;
-//! # Ok::<(), Error>(())
+//! # Ok::<(), AddressError>(())
 //! ```
 //!
 
@@ -41,13 +41,14 @@
 #![allow(clippy::incorrect_clone_impl_on_copy_type)]
 
 use std::fmt;
+use std::io::Seek;
 use std::str::FromStr;
 
 use base58_monero::base58;
 
 use crate::consensus::encode::{self, Decodable};
 use crate::cryptonote::hash::keccak_256;
-use crate::network::{self, Network};
+use crate::network::{Network, NetworkError};
 use crate::util::key::{KeyPair, PublicKey, ViewPair};
 
 use sealed::sealed;
@@ -55,7 +56,7 @@ use thiserror::Error;
 
 /// Potential errors encountered when manipulating addresses.
 #[derive(Error, Debug, PartialEq)]
-pub enum Error {
+pub enum AddressError {
     /// Invalid address magic byte.
     #[error("Invalid magic byte")]
     InvalidMagicByte,
@@ -73,7 +74,10 @@ pub enum Error {
     Base58(#[from] base58::Error),
     /// Network error.
     #[error("Network error: {0}")]
-    Network(#[from] network::Error),
+    Network(#[from] NetworkError),
+    /// Encode error.
+    #[error("Encode error: {0}")]
+    Encoding(String),
 }
 
 /// Address type: standard, integrated, or sub-address.
@@ -92,7 +96,7 @@ pub enum AddressType {
 
 impl AddressType {
     /// Recover the address type given an address bytes and the network.
-    pub fn from_slice(bytes: &[u8], net: Network) -> Result<AddressType, Error> {
+    pub fn from_slice(bytes: &[u8], net: Network) -> Result<AddressType, AddressError> {
         let byte = bytes[0];
         use AddressType::*;
         use Network::*;
@@ -104,7 +108,7 @@ impl AddressType {
                     Ok(Integrated(payment_id))
                 }
                 42 => Ok(SubAddress),
-                _ => Err(Error::InvalidMagicByte),
+                _ => Err(AddressError::InvalidMagicByte),
             },
             Testnet => match byte {
                 53 => Ok(Standard),
@@ -113,7 +117,7 @@ impl AddressType {
                     Ok(Integrated(payment_id))
                 }
                 63 => Ok(SubAddress),
-                _ => Err(Error::InvalidMagicByte),
+                _ => Err(AddressError::InvalidMagicByte),
             },
             Stagenet => match byte {
                 24 => Ok(Standard),
@@ -122,7 +126,7 @@ impl AddressType {
                     Ok(Integrated(payment_id))
                 }
                 36 => Ok(SubAddress),
-                _ => Err(Error::InvalidMagicByte),
+                _ => Err(AddressError::InvalidMagicByte),
             },
         }
     }
@@ -233,13 +237,13 @@ impl Address {
 
     /// Parse an address from a vector of bytes, fail if the magic byte is incorrect, if public
     /// keys are not valid points, if payment id is invalid, and if checksums missmatch.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Address, Error> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Address, AddressError> {
         let network = Network::from_u8(bytes[0])?;
         let addr_type = AddressType::from_slice(bytes, network)?;
         let public_spend =
-            PublicKey::from_slice(&bytes[1..33]).map_err(|_| Error::InvalidFormat)?;
+            PublicKey::from_slice(&bytes[1..33]).map_err(|_| AddressError::InvalidFormat)?;
         let public_view =
-            PublicKey::from_slice(&bytes[33..65]).map_err(|_| Error::InvalidFormat)?;
+            PublicKey::from_slice(&bytes[33..65]).map_err(|_| AddressError::InvalidFormat)?;
 
         let (checksum_bytes, checksum) = match addr_type {
             AddressType::Standard | AddressType::SubAddress => (&bytes[0..65], &bytes[65..69]),
@@ -247,7 +251,7 @@ impl Address {
         };
         let verify_checksum = keccak_256(checksum_bytes);
         if &verify_checksum[0..4] != checksum {
-            return Err(Error::InvalidChecksum);
+            return Err(AddressError::InvalidChecksum);
         }
 
         Ok(Address {
@@ -289,7 +293,7 @@ impl hex::ToHex for Address {
 }
 
 impl hex::FromHex for Address {
-    type Error = Error;
+    type Error = AddressError;
 
     fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self, Self::Error> {
         let hex = hex.as_ref();
@@ -301,12 +305,16 @@ impl hex::FromHex for Address {
 
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", base58::encode(self.as_bytes().as_slice()).unwrap())
+        write!(
+            f,
+            "{}",
+            base58::encode(self.as_bytes().as_slice()).map_err(|_| fmt::Error)?
+        )
     }
 }
 
 impl FromStr for Address {
-    type Err = Error;
+    type Err = AddressError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::from_bytes(&base58::decode(s)?)
     }
@@ -339,8 +347,11 @@ mod serde_impl {
 }
 
 impl Decodable for Address {
-    fn consensus_decode<R: std::io::Read + ?Sized>(r: &mut R) -> Result<Address, encode::Error> {
-        let address: Vec<u8> = Decodable::consensus_decode(r)?;
+    fn consensus_decode<R: std::io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<Address, encode::EncodeError> {
+        let address: Vec<u8> = Decodable::consensus_decode(r, bytes_upper_limit)?;
         Ok(Address::from_bytes(&address)?)
     }
 }
@@ -358,6 +369,7 @@ impl crate::consensus::encode::Encodable for Address {
 #[cfg(test)]
 mod tests {
     use hex::{FromHex, FromHexError, ToHex};
+    use std::mem;
 
     use crate::consensus::encode::{Decodable, Encodable};
     use std::str::FromStr;
@@ -395,7 +407,7 @@ mod tests {
         let mut encoder = Vec::new();
         full_address.clone().consensus_encode(&mut encoder).unwrap();
         let mut res = std::io::Cursor::new(encoder);
-        let addr_decoded = Address::consensus_decode(&mut res).unwrap();
+        let addr_decoded = Address::consensus_decode(&mut res, mem::size_of::<Address>()).unwrap();
         assert_eq!(full_address, addr_decoded);
     }
 

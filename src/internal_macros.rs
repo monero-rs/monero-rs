@@ -34,15 +34,17 @@ macro_rules! impl_consensus_encoding {
 
         impl $crate::consensus::encode::Decodable for $thing {
             #[inline]
-            fn consensus_decode<R: ::std::io::Read + ?Sized>(
-                r: &mut R
-            ) -> Result<$thing, $crate::consensus::encode::Error> {
+            fn consensus_decode<R: ::std::io::Read + ?Sized + Seek>(
+                r: &mut R,
+                bytes_upper_limit: usize,
+            ) -> Result<$thing, $crate::consensus::encode::EncodeError> {
                 Ok($thing {
-                    $( $field: crate::consensus::encode::Decodable::consensus_decode(r)?, )+
+                    $( $field: crate::consensus::encode::Decodable::consensus_decode(r, bytes_upper_limit)?, )+
                 })
             }
         }
     );
+
 }
 
 macro_rules! impl_hex_display {

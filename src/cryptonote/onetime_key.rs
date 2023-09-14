@@ -46,11 +46,11 @@
 //!     PublicKey::from_str("5d1402db663eda8cef4f6782b66321e4a990f746aca249c973e098ba2c0837c1")
 //!         .unwrap();
 //!
-//! let checker = SubKeyChecker::new(&viewpair, 0..3, 0..3);
+//! let checker = SubKeyChecker::new(&viewpair, 0..3, 0..3).unwrap();
 //!
 //! assert_eq!(
 //!     Some(&Index { major: 0, minor: 0 }),
-//!     checker.check(1, &one_time_pk, &tx_pubkey)
+//!     checker.check(1, &one_time_pk, &tx_pubkey).unwrap()
 //! );
 //! ```
 //!
@@ -62,6 +62,7 @@ use std::ops::Range;
 use crate::consensus::encode::{Encodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::subaddress::{self, get_spend_secret_key, Index};
+use crate::util::address::AddressError;
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
 /// Special factor used in all `vR` and `rV` multiplications.
@@ -97,29 +98,31 @@ impl KeyGenerator {
     }
 
     /// Compute the onetime public key `P = Hn(r*8*V || n)*G + S` for the indexed output `n`.
-    pub fn one_time_key(&self, index: usize) -> PublicKey {
+    pub fn one_time_key(&self, index: usize) -> Result<PublicKey, AddressError> {
         // Computes a onetime public key P = Hn(r*8*V || n)*G + S
-        PublicKey::from_private_key(&self.get_rvn_scalar(index)) + self.spend
+        Ok(PublicKey::from_private_key(&self.get_rvn_scalar(index)?) + self.spend)
     }
 
     /// Check if key `P` is equal to indexed key `P'`, if true the output is own by the address,
     /// used when scanning transaction outputs, if true the onetime key is related to the keys.
-    pub fn check(&self, index: usize, key: PublicKey) -> bool {
-        key == self.one_time_key(index)
+    pub fn check(&self, index: usize, key: PublicKey) -> Result<bool, AddressError> {
+        Ok(key == self.one_time_key(index)?)
     }
 
     /// Computes `Hn(v*8*R || n)` and interpret it as a scalar.
-    pub fn get_rvn_scalar(&self, index: usize) -> PrivateKey {
+    pub fn get_rvn_scalar(&self, index: usize) -> Result<PrivateKey, AddressError> {
         // Serializes (v*8*R || n)
         let mut encoder = Cursor::new(vec![]);
         self.rv.consensus_encode(&mut encoder).unwrap();
-        VarInt(index as u64).consensus_encode(&mut encoder).unwrap();
+        VarInt(index as u64)
+            .consensus_encode(&mut encoder)
+            .map_err(|e| AddressError::Encoding(e.to_string()))?;
         // Computes Hn(v*8*R || n) and interpret as a scalar
         //
         // The hash function H is the same Keccak function that is used in CryptoNote. When the
         // value of the hash function is interpreted as a scalar, it is converted into a
         // little-endian integer and taken modulo l.
-        hash::Hash::hash_to_scalar(encoder.into_inner())
+        Ok(hash::Hash::hash_to_scalar(encoder.into_inner()))
     }
 }
 
@@ -138,29 +141,47 @@ pub struct SubKeyChecker<'a> {
 impl<'a> SubKeyChecker<'a> {
     /// Generate the table of sub spend keys `K(S) \in major x minor` from a view pair mapped to
     /// their Sub-address indexes.
-    pub fn new(keys: &'a ViewPair, major: Range<u32>, minor: Range<u32>) -> Self {
+    pub fn new(
+        keys: &'a ViewPair,
+        major: Range<u32>,
+        minor: Range<u32>,
+    ) -> Result<Self, AddressError> {
         let mut table = HashMap::new();
-        major.for_each(|maj| {
-            minor.clone().for_each(|min| {
+
+        for maj in major {
+            for min in minor.clone() {
                 let index = Index {
                     major: maj,
                     minor: min,
                 };
-                let spend = subaddress::get_spend_public_key(keys, index);
-                table.insert(spend, index);
-            });
-        });
-        SubKeyChecker { table, keys }
+                match subaddress::get_spend_public_key(keys, index) {
+                    Ok(spend) => {
+                        table.insert(spend, index);
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
+        Ok(SubKeyChecker { table, keys })
     }
 
     /// Check if an output public key with its associated random tx public key at index `i` is in
     /// the table, if found then the output is own by the view pair, otherwise the output might be
     /// own by someone else, or the table migth be too small.
-    pub fn check(&self, index: usize, key: &PublicKey, tx_pubkey: &PublicKey) -> Option<&Index> {
+    pub fn check(
+        &self,
+        index: usize,
+        key: &PublicKey,
+        tx_pubkey: &PublicKey,
+    ) -> Result<Option<&Index>, AddressError> {
         let keygen = KeyGenerator::from_key(self.keys, *tx_pubkey);
         // D' = P - Hs(v*8*R || n)*G
-        self.table
-            .get(&(key - PublicKey::from_private_key(&keygen.get_rvn_scalar(index))))
+        Ok(self
+            .table
+            .get(&(key - PublicKey::from_private_key(&keygen.get_rvn_scalar(index)?))))
     }
 
     /// Same as check but uses a pre-generated KeyGenerator
@@ -169,10 +190,11 @@ impl<'a> SubKeyChecker<'a> {
         keygen: KeyGenerator,
         index: usize,
         key: &PublicKey,
-    ) -> Option<&Index> {
+    ) -> Result<Option<&Index>, AddressError> {
         // D' = P - Hs(v*8*R || n)*G
-        self.table
-            .get(&(key - PublicKey::from_private_key(&keygen.get_rvn_scalar(index))))
+        Ok(self
+            .table
+            .get(&(key - PublicKey::from_private_key(&keygen.get_rvn_scalar(index)?))))
     }
 }
 
@@ -204,14 +226,14 @@ impl<'a> KeyRecoverer<'a> {
     ///
     /// See sub-address key derivation for more details on address index handling.
     ///
-    pub fn recover(&self, oindex: usize, aindex: Index) -> PrivateKey {
+    pub fn recover(&self, oindex: usize, aindex: Index) -> Result<PrivateKey, AddressError> {
         // Hn(v*8*R || n)
-        let scal = self.checker.get_rvn_scalar(oindex);
+        let scal = self.checker.get_rvn_scalar(oindex)?;
         // s' = { s                   i == 0
         //      { s + Hn(v || i)      otherwise
-        let s = get_spend_secret_key(self.keys, aindex);
+        let s = get_spend_secret_key(self.keys, aindex)?;
         // Hn(v*8*R || n) + s'
-        scal + s
+        Ok(scal + s)
     }
 }
 
@@ -252,9 +274,9 @@ mod tests {
 
         let generator = KeyGenerator::from_key(&viewpair, tx_pubkey);
 
-        assert!(!generator.check(0, one_time_pk));
-        assert!(generator.check(1, one_time_pk));
-        assert!(!generator.check(2, one_time_pk));
+        assert!(!generator.check(0, one_time_pk).unwrap());
+        assert!(generator.check(1, one_time_pk).unwrap());
+        assert!(!generator.check(2, one_time_pk).unwrap());
     }
 
     #[test]
@@ -293,7 +315,7 @@ mod tests {
         let sub_index = Index::default();
         let recoverer = KeyRecoverer::new(&keypair, tx_pubkey);
 
-        let rec_one_time_sk = recoverer.recover(index, sub_index);
+        let rec_one_time_sk = recoverer.recover(index, sub_index).unwrap();
 
         assert_eq!(
             "afaebe00bcb29e233c2717e4574c7c8b114890571430bd1427d835ed7339050e",
@@ -339,7 +361,7 @@ mod tests {
         let sub_index = Index { major: 0, minor: 1 };
         let recoverer = KeyRecoverer::new(&keypair, tx_pubkey);
 
-        let rec_one_time_sk = recoverer.recover(index, sub_index);
+        let rec_one_time_sk = recoverer.recover(index, sub_index).unwrap();
 
         assert_eq!(
             "9650bef0bff89132c91f2244d909e0d65acd13415a46efcb933e6c10b7af4c01",
@@ -376,14 +398,14 @@ mod tests {
             PublicKey::from_str("5d1402db663eda8cef4f6782b66321e4a990f746aca249c973e098ba2c0837c1")
                 .unwrap();
 
-        let checker = SubKeyChecker::new(&viewpair, 0..3, 0..3);
+        let checker = SubKeyChecker::new(&viewpair, 0..3, 0..3).unwrap();
 
-        assert_eq!(None, checker.check(0, &one_time_pk, &tx_pubkey));
+        assert_eq!(None, checker.check(0, &one_time_pk, &tx_pubkey).unwrap());
         assert_eq!(
             Some(&Index { major: 0, minor: 0 }),
-            checker.check(1, &one_time_pk, &tx_pubkey)
+            checker.check(1, &one_time_pk, &tx_pubkey).unwrap()
         );
-        assert_eq!(None, checker.check(2, &one_time_pk, &tx_pubkey));
+        assert_eq!(None, checker.check(2, &one_time_pk, &tx_pubkey).unwrap());
     }
 
     #[test]
@@ -413,13 +435,13 @@ mod tests {
             PublicKey::from_str("d6c75cf8c76ac458123f2a498512eb65bb3cecba346c8fcfc516dc0c88518bb9")
                 .unwrap();
 
-        let checker = SubKeyChecker::new(&viewpair, 0..3, 0..3);
+        let checker = SubKeyChecker::new(&viewpair, 0..3, 0..3).unwrap();
 
-        assert_eq!(None, checker.check(0, &one_time_pk, &tx_pubkey));
+        assert_eq!(None, checker.check(0, &one_time_pk, &tx_pubkey).unwrap());
         assert_eq!(
             Some(&Index { major: 0, minor: 1 }),
-            checker.check(1, &one_time_pk, &tx_pubkey)
+            checker.check(1, &one_time_pk, &tx_pubkey).unwrap()
         );
-        assert_eq!(None, checker.check(2, &one_time_pk, &tx_pubkey));
+        assert_eq!(None, checker.check(2, &one_time_pk, &tx_pubkey).unwrap());
     }
 }

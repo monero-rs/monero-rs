@@ -19,35 +19,44 @@
 //! integrations.
 //!
 
+/// Public 'address' module
 pub mod address;
+/// Public 'amount' module
 pub mod amount;
+/// Public 'key' module
 pub mod key;
+/// Public 'ringct' module
 pub mod ringct;
+/// Public 'test_utils' module
+pub mod test_utils;
 
-use super::network;
-use crate::blockdata::transaction;
-
+use crate::blockdata::transaction::TransactionError;
+use crate::network::NetworkError;
+use crate::util::address::AddressError;
+use crate::util::amount::AmountParsingError;
+use crate::util::key::KeyError;
+use crate::util::ringct::RingCtError;
 use thiserror::Error;
 
 /// A general error code, other errors should implement conversions to/from this if appropriate.
 #[derive(Error, Debug, PartialEq)]
-pub enum Error {
+pub enum GeneralError {
     /// Monero network error.
     #[error("Network error: {0}")]
-    Network(#[from] network::Error),
+    Network(#[from] NetworkError),
     /// Monero address error.
     #[error("Address error: {0}")]
-    Address(#[from] address::Error),
+    Address(#[from] AddressError),
     /// Monero key error.
     #[error("Key error: {0}")]
-    Key(#[from] key::Error),
+    Key(#[from] KeyError),
     /// Monero RingCt error.
     #[error("RingCt error: {0}")]
-    RingCt(#[from] ringct::Error),
+    RingCt(#[from] RingCtError),
     /// Monero transaction error.
     #[error("Transaction error: {0}")]
-    Transaction(#[from] transaction::Error),
+    Transaction(#[from] TransactionError),
     /// Monero amount parsing error.
     #[error("Amount parsing error: {0}")]
-    AmountParsing(#[from] amount::ParsingError),
+    AmountParsing(#[from] AmountParsingError),
 }

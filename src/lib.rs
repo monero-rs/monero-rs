@@ -90,4 +90,4 @@ pub use util::key::KeyPair;
 pub use util::key::PrivateKey;
 pub use util::key::PublicKey;
 pub use util::key::ViewPair;
-pub use util::Error;
+pub use util::GeneralError;

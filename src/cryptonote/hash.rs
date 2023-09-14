@@ -30,11 +30,13 @@ use sealed::sealed;
 use tiny_keccak::{Hasher, Keccak};
 
 use std::io;
+use std::io::Seek;
 
-use crate::consensus::encode::{self, Decodable};
+use crate::consensus::encode::{self, Decodable, EncodeError};
 use crate::util::key::PrivateKey;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use thiserror::Error;
 
 fixed_hash::construct_fixed_hash!(
     /// Result of the Keccak-256 hashing function.
@@ -75,8 +77,11 @@ impl Hash {
 }
 
 impl Decodable for Hash {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Hash, encode::Error> {
-        Ok(Hash(Decodable::consensus_decode(r)?))
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<Hash, encode::EncodeError> {
+        Ok(Hash(Decodable::consensus_decode(r, bytes_upper_limit)?))
     }
 }
 
@@ -99,17 +104,25 @@ impl crate::consensus::encode::Encodable for Hash {
     }
 }
 
+/// Errors encountered when encoding or decoding data.
+#[derive(Error, Debug, PartialEq)]
+pub enum HashError {
+    /// Encoding error.
+    #[error("Encode error: {0}")]
+    EncodeError(#[from] EncodeError),
+}
+
 /// Capacity of an object to hash itself and return the result as a plain [`struct@Hash`] or as an
 /// interpreted scalar value into [`PrivateKey`].
 pub trait Hashable {
     /// Return its own hash.
-    fn hash(&self) -> Hash;
+    fn hash(&self) -> Result<Hash, HashError>;
 
     /// Apply [`hash()`] on itself and return the interpreted scalar returned by the hash result.
     ///
     /// [`hash()`]: Hashable::hash()
-    fn hash_to_scalar(&self) -> PrivateKey {
-        self.hash().as_scalar()
+    fn hash_to_scalar(&self) -> Result<PrivateKey, HashError> {
+        Ok(self.hash()?.as_scalar())
     }
 }
 
@@ -121,8 +134,11 @@ fixed_hash::construct_fixed_hash!(
 );
 
 impl Decodable for Hash8 {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Hash8, encode::Error> {
-        Ok(Hash8(Decodable::consensus_decode(r)?))
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<Hash8, encode::EncodeError> {
+        Ok(Hash8(Decodable::consensus_decode(r, bytes_upper_limit)?))
     }
 }
 

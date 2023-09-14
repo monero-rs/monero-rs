@@ -20,34 +20,39 @@
 //! [`Transaction`]: crate::blockdata::transaction::Transaction
 //!
 
-use std::{fmt, io};
-
-use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
+use crate::consensus::encode::{
+    self, consensus_decode_sized_vec, serialize, Decodable, Encodable, VarInt,
+};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::KeyGenerator;
 use crate::util::amount::Amount;
 use crate::util::key::H;
 use crate::{PublicKey, ViewPair};
+use std::{fmt, io, mem};
 
-#[cfg(feature = "serde")]
-use serde_big_array::BigArray;
-#[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
-
+use crate::cryptonote::hash::HashError;
+use crate::util::address::AddressError;
 use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 use sealed::sealed;
+#[cfg(feature = "serde")]
+use serde_big_array::BigArray;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+use std::convert::TryInto;
+use std::io::Seek;
 use thiserror::Error;
 
-use std::convert::TryInto;
-
 /// Ring Confidential Transaction potential errors.
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum Error {
+#[derive(Error, Debug, PartialEq)]
+pub enum RingCtError {
     /// Invalid RingCt type.
     #[error("Unknown RingCt type")]
     UnknownRctType,
+    /// Network error.
+    #[error("Address error: {0}")]
+    AddressError(#[from] AddressError),
 }
 
 // ====================================================================
@@ -102,10 +107,13 @@ impl From<[Key; 64]> for Key64 {
 }
 
 impl Decodable for Key64 {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Key64, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<Key64, encode::EncodeError> {
         let mut key64 = Key64::new();
         for i in 0..64 {
-            let key: Key = Decodable::consensus_decode(r)?;
+            let key: Key = Decodable::consensus_decode(r, bytes_upper_limit)?;
             key64.keys[i] = key;
         }
         Ok(key64)
@@ -207,8 +215,8 @@ impl EcdhInfo {
         tx_pubkey: &PublicKey,
         index: usize,
         candidate_commitment: &EdwardsPoint,
-    ) -> Option<Opening> {
-        let shared_key = KeyGenerator::from_key(view_pair, *tx_pubkey).get_rvn_scalar(index);
+    ) -> Result<Option<Opening>, RingCtError> {
+        let shared_key = KeyGenerator::from_key(view_pair, *tx_pubkey).get_rvn_scalar(index)?;
 
         let (amount, blinding_factor) = match self {
             // ecdhDecode in rctOps.cpp else
@@ -238,18 +246,21 @@ impl EcdhInfo {
 
         let amount_scalar = Scalar::from(amount);
 
-        let expected_commitment = ED25519_BASEPOINT_POINT * blinding_factor
-            + H.point.decompress().unwrap() * amount_scalar;
+        let expected_commitment = if let Some(h_point) = H.point.decompress() {
+            ED25519_BASEPOINT_POINT * blinding_factor + h_point * amount_scalar
+        } else {
+            return Ok(None);
+        };
 
         if &expected_commitment != candidate_commitment {
-            return None;
+            return Ok(None);
         }
 
-        Some(Opening {
+        Ok(Some(Opening {
             amount: Amount::from_pico(amount),
             blinding_factor,
             commitment: expected_commitment,
-        })
+        }))
     }
 }
 
@@ -308,20 +319,20 @@ impl fmt::Display for EcdhInfo {
 
 impl EcdhInfo {
     /// Decode Diffie-Hellman info given the RingCt type.
-    fn consensus_decode<R: io::Read + ?Sized>(
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
         r: &mut R,
         rct_type: RctType,
-    ) -> Result<EcdhInfo, encode::Error> {
+    ) -> Result<EcdhInfo, encode::EncodeError> {
         match rct_type {
             RctType::Full | RctType::Simple | RctType::Bulletproof | RctType::Null => {
                 Ok(EcdhInfo::Standard {
-                    mask: Decodable::consensus_decode(r)?,
-                    amount: Decodable::consensus_decode(r)?,
+                    mask: Decodable::consensus_decode(r, mem::size_of::<Key>())?,
+                    amount: Decodable::consensus_decode(r, mem::size_of::<Key>())?,
                 })
             }
             RctType::Bulletproof2 | RctType::Clsag | RctType::BulletproofPlus => {
                 Ok(EcdhInfo::Bulletproof {
-                    amount: Decodable::consensus_decode(r)?,
+                    amount: Decodable::consensus_decode(r, mem::size_of::<hash::Hash8>())?,
                 })
             }
         }
@@ -525,12 +536,13 @@ impl fmt::Display for RctSigBase {
 
 impl RctSigBase {
     /// Decode a RingCt base signature given the number of inputs and outputs of the transaction.
-    pub fn consensus_decode<R: io::Read + ?Sized>(
+    pub fn consensus_decode<R: io::Read + ?Sized + Seek>(
         r: &mut R,
         inputs: usize,
         outputs: usize,
-    ) -> Result<Option<RctSigBase>, encode::Error> {
-        let rct_type: RctType = Decodable::consensus_decode(r)?;
+        bytes_upper_limit: usize,
+    ) -> Result<Option<RctSigBase>, encode::EncodeError> {
+        let rct_type: RctType = Decodable::consensus_decode(r, mem::size_of::<RctType>())?;
         match rct_type {
             RctType::Null => Ok(Some(RctSigBase {
                 rct_type: RctType::Null,
@@ -547,11 +559,11 @@ impl RctSigBase {
             | RctType::BulletproofPlus => {
                 let mut pseudo_outs: Vec<Key> = vec![];
                 // TxnFee
-                let txn_fee: VarInt = Decodable::consensus_decode(r)?;
+                let txn_fee: VarInt = Decodable::consensus_decode(r, mem::size_of::<VarInt>() * 2)?;
                 let txn_fee = Amount::from_pico(*txn_fee);
                 // RctType
                 if rct_type == RctType::Simple {
-                    pseudo_outs = decode_sized_vec!(inputs, r);
+                    pseudo_outs = consensus_decode_sized_vec(r, inputs, bytes_upper_limit)?;
                 }
                 // EcdhInfo
                 let mut ecdh_info: Vec<EcdhInfo> = vec![];
@@ -559,7 +571,7 @@ impl RctSigBase {
                     ecdh_info.push(EcdhInfo::consensus_decode(r, rct_type)?);
                 }
                 // OutPk
-                let out_pk: Vec<CtKey> = decode_sized_vec!(outputs, r);
+                let out_pk: Vec<CtKey> = consensus_decode_sized_vec(r, outputs, bytes_upper_limit)?;
                 Ok(Some(RctSigBase {
                     rct_type,
                     txn_fee,
@@ -599,8 +611,8 @@ impl crate::consensus::encode::Encodable for RctSigBase {
 }
 
 impl hash::Hashable for RctSigBase {
-    fn hash(&self) -> hash::Hash {
-        hash::Hash::new(serialize(self))
+    fn hash(&self) -> Result<hash::Hash, HashError> {
+        Ok(hash::Hash::new(serialize(self)?))
     }
 }
 
@@ -656,8 +668,11 @@ impl RctType {
 }
 
 impl Decodable for RctType {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<RctType, encode::Error> {
-        let rct_type: u8 = Decodable::consensus_decode(r)?;
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<RctType, encode::EncodeError> {
+        let rct_type: u8 = Decodable::consensus_decode(r, bytes_upper_limit)?;
         match rct_type {
             0 => Ok(RctType::Null),
             1 => Ok(RctType::Full),
@@ -666,7 +681,7 @@ impl Decodable for RctType {
             4 => Ok(RctType::Bulletproof2),
             5 => Ok(RctType::Clsag),
             6 => Ok(RctType::BulletproofPlus),
-            _ => Err(Error::UnknownRctType.into()),
+            _ => Err(RingCtError::UnknownRctType.into()),
         }
     }
 }
@@ -711,13 +726,14 @@ impl RctSigPrunable {
     /// Decode a prunable RingCt signature given the number of inputs and outputs in the
     /// transaction, the RingCt type and the number of mixins.
     #[allow(non_snake_case)]
-    pub fn consensus_decode<R: io::Read + ?Sized>(
+    pub fn consensus_decode<R: io::Read + ?Sized + Seek>(
         r: &mut R,
         rct_type: RctType,
         inputs: usize,
         outputs: usize,
         mixin: usize,
-    ) -> Result<Option<RctSigPrunable>, encode::Error> {
+        bytes_upper_limit: usize,
+    ) -> Result<Option<RctSigPrunable>, encode::EncodeError> {
         match rct_type {
             RctType::Null => Ok(None),
             RctType::Full
@@ -732,18 +748,23 @@ impl RctSigPrunable {
                 if rct_type.is_rct_bp() {
                     match rct_type {
                         RctType::Bulletproof2 | RctType::Clsag => {
-                            bulletproofs = Decodable::consensus_decode(r)?;
+                            bulletproofs = Decodable::consensus_decode(
+                                r,
+                                inputs.saturating_add(outputs).saturating_mul(1024),
+                            )?;
                         }
                         _ => {
-                            let size: u32 = Decodable::consensus_decode(r)?;
-                            bulletproofs = decode_sized_vec!(size, r);
+                            let size: u32 = Decodable::consensus_decode(r, mem::size_of::<u32>())?;
+                            bulletproofs =
+                                consensus_decode_sized_vec(r, size as usize, bytes_upper_limit)?;
                         }
                     }
                 } else if rct_type.is_rct_bp_plus() {
-                    let size: u8 = Decodable::consensus_decode(r)?;
-                    bulletproofplus = decode_sized_vec!(size, r);
+                    let size: u8 = Decodable::consensus_decode(r, 1)?;
+                    bulletproofplus =
+                        consensus_decode_sized_vec(r, size as usize, bytes_upper_limit)?;
                 } else {
-                    range_sigs = decode_sized_vec!(outputs, r);
+                    range_sigs = consensus_decode_sized_vec(r, outputs, bytes_upper_limit)?;
                 }
 
                 let mut Clsags: Vec<Clsag> = vec![];
@@ -754,11 +775,12 @@ impl RctSigPrunable {
                         for _ in 0..inputs {
                             let mut s: Vec<Key> = vec![];
                             for _ in 0..=mixin {
-                                let s_elems: Key = Decodable::consensus_decode(r)?;
+                                let s_elems: Key =
+                                    Decodable::consensus_decode(r, mem::size_of::<Key>())?;
                                 s.push(s_elems);
                             }
-                            let c1 = Decodable::consensus_decode(r)?;
-                            let D = Decodable::consensus_decode(r)?;
+                            let c1 = Decodable::consensus_decode(r, mem::size_of::<Key>())?;
+                            let D = Decodable::consensus_decode(r, mem::size_of::<Key>())?;
                             Clsags.push(Clsag { s, c1, D });
                         }
                     }
@@ -771,10 +793,14 @@ impl RctSigPrunable {
                             let mut ss: Vec<Vec<Key>> = vec![];
                             for _ in 0..=mixin {
                                 let mg_ss2_elements = if is_simple_or_bp { 2 } else { 1 + inputs };
-                                let ss_elems: Vec<Key> = decode_sized_vec!(mg_ss2_elements, r);
+                                let ss_elems: Vec<Key> = consensus_decode_sized_vec(
+                                    r,
+                                    mg_ss2_elements,
+                                    bytes_upper_limit,
+                                )?;
                                 ss.push(ss_elems);
                             }
-                            let cc = Decodable::consensus_decode(r)?;
+                            let cc = Decodable::consensus_decode(r, mem::size_of::<Key>())?;
                             MGs.push(MgSig { ss, cc });
                         }
                     }
@@ -786,7 +812,7 @@ impl RctSigPrunable {
                     | RctType::Bulletproof2
                     | RctType::Clsag
                     | RctType::BulletproofPlus => {
-                        pseudo_outs = decode_sized_vec!(inputs, r);
+                        pseudo_outs = consensus_decode_sized_vec(r, inputs, bytes_upper_limit)?;
                     }
                     _ => (),
                 }

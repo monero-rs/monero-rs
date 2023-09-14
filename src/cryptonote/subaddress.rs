@@ -30,7 +30,7 @@ use std::io::Cursor;
 use crate::consensus::encode::Encodable;
 use crate::cryptonote::hash;
 use crate::network::Network;
-use crate::util::address::Address;
+use crate::util::address::{Address, AddressError};
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
 /// A sub-address index with `major` and `minor` indexes, primary address is `0/0`.
@@ -63,61 +63,68 @@ impl fmt::Display for Index {
 
 /// Compute the scalar `m = Hn("SubAddr" || v || major_index || minor_index)` at index `i` from the
 /// view secret key `v`.
-pub fn get_secret_scalar(view: &PrivateKey, index: Index) -> PrivateKey {
+pub fn get_secret_scalar(view: &PrivateKey, index: Index) -> Result<PrivateKey, AddressError> {
     // x = a || account_index || minor_index
     let mut encoder = Cursor::new(vec![]);
-    view.consensus_encode(&mut encoder).unwrap();
-    index.major.consensus_encode(&mut encoder).unwrap();
-    index.minor.consensus_encode(&mut encoder).unwrap();
+    view.consensus_encode(&mut encoder)
+        .map_err(|e| AddressError::Encoding(e.to_string()))?;
+    index
+        .major
+        .consensus_encode(&mut encoder)
+        .map_err(|e| AddressError::Encoding(e.to_string()))?;
+    index
+        .minor
+        .consensus_encode(&mut encoder)
+        .map_err(|e| AddressError::Encoding(e.to_string()))?;
     // y = "SubAddr" || x
     let mut prefix: Vec<_> = b"SubAddr\x00"[..].into();
     prefix.extend_from_slice(&encoder.into_inner());
     // m = Hn(y)
-    hash::Hash::hash_to_scalar(&prefix)
+    Ok(hash::Hash::hash_to_scalar(&prefix))
 }
 
 /// Compute the private spend key `s' = s + m` where `m` is computed with `get_secret_scalar` based
 /// on `v`.
-pub fn get_spend_secret_key(keys: &KeyPair, index: Index) -> PrivateKey {
+pub fn get_spend_secret_key(keys: &KeyPair, index: Index) -> Result<PrivateKey, AddressError> {
     // If index is equal to 0, then return s as s'
     if index.is_zero() {
-        return keys.spend;
+        return Ok(keys.spend);
     }
     // ...otherwise compute s'
-    keys.spend + get_secret_scalar(&keys.view, index)
+    Ok(keys.spend + get_secret_scalar(&keys.view, index)?)
 }
 
 /// Compute the private view key `v' = v * s'` where `s'` is computed with `get_spend_secret_key`.
-pub fn get_view_secret_key(keys: &KeyPair, index: Index) -> PrivateKey {
+pub fn get_view_secret_key(keys: &KeyPair, index: Index) -> Result<PrivateKey, AddressError> {
     // If index is equal to 0, then return v as v'
     if index.is_zero() {
-        return keys.view;
+        return Ok(keys.spend);
     }
     // ...otherwise compute v'
-    keys.view * get_spend_secret_key(keys, index)
+    Ok(keys.view * get_spend_secret_key(keys, index)?)
 }
 
 /// Compute a subkey pair `(v', s')` from a root keypair `(v, s)` for index `i`.
-pub fn get_secret_keys(keys: &KeyPair, index: Index) -> KeyPair {
-    let view = get_view_secret_key(keys, index);
-    let spend = get_spend_secret_key(keys, index);
-    KeyPair { view, spend }
+pub fn get_secret_keys(keys: &KeyPair, index: Index) -> Result<KeyPair, AddressError> {
+    let view = get_view_secret_key(keys, index)?;
+    let spend = get_spend_secret_key(keys, index)?;
+    Ok(KeyPair { view, spend })
 }
 
 /// Compute the spend public key `S' = mG + S` at index `i` from the view pair `(v, S)`.
 ///
 /// If index is equal to zero return `S` as `S'`.
 ///
-pub fn get_spend_public_key(keys: &ViewPair, index: Index) -> PublicKey {
+pub fn get_spend_public_key(keys: &ViewPair, index: Index) -> Result<PublicKey, AddressError> {
     // If index is equal to 0, then return S as S'
     if index.is_zero() {
-        return keys.spend;
+        return Ok(keys.spend);
     }
     // ...otherwise compute S'
     // m = Hn(v || index_major || index_minor)
-    let m = get_secret_scalar(&keys.view, index);
+    let m = get_secret_scalar(&keys.view, index)?;
     // S' = S + m*G
-    keys.spend + PublicKey::from_private_key(&m)
+    Ok(keys.spend + PublicKey::from_private_key(&m))
 }
 
 /// Compute the view public key and spend public key `(V', S')` at index `i` from view pair `(v, S)`
@@ -125,19 +132,22 @@ pub fn get_spend_public_key(keys: &ViewPair, index: Index) -> PublicKey {
 ///
 /// If index is equal to zero return `(v, S)` as `(V', S')`.
 ///
-pub fn get_public_keys(keys: &ViewPair, index: Index) -> (PublicKey, PublicKey) {
+pub fn get_public_keys(
+    keys: &ViewPair,
+    index: Index,
+) -> Result<(PublicKey, PublicKey), AddressError> {
     // If index is equal to 0, then return (V, S) as (V', S')
     if index.is_zero() {
         // Get V from v
         let view = PublicKey::from_private_key(&keys.view);
-        return (view, keys.spend);
+        return Ok((view, keys.spend));
     }
     // ...otherwise compute (V', S')
     // Get S' from (v, S)
-    let spend = get_spend_public_key(keys, index);
+    let spend = get_spend_public_key(keys, index)?;
     // V' = v*S'
     let view = keys.view * &spend;
-    (view, spend)
+    Ok((view, spend))
 }
 
 /// Compute the sub-address at index `i` valid on the given network (by default
@@ -145,10 +155,14 @@ pub fn get_public_keys(keys: &ViewPair, index: Index) -> (PublicKey, PublicKey) 
 ///
 /// [`Network::Mainnet`]: crate::network::Network::Mainnet
 ///
-pub fn get_subaddress(keys: &ViewPair, index: Index, network: Option<Network>) -> Address {
+pub fn get_subaddress(
+    keys: &ViewPair,
+    index: Index,
+    network: Option<Network>,
+) -> Result<Address, AddressError> {
     let net = network.unwrap_or_default();
-    let (view, spend) = get_public_keys(keys, index);
-    Address::subaddress(net, spend, view)
+    let (view, spend) = get_public_keys(keys, index)?;
+    Ok(Address::subaddress(net, spend, view))
 }
 
 #[cfg(test)]
@@ -178,7 +192,7 @@ mod tests {
             major: 2,
             minor: 18,
         };
-        let (sub_view_pub, sub_spend_pub) = get_public_keys(&viewpair, index);
+        let (sub_view_pub, sub_spend_pub) = get_public_keys(&viewpair, index).unwrap();
 
         assert_eq!(
             "601782bdde614e9ba664048a27b7407df4b76ae2e50a85fcc168a4c1766b3edf",
@@ -209,7 +223,7 @@ mod tests {
             major: 2,
             minor: 18,
         };
-        let address = get_subaddress(&viewpair, index, Some(Network::Mainnet));
+        let address = get_subaddress(&viewpair, index, Some(Network::Mainnet)).unwrap();
 
         assert_eq!("89pMNxzcCo5LAPZDX4qaTeanA6ZiS3VRdUbeKHzbDZkD1Q3YsDDfmXbT2zyjLeHWuuN4vxKne8kNpjH3cMk7nmhwSALCxsd", address.to_string());
     }

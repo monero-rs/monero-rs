@@ -56,7 +56,7 @@ fn recover_output_and_amount() {
     let out = owned_outputs.get(0).unwrap();
 
     // Recover the ephemeral private spend key
-    let private_key = out.recover_key(&keypair);
+    let private_key = out.recover_key(&keypair).unwrap();
     assert_eq!(
         "9650bef0bff89132c91f2244d909e0d65acd13415a46efcb933e6c10b7af4c01",
         format!("{}", private_key)
@@ -121,7 +121,7 @@ fn check_output_on_miner_tx() {
     assert_eq!(owned_outputs.len(), 1);
     let out = owned_outputs.get(0).unwrap();
 
-    let private_key = out.recover_key(&keypair);
+    let private_key = out.recover_key(&keypair).unwrap();
     assert_eq!(
         "f984b89e6c4f18ff1d6e2bd9eb5571097dbc48d5d7b4cc51ac1a548cb9d3b809",
         format!("{}", private_key)
@@ -172,7 +172,7 @@ fn recover_output_and_amount_view_tagged() {
     let out = owned_outputs.get(0).unwrap();
 
     // Recover the ephemeral private spend key
-    let private_key = out.recover_key(&keypair);
+    let private_key = out.recover_key(&keypair).unwrap();
     assert_eq!(
         "d243f31cd076d0863d95aea770d40cc3b08549ea4de62ec3b58fed8170392303",
         format!("{}", private_key)
@@ -197,7 +197,7 @@ fn recover_output_and_amount_view_tagged() {
     let out = owned_outputs.get(0).unwrap();
 
     // Recover the ephemeral private spend key
-    let private_key = out.recover_key(&keypair);
+    let private_key = out.recover_key(&keypair).unwrap();
     assert_eq!(
         "487275dec957e852a0092fe093cd0c0e440ab4393981e7d96fbe62ce2697ce0d",
         format!("{}", private_key)

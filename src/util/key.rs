@@ -21,7 +21,7 @@
 //!
 //! ```rust
 //! use std::str::FromStr;
-//! use monero::util::key::{Error, PrivateKey, PublicKey};
+//! use monero::util::key::{KeyError, PrivateKey, PublicKey};
 //!
 //! // parse private key from hex
 //! let privkey = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404")?;
@@ -32,7 +32,7 @@
 //! let pubkey = PublicKey::from_private_key(&privkey);
 //!
 //! assert_eq!(pubkey_parsed, pubkey);
-//! # Ok::<(), Error>(())
+//! # Ok::<(), KeyError>(())
 //! ```
 //!
 //! ## Arithmetic
@@ -41,7 +41,7 @@
 //!
 //! ```rust
 //! use std::str::FromStr;
-//! use monero::util::key::{Error, PrivateKey, PublicKey};
+//! use monero::util::key::{KeyError, PrivateKey, PublicKey};
 //!
 //! let priv1 = PrivateKey::from_str("77916d0cd56ed1920aef6ca56d8a41bac915b68e4c46a589e0956e27a7b77404")?;
 //! let priv2 = PrivateKey::from_str("8163466f1883598e6dd14027b8da727057165da91485834314f5500a65846f09")?;
@@ -55,12 +55,13 @@
 //!
 //! let pubkey = PublicKey::from_private_key(&priv_res);
 //! assert_eq!(pubkey, pub_res);
-//! # Ok::<(), Error>(())
+//! # Ok::<(), KeyError>(())
 //! ```
 //!
 
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
+use std::io::Seek;
 use std::ops::{Add, Mul, Sub};
 use std::str::FromStr;
 use std::{fmt, io, ops};
@@ -77,12 +78,13 @@ use crate::cryptonote::hash;
 use sealed::sealed;
 use thiserror::Error;
 
+use crate::cryptonote::hash::HashError;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
 /// Potential errors encountered during key decoding.
 #[derive(Error, Debug, PartialEq)]
-pub enum Error {
+pub enum KeyError {
     /// Invalid input length.
     #[error("Invalid length")]
     InvalidLength,
@@ -116,14 +118,14 @@ impl PrivateKey {
     }
 
     /// Deserialize a private key from a slice.
-    pub fn from_slice(data: &[u8]) -> Result<PrivateKey, Error> {
+    pub fn from_slice(data: &[u8]) -> Result<PrivateKey, KeyError> {
         if data.len() != 32 {
-            return Err(Error::InvalidLength);
+            return Err(KeyError::InvalidLength);
         }
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(data);
-        let scalar =
-            Option::from(Scalar::from_canonical_bytes(bytes)).ok_or(Error::NotCanonicalScalar)?;
+        let scalar = Option::from(Scalar::from_canonical_bytes(bytes))
+            .ok_or(KeyError::NotCanonicalScalar)?;
         Ok(PrivateKey { scalar })
     }
 
@@ -134,7 +136,7 @@ impl PrivateKey {
 }
 
 impl TryFrom<[u8; 32]> for PrivateKey {
-    type Error = Error;
+    type Error = KeyError;
 
     fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
         Self::from_slice(&value)
@@ -142,7 +144,7 @@ impl TryFrom<[u8; 32]> for PrivateKey {
 }
 
 impl TryFrom<&[u8]> for PrivateKey {
-    type Error = Error;
+    type Error = KeyError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         Self::from_slice(value)
@@ -235,7 +237,7 @@ impl fmt::Display for PrivateKey {
 }
 
 impl FromStr for PrivateKey {
-    type Err = Error;
+    type Err = KeyError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = hex::decode(s)?;
         Self::from_slice(&bytes[..])
@@ -250,8 +252,11 @@ impl ops::Index<ops::RangeFull> for PrivateKey {
 }
 
 impl Decodable for PrivateKey {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<PrivateKey, encode::Error> {
-        let bytes: [u8; 32] = Decodable::consensus_decode(r)?;
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<PrivateKey, encode::EncodeError> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(r, bytes_upper_limit)?;
         Ok(PrivateKey::from_slice(&bytes)?)
     }
 }
@@ -284,15 +289,15 @@ impl PublicKey {
     }
 
     /// Deserialize a public key from a slice.
-    pub fn from_slice(data: &[u8]) -> Result<PublicKey, Error> {
+    pub fn from_slice(data: &[u8]) -> Result<PublicKey, KeyError> {
         if data.len() != 32 {
-            return Err(Error::InvalidLength);
+            return Err(KeyError::InvalidLength);
         }
-        let point = CompressedEdwardsY::from_slice(data).map_err(|_| Error::InvalidPoint)?;
+        let point = CompressedEdwardsY::from_slice(data).map_err(|_| KeyError::InvalidPoint)?;
         match point.decompress() {
             Some(_) => (),
             None => {
-                return Err(Error::InvalidPoint);
+                return Err(KeyError::InvalidPoint);
             }
         };
         Ok(PublicKey { point })
@@ -315,7 +320,7 @@ impl PublicKey {
 }
 
 impl TryFrom<[u8; 32]> for PublicKey {
-    type Error = Error;
+    type Error = KeyError;
 
     fn try_from(value: [u8; 32]) -> Result<Self, Self::Error> {
         Self::from_slice(&value)
@@ -323,7 +328,7 @@ impl TryFrom<[u8; 32]> for PublicKey {
 }
 
 impl TryFrom<&[u8]> for PublicKey {
-    type Error = Error;
+    type Error = KeyError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         Self::from_slice(value)
@@ -449,7 +454,7 @@ impl Hash for PublicKey {
 }
 
 impl FromStr for PublicKey {
-    type Err = Error;
+    type Err = KeyError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = hex::decode(s)?;
         Self::from_slice(&bytes[..])
@@ -464,8 +469,11 @@ impl ops::Index<ops::RangeFull> for PublicKey {
 }
 
 impl Decodable for PublicKey {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<PublicKey, encode::Error> {
-        let bytes: [u8; 32] = Decodable::consensus_decode(r)?;
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+        bytes_upper_limit: usize,
+    ) -> Result<PublicKey, encode::EncodeError> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(r, bytes_upper_limit)?;
         Ok(PublicKey::from_slice(&bytes)?)
     }
 }
@@ -478,8 +486,8 @@ impl crate::consensus::encode::Encodable for PublicKey {
 }
 
 impl hash::Hashable for PublicKey {
-    fn hash(&self) -> hash::Hash {
-        hash::Hash::new(self.as_bytes())
+    fn hash(&self) -> Result<hash::Hash, HashError> {
+        Ok(hash::Hash::new(self.as_bytes()))
     }
 }
 

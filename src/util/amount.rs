@@ -69,7 +69,7 @@ impl fmt::Display for Denomination {
 }
 
 impl FromStr for Denomination {
-    type Err = ParsingError;
+    type Err = AmountParsingError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -78,14 +78,14 @@ impl FromStr for Denomination {
             "micronero" | "µXMR" | "mcXMR" => Ok(Denomination::Micronero),
             "nanonero" | "nXMR" => Ok(Denomination::Nanonero),
             "piconero" | "pXMR" => Ok(Denomination::Piconero),
-            d => Err(ParsingError::UnknownDenomination(d.to_owned())),
+            d => Err(AmountParsingError::UnknownDenomination(d.to_owned())),
         }
     }
 }
 
 /// An error during amount parsing.
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
-pub enum ParsingError {
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum AmountParsingError {
     /// Amount is negative.
     #[error("Amount is negative")]
     Negative,
@@ -115,18 +115,21 @@ fn is_too_precise(s: &str, precision: usize) -> bool {
 
 /// Parse decimal string in the given denomination into a piconero value and a bool indicator for a
 /// negative amount.
-fn parse_signed_to_piconero(mut s: &str, denom: Denomination) -> Result<(bool, u64), ParsingError> {
+fn parse_signed_to_piconero(
+    mut s: &str,
+    denom: Denomination,
+) -> Result<(bool, u64), AmountParsingError> {
     if s.is_empty() {
-        return Err(ParsingError::InvalidFormat);
+        return Err(AmountParsingError::InvalidFormat);
     }
     if s.len() > 50 {
-        return Err(ParsingError::InputTooLarge);
+        return Err(AmountParsingError::InputTooLarge);
     }
 
     let is_negative = s.starts_with('-');
     if is_negative {
         if s.len() == 1 {
-            return Err(ParsingError::InvalidFormat);
+            return Err(AmountParsingError::InvalidFormat);
         }
         s = &s[1..];
     }
@@ -141,7 +144,7 @@ fn parse_signed_to_piconero(mut s: &str, denom: Denomination) -> Result<(bool, u
             // many as the difference in precision.
             let last_n = precision_diff.unsigned_abs() as usize;
             if is_too_precise(s, last_n) {
-                return Err(ParsingError::TooPrecise);
+                return Err(AmountParsingError::TooPrecise);
             }
             s = &s[0..s.len() - last_n];
             0
@@ -157,9 +160,9 @@ fn parse_signed_to_piconero(mut s: &str, denom: Denomination) -> Result<(bool, u
             '0'..='9' => {
                 // Do `value = 10 * value + digit`, catching overflows.
                 match 10_u64.checked_mul(value) {
-                    None => return Err(ParsingError::TooBig),
+                    None => return Err(AmountParsingError::TooBig),
                     Some(val) => match val.checked_add((c as u8 - b'0') as u64) {
-                        None => return Err(ParsingError::TooBig),
+                        None => return Err(AmountParsingError::TooBig),
                         Some(val) => value = val,
                     },
                 }
@@ -167,15 +170,15 @@ fn parse_signed_to_piconero(mut s: &str, denom: Denomination) -> Result<(bool, u
                 decimals = match decimals {
                     None => None,
                     Some(d) if d < max_decimals => Some(d + 1),
-                    _ => return Err(ParsingError::TooPrecise),
+                    _ => return Err(AmountParsingError::TooPrecise),
                 };
             }
             '.' => match decimals {
                 None => decimals = Some(0),
                 // Double decimal dot.
-                _ => return Err(ParsingError::InvalidFormat),
+                _ => return Err(AmountParsingError::InvalidFormat),
             },
-            c => return Err(ParsingError::InvalidCharacter(c)),
+            c => return Err(AmountParsingError::InvalidCharacter(c)),
         }
     }
 
@@ -184,7 +187,7 @@ fn parse_signed_to_piconero(mut s: &str, denom: Denomination) -> Result<(bool, u
     for _ in 0..scale_factor {
         value = match 10_u64.checked_mul(value) {
             Some(v) => v,
-            None => return Err(ParsingError::TooBig),
+            None => return Err(AmountParsingError::TooBig),
         };
     }
 
@@ -266,7 +269,7 @@ impl Amount {
     }
 
     /// Convert from a value expressing moneros to an [`Amount`].
-    pub fn from_xmr(xmr: f64) -> Result<Amount, ParsingError> {
+    pub fn from_xmr(xmr: f64) -> Result<Amount, AmountParsingError> {
         Amount::from_float_in(xmr, Denomination::Monero)
     }
 
@@ -274,13 +277,13 @@ impl Amount {
     ///
     /// Note: This only parses the value string. If you want to parse a value with denomination,
     /// use [`FromStr`].
-    pub fn from_str_in(s: &str, denom: Denomination) -> Result<Amount, ParsingError> {
+    pub fn from_str_in(s: &str, denom: Denomination) -> Result<Amount, AmountParsingError> {
         let (negative, piconero) = parse_signed_to_piconero(s, denom)?;
         if negative {
-            return Err(ParsingError::Negative);
+            return Err(AmountParsingError::Negative);
         }
         if piconero > i64::max_value() as u64 {
-            return Err(ParsingError::TooBig);
+            return Err(AmountParsingError::TooBig);
         }
         Ok(Amount::from_pico(piconero))
     }
@@ -288,12 +291,12 @@ impl Amount {
     /// Parses amounts with denomination suffix like they are produced with
     /// `to_string_with_denomination` or with [`fmt::Display`]. If you want to parse only the
     /// amount without the denomination, use `from_str_in`.
-    pub fn from_str_with_denomination(s: &str) -> Result<Amount, ParsingError> {
+    pub fn from_str_with_denomination(s: &str) -> Result<Amount, AmountParsingError> {
         let mut split = s.splitn(3, ' ');
-        let amt_str = split.next().unwrap();
-        let denom_str = split.next().ok_or(ParsingError::InvalidFormat)?;
+        let amt_str = split.next().ok_or(AmountParsingError::InvalidFormat)?;
+        let denom_str = split.next().ok_or(AmountParsingError::InvalidFormat)?;
         if split.next().is_some() {
-            return Err(ParsingError::InvalidFormat);
+            return Err(AmountParsingError::InvalidFormat);
         }
 
         Amount::from_str_in(amt_str, denom_str.parse()?)
@@ -302,8 +305,9 @@ impl Amount {
     /// Express this [`Amount`] as a floating-point value in the given denomination.
     ///
     /// Please be aware of the risk of using floating-point numbers.
-    pub fn to_float_in(self, denom: Denomination) -> f64 {
-        f64::from_str(&self.to_string_in(denom)).unwrap()
+    pub fn to_float_in(self, denom: Denomination) -> Result<f64, AmountParsingError> {
+        f64::from_str(&self.to_string_in(denom)?)
+            .map_err(|e| AmountParsingError::UnknownDenomination(e.to_string()))
     }
 
     /// Express this [`Amount`] as a floating-point value in Monero.
@@ -311,17 +315,18 @@ impl Amount {
     /// Equivalent to `to_float_in(Denomination::Monero)`.
     ///
     /// Please be aware of the risk of using floating-point numbers.
-    pub fn as_xmr(self) -> f64 {
+    pub fn as_xmr(self) -> Result<f64, AmountParsingError> {
         self.to_float_in(Denomination::Monero)
+            .map_err(|e| AmountParsingError::UnknownDenomination(e.to_string()))
     }
 
     /// Convert this [`Amount`] in floating-point notation with a given denomination. Can return
     /// error if the amount is too big, too precise or negative.
     ///
     /// Please be aware of the risk of using floating-point numbers.
-    pub fn from_float_in(value: f64, denom: Denomination) -> Result<Amount, ParsingError> {
+    pub fn from_float_in(value: f64, denom: Denomination) -> Result<Amount, AmountParsingError> {
         if value < 0.0 {
-            return Err(ParsingError::Negative);
+            return Err(AmountParsingError::Negative);
         }
         // This is inefficient, but the safest way to deal with this. The parsing logic is safe.
         // Any performance-critical application should not be dealing with floats.
@@ -338,19 +343,24 @@ impl Amount {
     /// Get a string number of this [`Amount`] in the given denomination.
     ///
     /// Does not include the denomination.
-    pub fn to_string_in(self, denom: Denomination) -> String {
+    pub fn to_string_in(self, denom: Denomination) -> Result<String, AmountParsingError> {
         let mut buf = String::new();
-        self.fmt_value_in(&mut buf, denom).unwrap();
-        buf
+        self.fmt_value_in(&mut buf, denom)
+            .map_err(|_| AmountParsingError::InvalidFormat)?;
+        Ok(buf)
     }
 
     /// Get a formatted string of this [`Amount`] in the given denomination, suffixed with the
     /// abbreviation for the denomination.
-    pub fn to_string_with_denomination(self, denom: Denomination) -> String {
+    pub fn to_string_with_denomination(
+        self,
+        denom: Denomination,
+    ) -> Result<String, AmountParsingError> {
         let mut buf = String::new();
-        self.fmt_value_in(&mut buf, denom).unwrap();
-        write!(buf, " {}", denom).unwrap();
-        buf
+        self.fmt_value_in(&mut buf, denom)
+            .map_err(|_| AmountParsingError::InvalidFormat)?;
+        write!(buf, " {}", denom).map_err(|_| AmountParsingError::InvalidFormat)?;
+        Ok(buf)
     }
 
     // Some arithmetic that doesn't fit in `std::ops` traits.
@@ -388,9 +398,9 @@ impl Amount {
     }
 
     /// Convert to a signed amount.
-    pub fn to_signed(self) -> Result<SignedAmount, ParsingError> {
+    pub fn to_signed(self) -> Result<SignedAmount, AmountParsingError> {
         if self.as_pico() > SignedAmount::max_value().as_pico() as u64 {
-            Err(ParsingError::TooBig)
+            Err(AmountParsingError::TooBig)
         } else {
             Ok(SignedAmount::from_pico(self.as_pico() as i64))
         }
@@ -405,7 +415,11 @@ impl default::Default for Amount {
 
 impl fmt::Debug for Amount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Amount({:.12} xmr)", self.as_xmr())
+        write!(
+            f,
+            "Amount({:.12} xmr)",
+            self.as_xmr().map_err(|_| fmt::Error)?
+        )
     }
 }
 
@@ -489,7 +503,7 @@ impl ops::DivAssign<u64> for Amount {
 }
 
 impl FromStr for Amount {
-    type Err = ParsingError;
+    type Err = AmountParsingError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Amount::from_str_with_denomination(s)
@@ -533,7 +547,7 @@ impl SignedAmount {
     }
 
     /// Convert from a value expressing moneros to an [`SignedAmount`].
-    pub fn from_xmr(xmr: f64) -> Result<SignedAmount, ParsingError> {
+    pub fn from_xmr(xmr: f64) -> Result<SignedAmount, AmountParsingError> {
         SignedAmount::from_float_in(xmr, Denomination::Monero)
     }
 
@@ -541,10 +555,10 @@ impl SignedAmount {
     ///
     /// Note: This only parses the value string.  If you want to parse a value with denomination,
     /// use [`FromStr`].
-    pub fn from_str_in(s: &str, denom: Denomination) -> Result<SignedAmount, ParsingError> {
+    pub fn from_str_in(s: &str, denom: Denomination) -> Result<SignedAmount, AmountParsingError> {
         let (negative, piconero) = parse_signed_to_piconero(s, denom)?;
         if piconero > i64::max_value() as u64 {
-            return Err(ParsingError::TooBig);
+            return Err(AmountParsingError::TooBig);
         }
         Ok(match negative {
             true => SignedAmount(-(piconero as i64)),
@@ -556,12 +570,12 @@ impl SignedAmount {
     /// `to_string_with_denomination` or with [`fmt::Display`].
     ///
     /// If you want to parse only the amount without the denomination, use `from_str_in`.
-    pub fn from_str_with_denomination(s: &str) -> Result<SignedAmount, ParsingError> {
+    pub fn from_str_with_denomination(s: &str) -> Result<SignedAmount, AmountParsingError> {
         let mut split = s.splitn(3, ' ');
-        let amt_str = split.next().unwrap();
-        let denom_str = split.next().ok_or(ParsingError::InvalidFormat)?;
+        let amt_str = split.next().ok_or(AmountParsingError::InvalidFormat)?;
+        let denom_str = split.next().ok_or(AmountParsingError::InvalidFormat)?;
         if split.next().is_some() {
-            return Err(ParsingError::InvalidFormat);
+            return Err(AmountParsingError::InvalidFormat);
         }
 
         SignedAmount::from_str_in(amt_str, denom_str.parse()?)
@@ -570,8 +584,9 @@ impl SignedAmount {
     /// Express this [`SignedAmount`] as a floating-point value in the given denomination.
     ///
     /// Please be aware of the risk of using floating-point numbers.
-    pub fn to_float_in(self, denom: Denomination) -> f64 {
-        f64::from_str(&self.to_string_in(denom)).unwrap()
+    pub fn to_float_in(self, denom: Denomination) -> Result<f64, AmountParsingError> {
+        f64::from_str(&self.to_string_in(denom)?)
+            .map_err(|e| AmountParsingError::UnknownDenomination(e.to_string()))
     }
 
     /// Express this [`SignedAmount`] as a floating-point value in Monero.
@@ -579,7 +594,7 @@ impl SignedAmount {
     /// Equivalent to `to_float_in(Denomination::Monero)`.
     ///
     /// Please be aware of the risk of using floating-point numbers.
-    pub fn as_xmr(self) -> f64 {
+    pub fn as_xmr(self) -> Result<f64, AmountParsingError> {
         self.to_float_in(Denomination::Monero)
     }
 
@@ -587,7 +602,10 @@ impl SignedAmount {
     /// Can return error if the amount is too big, too precise or negative.
     ///
     /// Please be aware of the risk of using floating-point numbers.
-    pub fn from_float_in(value: f64, denom: Denomination) -> Result<SignedAmount, ParsingError> {
+    pub fn from_float_in(
+        value: f64,
+        denom: Denomination,
+    ) -> Result<SignedAmount, AmountParsingError> {
         // This is inefficient, but the safest way to deal with this. The parsing logic is safe.
         // Any performance-critical application should not be dealing with floats.
         SignedAmount::from_str_in(&value.to_string(), denom)
@@ -611,19 +629,24 @@ impl SignedAmount {
     /// Get a string number of this [`SignedAmount`] in the given denomination.
     ///
     /// Does not include the denomination.
-    pub fn to_string_in(self, denom: Denomination) -> String {
+    pub fn to_string_in(self, denom: Denomination) -> Result<String, AmountParsingError> {
         let mut buf = String::new();
-        self.fmt_value_in(&mut buf, denom).unwrap();
-        buf
+        self.fmt_value_in(&mut buf, denom)
+            .map_err(|_| AmountParsingError::InvalidFormat)?;
+        Ok(buf)
     }
 
     /// Get a formatted string of this [`SignedAmount`] in the given denomination, suffixed with
     /// the abbreviation for the denomination.
-    pub fn to_string_with_denomination(self, denom: Denomination) -> String {
+    pub fn to_string_with_denomination(
+        self,
+        denom: Denomination,
+    ) -> Result<String, AmountParsingError> {
         let mut buf = String::new();
-        self.fmt_value_in(&mut buf, denom).unwrap();
-        write!(buf, " {}", denom).unwrap();
-        buf
+        self.fmt_value_in(&mut buf, denom)
+            .map_err(|_| AmountParsingError::InvalidFormat)?;
+        write!(buf, " {}", denom).map_err(|_| AmountParsingError::InvalidFormat)?;
+        Ok(buf)
     }
 
     // Some arithmetic that doesn't fit in `std::ops` traits.
@@ -703,9 +726,9 @@ impl SignedAmount {
     }
 
     /// Convert to an unsigned amount.
-    pub fn to_unsigned(self) -> Result<Amount, ParsingError> {
+    pub fn to_unsigned(self) -> Result<Amount, AmountParsingError> {
         if self.is_negative() {
-            Err(ParsingError::Negative)
+            Err(AmountParsingError::Negative)
         } else {
             Ok(Amount::from_pico(self.as_pico() as u64))
         }
@@ -720,7 +743,11 @@ impl default::Default for SignedAmount {
 
 impl fmt::Debug for SignedAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SignedAmount({:.12} xmr)", self.as_xmr())
+        write!(
+            f,
+            "SignedAmount({:.12} xmr)",
+            self.as_xmr().map_err(|_| fmt::Error)?
+        )
     }
 }
 
@@ -807,7 +834,7 @@ impl ops::DivAssign<i64> for SignedAmount {
 }
 
 impl FromStr for SignedAmount {
-    type Err = ParsingError;
+    type Err = AmountParsingError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         SignedAmount::from_str_with_denomination(s)
@@ -839,6 +866,7 @@ pub mod serde {
 
     use super::{Amount, Denomination, SignedAmount};
     use sealed::sealed;
+    use serde_crate::ser::Error;
     use serde_crate::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 
     #[sealed]
@@ -886,7 +914,12 @@ pub mod serde {
             Ok(Amount::from_pico(u64::deserialize(d)?))
         }
         fn ser_xmr<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
-            String::serialize(&self.to_string_in(Denomination::Monero), s)
+            String::serialize(
+                &self
+                    .to_string_in(Denomination::Monero)
+                    .map_err(S::Error::custom)?,
+                s,
+            )
         }
         fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
             use serde_crate::de::Error;
@@ -904,7 +937,11 @@ pub mod serde {
             s.serialize_some(&self.as_pico())
         }
         fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
-            s.serialize_some(&self.to_string_in(Denomination::Monero))
+            s.serialize_some(
+                &self
+                    .to_string_in(Denomination::Monero)
+                    .map_err(S::Error::custom)?,
+            )
         }
     }
 
@@ -919,7 +956,11 @@ pub mod serde {
         }
 
         fn ser_xmr_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
-            s.serialize_element(&self.to_string_in(Denomination::Monero))
+            s.serialize_element(
+                &self
+                    .to_string_in(Denomination::Monero)
+                    .map_err(S::Error::custom)?,
+            )
         }
     }
 
@@ -932,7 +973,12 @@ pub mod serde {
             Ok(SignedAmount::from_pico(i64::deserialize(d)?))
         }
         fn ser_xmr<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
-            String::serialize(&self.to_string_in(Denomination::Monero), s)
+            String::serialize(
+                &self
+                    .to_string_in(Denomination::Monero)
+                    .map_err(S::Error::custom)?,
+                s,
+            )
         }
         fn des_xmr<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
             use serde_crate::de::Error;
@@ -950,7 +996,11 @@ pub mod serde {
             s.serialize_some(&self.as_pico())
         }
         fn ser_xmr_opt<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
-            s.serialize_some(&self.to_string_in(Denomination::Monero))
+            s.serialize_some(
+                &self
+                    .to_string_in(Denomination::Monero)
+                    .map_err(S::Error::custom)?,
+            )
         }
     }
 
@@ -965,7 +1015,11 @@ pub mod serde {
         }
 
         fn ser_xmr_slice<S: SerializeSeq>(&self, s: &mut S) -> Result<(), S::Error> {
-            s.serialize_element(&self.to_string_in(Denomination::Monero))
+            s.serialize_element(
+                &self
+                    .to_string_in(Denomination::Monero)
+                    .map_err(S::Error::custom)?,
+            )
         }
     }
 
@@ -1393,47 +1447,53 @@ mod tests {
         assert_eq!(f(0.0001234, D::Monero), Ok(pico(123400000)));
         assert_eq!(sf(-0.00012345, D::Monero), Ok(spico(-123450000)));
 
-        assert_eq!(f(-100.0, D::Piconero), Err(ParsingError::Negative));
-        assert_eq!(f(11.22, D::Piconero), Err(ParsingError::TooPrecise));
-        assert_eq!(sf(-0.1, D::Piconero), Err(ParsingError::TooPrecise));
+        assert_eq!(f(-100.0, D::Piconero), Err(AmountParsingError::Negative));
+        assert_eq!(f(11.22, D::Piconero), Err(AmountParsingError::TooPrecise));
+        assert_eq!(sf(-0.1, D::Piconero), Err(AmountParsingError::TooPrecise));
         assert_eq!(
             f(42.000_000_000_000_1, D::Monero),
-            Err(ParsingError::TooPrecise)
+            Err(AmountParsingError::TooPrecise)
         );
-        assert_eq!(sf(-184467440738.0, D::Monero), Err(ParsingError::TooBig));
+        assert_eq!(
+            sf(-184467440738.0, D::Monero),
+            Err(AmountParsingError::TooBig)
+        );
         assert_eq!(
             f(18446744073709551617.0, D::Piconero),
-            Err(ParsingError::TooBig)
+            Err(AmountParsingError::TooBig)
         );
         assert_eq!(
             f(
-                SignedAmount::max_value().to_float_in(D::Piconero) + 1.0,
+                SignedAmount::max_value().to_float_in(D::Piconero).unwrap() + 1.0,
                 D::Piconero
             ),
-            Err(ParsingError::TooBig)
+            Err(AmountParsingError::TooBig)
         );
         assert_eq!(
             f(
-                Amount::max_value().to_float_in(D::Piconero) + 1.0,
+                Amount::max_value().to_float_in(D::Piconero).unwrap() + 1.0,
                 D::Piconero
             ),
-            Err(ParsingError::TooBig)
+            Err(AmountParsingError::TooBig)
         );
 
         let xmr = move |f| SignedAmount::from_xmr(f).unwrap();
-        assert_eq!(xmr(2.5).to_float_in(D::Monero), 2.5);
-        assert_eq!(xmr(-2.5).to_float_in(D::Millinero), -2500.0);
-        assert_eq!(xmr(-2.5).to_float_in(D::Micronero), -2500000.0);
-        assert_eq!(xmr(-2.5).to_float_in(D::Nanonero), -2500000000.0);
-        assert_eq!(xmr(2.5).to_float_in(D::Piconero), 2500000000000.0);
+        assert_eq!(xmr(2.5).to_float_in(D::Monero).unwrap(), 2.5);
+        assert_eq!(xmr(-2.5).to_float_in(D::Millinero).unwrap(), -2500.0);
+        assert_eq!(xmr(-2.5).to_float_in(D::Micronero).unwrap(), -2500000.0);
+        assert_eq!(xmr(-2.5).to_float_in(D::Nanonero).unwrap(), -2500000000.0);
+        assert_eq!(xmr(2.5).to_float_in(D::Piconero).unwrap(), 2500000000000.0);
 
         let xmr = move |f| Amount::from_xmr(f).unwrap();
-        assert_eq!(&xmr(0.0012).to_float_in(D::Monero).to_string(), "0.0012")
+        assert_eq!(
+            &xmr(0.0012).to_float_in(D::Monero).unwrap().to_string(),
+            "0.0012"
+        )
     }
 
     #[test]
     fn parsing() {
-        use super::ParsingError as E;
+        use super::AmountParsingError as E;
         let xmr = Denomination::Monero;
         let pico = Denomination::Piconero;
         let p = Amount::from_str_in;
@@ -1443,7 +1503,10 @@ mod tests {
         assert_eq!(p("-", xmr), Err(E::InvalidFormat));
         assert_eq!(sp("-", xmr), Err(E::InvalidFormat));
         assert_eq!(p("-1.0x", xmr), Err(E::InvalidCharacter('x')));
-        assert_eq!(p("0.0 ", xmr), Err(ParsingError::InvalidCharacter(' ')));
+        assert_eq!(
+            p("0.0 ", xmr),
+            Err(AmountParsingError::InvalidCharacter(' '))
+        );
         assert_eq!(p("0.000.000", xmr), Err(E::InvalidFormat));
         let more_than_max = format!("1{}", Amount::max_value());
         assert_eq!(p(&more_than_max, xmr), Err(E::TooBig));
@@ -1474,11 +1537,11 @@ mod tests {
         // make sure Piconero > i64::max_value() is checked.
         let amount = Amount::from_pico(i64::max_value() as u64);
         assert_eq!(
-            Amount::from_str_in(&amount.to_string_in(pico), pico),
+            Amount::from_str_in(&amount.to_string_in(pico).unwrap(), pico),
             Ok(amount)
         );
         assert_eq!(
-            Amount::from_str_in(&(amount + Amount(1)).to_string_in(pico), pico),
+            Amount::from_str_in(&(amount + Amount(1)).to_string_in(pico).unwrap(), pico),
             Err(E::TooBig)
         );
 
@@ -1504,35 +1567,54 @@ mod tests {
     fn to_string() {
         use super::Denomination as D;
 
-        assert_eq!(Amount::ONE_XMR.to_string_in(D::Monero), "1.000000000000");
-        assert_eq!(Amount::ONE_XMR.to_string_in(D::Piconero), "1000000000000");
-        assert_eq!(Amount::ONE_PICO.to_string_in(D::Monero), "0.000000000001");
         assert_eq!(
-            SignedAmount::from_pico(-42).to_string_in(D::Monero),
+            Amount::ONE_XMR.to_string_in(D::Monero).unwrap(),
+            "1.000000000000"
+        );
+        assert_eq!(
+            Amount::ONE_XMR.to_string_in(D::Piconero).unwrap(),
+            "1000000000000"
+        );
+        assert_eq!(
+            Amount::ONE_PICO.to_string_in(D::Monero).unwrap(),
+            "0.000000000001"
+        );
+        assert_eq!(
+            SignedAmount::from_pico(-42)
+                .to_string_in(D::Monero)
+                .unwrap(),
             "-0.000000000042"
         );
 
         assert_eq!(
-            Amount::ONE_XMR.to_string_with_denomination(D::Monero),
+            Amount::ONE_XMR
+                .to_string_with_denomination(D::Monero)
+                .unwrap(),
             "1.000000000000 xmr"
         );
         assert_eq!(
-            SignedAmount::ONE_XMR.to_string_with_denomination(D::Piconero),
+            SignedAmount::ONE_XMR
+                .to_string_with_denomination(D::Piconero)
+                .unwrap(),
             "1000000000000 piconero"
         );
         assert_eq!(
-            Amount::ONE_PICO.to_string_with_denomination(D::Monero),
+            Amount::ONE_PICO
+                .to_string_with_denomination(D::Monero)
+                .unwrap(),
             "0.000000000001 xmr"
         );
         assert_eq!(
-            SignedAmount::from_pico(-42).to_string_with_denomination(D::Monero),
+            SignedAmount::from_pico(-42)
+                .to_string_with_denomination(D::Monero)
+                .unwrap(),
             "-0.000000000042 xmr"
         );
     }
 
     #[test]
     fn test_unsigned_signed_conversion() {
-        use super::ParsingError as E;
+        use super::AmountParsingError as E;
         let p = Amount::from_pico;
         let sp = SignedAmount::from_pico;
 
@@ -1562,7 +1644,7 @@ mod tests {
 
     #[test]
     fn from_str() {
-        use super::ParsingError as E;
+        use super::AmountParsingError as E;
         let p = Amount::from_str;
         let sp = SignedAmount::from_str;
 
@@ -1608,75 +1690,99 @@ mod tests {
         let sa_str = SignedAmount::from_str_in;
         let sa_pic = SignedAmount::from_pico;
 
-        assert_eq!("0.500", Amount::from_pico(500).to_string_in(D::Nanonero));
+        assert_eq!(
+            "0.500",
+            Amount::from_pico(500).to_string_in(D::Nanonero).unwrap()
+        );
         assert_eq!(
             "-0.500",
-            SignedAmount::from_pico(-500).to_string_in(D::Nanonero)
+            SignedAmount::from_pico(-500)
+                .to_string_in(D::Nanonero)
+                .unwrap()
         );
         assert_eq!(
             "0.002535830000",
-            Amount::from_pico(2535830000).to_string_in(D::Monero)
+            Amount::from_pico(2535830000)
+                .to_string_in(D::Monero)
+                .unwrap()
         );
-        assert_eq!("-5", SignedAmount::from_pico(-5).to_string_in(D::Piconero));
+        assert_eq!(
+            "-5",
+            SignedAmount::from_pico(-5)
+                .to_string_in(D::Piconero)
+                .unwrap()
+        );
         assert_eq!(
             "0.100000000000",
-            Amount::from_pico(100_000_000_000).to_string_in(D::Monero)
+            Amount::from_pico(100_000_000_000)
+                .to_string_in(D::Monero)
+                .unwrap()
         );
         assert_eq!(
             "-10.000",
-            SignedAmount::from_pico(-10_000).to_string_in(D::Nanonero)
+            SignedAmount::from_pico(-10_000)
+                .to_string_in(D::Nanonero)
+                .unwrap()
         );
 
         assert_eq!(
-            ua_str(&ua_pic(0).to_string_in(D::Piconero), D::Piconero),
+            ua_str(&ua_pic(0).to_string_in(D::Piconero).unwrap(), D::Piconero),
             Ok(ua_pic(0))
         );
         assert_eq!(
-            ua_str(&ua_pic(500).to_string_in(D::Monero), D::Monero),
+            ua_str(&ua_pic(500).to_string_in(D::Monero).unwrap(), D::Monero),
             Ok(ua_pic(500))
         );
         assert_eq!(
-            ua_str(&ua_pic(21_000_000).to_string_in(D::Nanonero), D::Nanonero),
+            ua_str(
+                &ua_pic(21_000_000).to_string_in(D::Nanonero).unwrap(),
+                D::Nanonero
+            ),
             Ok(ua_pic(21_000_000))
         );
         assert_eq!(
-            ua_str(&ua_pic(1).to_string_in(D::Micronero), D::Micronero),
+            ua_str(&ua_pic(1).to_string_in(D::Micronero).unwrap(), D::Micronero),
             Ok(ua_pic(1))
         );
         assert_eq!(
             ua_str(
-                &ua_pic(1_000_000_000_000).to_string_in(D::Millinero),
+                &ua_pic(1_000_000_000_000)
+                    .to_string_in(D::Millinero)
+                    .unwrap(),
                 D::Millinero
             ),
             Ok(ua_pic(1_000_000_000_000))
         );
         assert_eq!(
             ua_str(
-                &ua_pic(u64::max_value()).to_string_in(D::Millinero),
+                &ua_pic(u64::max_value()).to_string_in(D::Millinero).unwrap(),
                 D::Millinero
             ),
-            Err(ParsingError::TooBig)
+            Err(AmountParsingError::TooBig)
         );
 
         assert_eq!(
-            sa_str(&sa_pic(-1).to_string_in(D::Micronero), D::Micronero),
+            sa_str(
+                &sa_pic(-1).to_string_in(D::Micronero).unwrap(),
+                D::Micronero
+            ),
             Ok(sa_pic(-1))
         );
 
         assert_eq!(
             sa_str(
-                &sa_pic(i64::max_value()).to_string_in(D::Piconero),
+                &sa_pic(i64::max_value()).to_string_in(D::Piconero).unwrap(),
                 D::Micronero
             ),
-            Err(ParsingError::TooBig)
+            Err(AmountParsingError::TooBig)
         );
         // Test an overflow bug in `abs()`
         assert_eq!(
             sa_str(
-                &sa_pic(i64::min_value()).to_string_in(D::Piconero),
+                &sa_pic(i64::min_value()).to_string_in(D::Piconero).unwrap(),
                 D::Micronero
             ),
-            Err(ParsingError::TooBig)
+            Err(AmountParsingError::TooBig)
         );
     }
 
@@ -1685,19 +1791,25 @@ mod tests {
         use super::Denomination as D;
         let amt = Amount::from_pico(42);
         let denom = Amount::to_string_with_denomination;
-        assert_eq!(Amount::from_str(&denom(amt, D::Monero)), Ok(amt));
-        assert_eq!(Amount::from_str(&denom(amt, D::Millinero)), Ok(amt));
-        assert_eq!(Amount::from_str(&denom(amt, D::Micronero)), Ok(amt));
-        assert_eq!(Amount::from_str(&denom(amt, D::Nanonero)), Ok(amt));
-        assert_eq!(Amount::from_str(&denom(amt, D::Piconero)), Ok(amt));
+        assert_eq!(Amount::from_str(&denom(amt, D::Monero).unwrap()), Ok(amt));
+        assert_eq!(
+            Amount::from_str(&denom(amt, D::Millinero).unwrap()),
+            Ok(amt)
+        );
+        assert_eq!(
+            Amount::from_str(&denom(amt, D::Micronero).unwrap()),
+            Ok(amt)
+        );
+        assert_eq!(Amount::from_str(&denom(amt, D::Nanonero).unwrap()), Ok(amt));
+        assert_eq!(Amount::from_str(&denom(amt, D::Piconero).unwrap()), Ok(amt));
 
         assert_eq!(
             Amount::from_str("42 piconero XMR"),
-            Err(ParsingError::InvalidFormat)
+            Err(AmountParsingError::InvalidFormat)
         );
         assert_eq!(
             SignedAmount::from_str("-42 piconero XMR"),
-            Err(ParsingError::InvalidFormat)
+            Err(AmountParsingError::InvalidFormat)
         );
     }
 
@@ -1981,13 +2093,13 @@ mod tests {
         assert!(t
             .unwrap_err()
             .to_string()
-            .contains(&ParsingError::TooPrecise.to_string()));
+            .contains(&AmountParsingError::TooPrecise.to_string()));
         let t: Result<T, serde_json::Error> =
             serde_json::from_str("{\"amt\": \"-1\", \"samt\": \"1\"}");
         assert!(t
             .unwrap_err()
             .to_string()
-            .contains(&ParsingError::Negative.to_string()));
+            .contains(&AmountParsingError::Negative.to_string()));
     }
 
     #[cfg(feature = "serde")]

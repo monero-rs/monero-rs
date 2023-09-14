@@ -22,8 +22,8 @@ use crate::util::address::AddressType;
 use thiserror::Error;
 
 /// Potential errors encountered while manipulating Monero networks.
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum Error {
+#[derive(Error, Debug, PartialEq)]
+pub enum NetworkError {
     /// Invalid magic network byte.
     #[error("Invalid magic network byte")]
     InvalidMagicByte,
@@ -75,13 +75,13 @@ impl Network {
     /// Recover the network type given an address magic byte.
     ///
     /// **Source:** [`monero/src/cryptonote_config.h`](https://github.com/monero-project/monero/blob/159c78758af0a0af9df9a4f9ab81888f9322e9be/src/cryptonote_config.h#L190-L239)
-    pub fn from_u8(byte: u8) -> Result<Network, Error> {
+    pub fn from_u8(byte: u8) -> Result<Network, NetworkError> {
         use Network::*;
         match byte {
             18 | 19 | 42 => Ok(Mainnet),
             53 | 54 | 63 => Ok(Testnet),
             24 | 25 | 36 => Ok(Stagenet),
-            _ => Err(Error::InvalidMagicByte),
+            _ => Err(NetworkError::InvalidMagicByte),
         }
     }
 }

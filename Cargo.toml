@@ -38,6 +38,8 @@ tiny-keccak = { version = "2", features = ["keccak"] }
 [dev-dependencies]
 serde_json = "1"
 serde_test = "1"
+rand = "0.8"
+quickcheck = "1"
 
 [dependencies.fixed-hash]
 version = "0.8.0"
