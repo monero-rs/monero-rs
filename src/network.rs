@@ -1,5 +1,5 @@
 // Rust Monero Library
-// Written in 2019-2022 by
+// Written in 2019-2023 by
 //   Monero Rust Contributors
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -33,9 +33,10 @@ pub enum Error {
 ///
 /// Network implements [`Default`] and returns [`Network::Mainnet`].
 ///
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Network {
     /// Mainnet is the "production" network and blockchain.
+    #[default]
     Mainnet,
     /// Stagenet is technically equivalent to mainnet, both in terms of features and consensus
     /// rules.
@@ -82,11 +83,5 @@ impl Network {
             24 | 25 | 36 => Ok(Stagenet),
             _ => Err(Error::InvalidMagicByte),
         }
-    }
-}
-
-impl Default for Network {
-    fn default() -> Network {
-        Network::Mainnet
     }
 }
