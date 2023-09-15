@@ -1,5 +1,5 @@
 // Rust Monero Library
-// Written in 2021-2022 by
+// Written in 2021-2023 by
 //   Monero Rust Contributors
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
