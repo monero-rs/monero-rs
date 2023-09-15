@@ -22,6 +22,9 @@
 //! [`Hn()`]: Hashable::hash_to_scalar()
 //!
 
+// TODO: remove this when fixed-hash stop raising clippy errors...
+#![allow(clippy::incorrect_clone_impl_on_copy_type)]
+
 use curve25519_dalek::scalar::Scalar;
 use sealed::sealed;
 use tiny_keccak::{Hasher, Keccak};
