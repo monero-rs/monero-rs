@@ -1131,6 +1131,22 @@ pub mod serde {
         //! Serialize and deserialize [`Amount`] as a string denominated in xmr.
         //! Use with `#[serde(with = "monero::util::amount::serde::as_xmr")]`.
         //!
+        //! ```rust
+        //! # use serde_crate::{Serialize, Deserialize};
+        //! use monero::Amount;
+        //!
+        //! #[derive(Serialize, Deserialize)]
+        //! # #[serde(crate = "serde_crate")]
+        //! pub struct HasAmount {
+        //!     #[serde(
+        //!         default,
+        //!         serialize_with = "monero::util::amount::serde::as_xmr::slice::serialize",
+        //!         deserialize_with = "monero::util::amount::serde::as_xmr::vec::deserialize_amount"
+        //!     )]
+        //!     pub amounts: Vec<Amount>
+        //! }
+        //! ```
+        //!
         //! [`Amount`]: crate::util::amount::Amount
 
         use super::SerdeAmount;
