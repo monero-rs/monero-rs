@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Exposed `serialize_hashable` on `Block` by [@Boog900](https://github.com/Boog900) ([#143](https://github.com/monero-rs/monero-rs/pull/143))
+- Update `base58-monero` to version `2` by [@h4sh3d](https://github.com/h4sh3d) ([#175](https://github.com/monero-rs/monero-rs/pull/175))
+- Bump MSRV to version `1.63.0` by [@h4sh3d](https://github.com/h4sh3d) ([#175](https://github.com/monero-rs/monero-rs/pull/175))
 
 ## [0.18.2] - 2023-01-02
 
