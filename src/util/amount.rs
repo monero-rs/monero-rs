@@ -1,5 +1,5 @@
 // Rust Monero Library
-// Written in 2021-2022 by
+// Written in 2021-2023 by
 //   Monero Rust Contributors
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -823,7 +823,7 @@ pub mod serde {
     //! The provided modules can be used as follows:
     //!
     //! ```rust
-    //! use serde_crate::{Serialize, Deserialize};
+    //! # use serde_crate::{Serialize, Deserialize};
     //! use monero::Amount;
     //!
     //! #[derive(Serialize, Deserialize)]
@@ -974,7 +974,7 @@ pub mod serde {
         #![allow(missing_docs)]
 
         //! Serialize and deserialize [`Amount`] as real numbers denominated in piconero.
-        //! Use with `#[serde(with = "amount::serde::as_pico")]`.
+        //! Use with `#[serde(with = "monero::util::amount::serde::as_pico")]`.
         //!
         //! [`Amount`]: crate::util::amount::Amount
 
@@ -990,7 +990,7 @@ pub mod serde {
 
         pub mod opt {
             //! Serialize and deserialize [Option] as a number denominated in piconero.
-            //! Use with `#[serde(default, with = "amount::serde::as_pico::opt")]`.
+            //! Use with `#[serde(default, with = "monero::util::amount::serde::as_pico::opt")]`.
 
             use super::super::SerdeAmountForOpt;
             use core::fmt;
@@ -1038,7 +1038,7 @@ pub mod serde {
 
         pub mod slice {
             //! Serialize `&[Amount]` and `&[SignedAmount]` as an array of numbers denoted in piconero.
-            //! Use with `#[serde(default, serialize_with = "amount::serde::as_pico::slice::serialize")]`.
+            //! Use with `#[serde(default, serialize_with = "monero::util::amount::serde::as_pico::slice::serialize")]`.
 
             use super::super::SerdeAmountForSlice;
             use serde_crate::{ser::SerializeSeq, Serializer};
@@ -1060,15 +1060,15 @@ pub mod serde {
         pub mod vec {
             //! Deserialize an array of numbers (in piconero) into `Vec<Amount>` or
             //! `Vec<SignedAmount>`.
-            //! It is possible to use `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_amount")]`
-            //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_signed_amount")]`
+            //! It is possible to use `#[serde(default, deserialize_with = "monero::util::amount::serde::as_pico::vec::deserialize_amount")]`
+            //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "monero::util::amount::serde::as_pico::vec::deserialize_signed_amount")]`
             //! for `Vec<SignedAmount>`.
 
             use super::super::{Amount, SignedAmount};
             use core::marker::PhantomData;
             use serde_crate::{de, Deserializer};
 
-            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_amount")]`.
+            /// Use with `#[serde(default, deserialize_with = "monero::util::amount::serde::as_pico::vec::deserialize_amount")]`.
             pub fn deserialize_amount<'d, D: Deserializer<'d>>(
                 d: D,
             ) -> Result<Vec<Amount>, D::Error> {
@@ -1094,7 +1094,7 @@ pub mod serde {
                 d.deserialize_seq(VisitVecAmt(PhantomData))
             }
 
-            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_pico::vec::deserialize_signed_amount")]`.
+            /// Use with `#[serde(default, deserialize_with = "monero::util::amount::serde::as_pico::vec::deserialize_signed_amount")]`.
             pub fn deserialize_signed_amount<'d, D: Deserializer<'d>>(
                 d: D,
             ) -> Result<Vec<SignedAmount>, D::Error> {
@@ -1129,7 +1129,23 @@ pub mod serde {
         #![allow(missing_docs)]
 
         //! Serialize and deserialize [`Amount`] as a string denominated in xmr.
-        //! Use with `#[serde(with = "amount::serde::as_xmr")]`.
+        //! Use with `#[serde(with = "monero::util::amount::serde::as_xmr")]`.
+        //!
+        //! ```rust
+        //! # use serde_crate::{Serialize, Deserialize};
+        //! use monero::Amount;
+        //!
+        //! #[derive(Serialize, Deserialize)]
+        //! # #[serde(crate = "serde_crate")]
+        //! pub struct HasAmount {
+        //!     #[serde(
+        //!         default,
+        //!         serialize_with = "monero::util::amount::serde::as_xmr::slice::serialize",
+        //!         deserialize_with = "monero::util::amount::serde::as_xmr::vec::deserialize_amount"
+        //!     )]
+        //!     pub amounts: Vec<Amount>
+        //! }
+        //! ```
         //!
         //! [`Amount`]: crate::util::amount::Amount
 
@@ -1146,7 +1162,7 @@ pub mod serde {
 
         pub mod opt {
             //! Serialize and deserialize [Option] as a number denominated in xmr.
-            //! Use with `#[serde(default, with = "amount::serde::as_xmr::opt")]`.
+            //! Use with `#[serde(default, with = "monero::util::amount::serde::as_xmr::opt")]`.
 
             use super::super::SerdeAmountForOpt;
             use core::fmt;
@@ -1194,7 +1210,7 @@ pub mod serde {
 
         pub mod slice {
             //! Serialize `&[Amount]` and `&[SignedAmount]` as an array of numbers denoted in xmr.
-            //! Use with `#[serde(default, serialize_with = "amount::serde::as_xmr::slice::serialize")]`.
+            //! Use with `#[serde(default, serialize_with = "monero::util::amount::serde::as_xmr::slice::serialize")]`.
 
             use super::super::SerdeAmountForSlice;
             use serde_crate::{ser::SerializeSeq, Serializer};
@@ -1216,15 +1232,15 @@ pub mod serde {
         pub mod vec {
             //! Deserialize an array of numbers (in xmr) into `Vec<Amount>` or
             //! `Vec<SignedAmount>`.
-            //! It is possible to use `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_amount")]`
-            //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_signed_amount")]`
+            //! It is possible to use `#[serde(default, deserialize_with = "monero::util::amount::serde::as_xmr::vec::deserialize_amount")]`
+            //! for `Vec<Amount>`, and `#[serde(default, deserialize_with = "monero::util::amount::serde::as_xmr::vec::deserialize_signed_amount")]`
             //! for `Vec<SignedAmount>`.
 
             use super::super::{super::Denomination, Amount, SignedAmount};
             use core::marker::PhantomData;
             use serde_crate::{de, Deserializer};
 
-            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_amount")]`.
+            /// Use with `#[serde(default, deserialize_with = "monero::util::amount::serde::as_xmr::vec::deserialize_amount")]`.
             pub fn deserialize_amount<'d, D: Deserializer<'d>>(
                 d: D,
             ) -> Result<Vec<Amount>, D::Error> {
@@ -1257,7 +1273,7 @@ pub mod serde {
                 d.deserialize_seq(VisitVecAmt(PhantomData))
             }
 
-            /// Use with `#[serde(default, deserialize_with = "amount::serde::as_xmr::vec::deserialize_signed_amount")]`.
+            /// Use with `#[serde(default, deserialize_with = "monero::util::amount::serde::as_xmr::vec::deserialize_signed_amount")]`.
             pub fn deserialize_signed_amount<'d, D: Deserializer<'d>>(
                 d: D,
             ) -> Result<Vec<SignedAmount>, D::Error> {

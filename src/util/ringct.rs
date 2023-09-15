@@ -1,5 +1,5 @@
 // Rust Monero Library
-// Written in 2019-2022 by
+// Written in 2019-2023 by
 //   Monero Rust Contributors
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,7 +25,7 @@ use std::{fmt, io};
 use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::KeyGenerator;
-use crate::util::amount::{self, Amount};
+use crate::util::amount::Amount;
 use crate::util::key::H;
 use crate::{PublicKey, ViewPair};
 
@@ -496,7 +496,7 @@ pub struct RctSigBase {
     /// The RingCt type of signatures.
     pub rct_type: RctType,
     /// Transaction fee.
-    #[cfg_attr(feature = "serde", serde(with = "amount::serde::as_pico"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::util::amount::serde::as_pico"))]
     pub txn_fee: Amount,
     /// Pseudo outs key vector.
     pub pseudo_outs: Vec<Key>,
