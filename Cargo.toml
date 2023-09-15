@@ -15,7 +15,7 @@ keywords = ["monero"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/monero-rs/monero-rs"
-rust-version = "1.61"
+rust-version = "1.63.0"
 description = "Rust Monero Library."
 
 [features]
@@ -31,7 +31,7 @@ hex = "0.4.3"
 hex-literal = "0.4.1"
 sealed = "0.5"
 serde-big-array = { version = "0.5.1", optional = true }
-serde-crate = { package = "serde", version = "1.0.124", features = ["derive"], optional = true }
+serde-crate = { package = "serde", version = "1", features = ["derive"], optional = true }
 thiserror = "1.0.24"
 tiny-keccak = { version = "2", features = ["keccak"] }
 
