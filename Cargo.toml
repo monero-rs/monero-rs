@@ -25,7 +25,7 @@ serde = ["serde-crate", "serde-big-array", "curve25519-dalek/serde"]
 experimental = []
 
 [dependencies]
-base58-monero = { version = "1", default-features = false }
+base58-monero = { version = "2" }
 curve25519-dalek = { version = "4" }
 hex = "0.4.3"
 hex-literal = "0.4.1"
