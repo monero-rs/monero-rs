@@ -69,6 +69,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "transaction_components"
+path = "fuzz_targets/transaction_components.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "transaction_d"
 path = "fuzz_targets/transaction_d.rs"
 test = false
@@ -83,11 +89,5 @@ doc = false
 [[bin]]
 name = "transaction_prefix_d"
 path = "fuzz_targets/transaction_prefix_d.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "transaction_sd"
-path = "fuzz_targets/transaction_sd.rs"
 test = false
 doc = false
