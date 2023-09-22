@@ -977,7 +977,6 @@ impl Decodable for TxIn {
         bytes_upper_limit: usize,
     ) -> Result<TxIn, encode::EncodeError> {
         let intype: u8 = Decodable::consensus_decode(r, bytes_upper_limit)?;
-        // panic("impl Decodable for TxIn");
         match intype {
             0xff => Ok(TxIn::Gen {
                 height: Decodable::consensus_decode(r, bytes_upper_limit)?,
@@ -1127,7 +1126,6 @@ impl Decodable for Transaction {
                             } else {
                                 0
                             };
-                            // panic("impl Decodable for Transaction _");
                             RctSigPrunable::consensus_decode(
                                 r,
                                 sig.rct_type,

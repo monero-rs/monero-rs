@@ -14,6 +14,7 @@
 //
 
 use monero::blockdata::transaction::RawExtraField;
+use monero::{Address, AddressType};
 use quickcheck::QuickCheck;
 
 use monero::util::test_utils::{
@@ -216,6 +217,48 @@ fn test_fuzz_transaction_check_outputs() {
         };
         let transaction = fuzz_create_transaction(&data, &raw_extra_field);
         fuzz_transaction_check_outputs(&transaction)
+    }
+
+    const TESTS: u64 = 25_000;
+
+    QuickCheck::new()
+        .min_tests_passed(TESTS)
+        .tests(TESTS)
+        .max_tests(TESTS)
+        .quickcheck(internal as fn(Vec<u8>) -> bool);
+}
+
+#[test]
+fn test_fuzz_address_from_bytes() {
+    fn internal(data: Vec<u8>) -> bool {
+        let _ = Address::from_bytes(&data);
+        true
+    }
+
+    const TESTS: u64 = 25_000;
+
+    QuickCheck::new()
+        .min_tests_passed(TESTS)
+        .tests(TESTS)
+        .max_tests(TESTS)
+        .quickcheck(internal as fn(Vec<u8>) -> bool);
+}
+
+#[test]
+fn test_fuzz_address_type_from_slice() {
+    fn internal(data: Vec<u8>) -> bool {
+        let network = if data.is_empty() {
+            monero::Network::Mainnet
+        } else {
+            match data.len() % 3 {
+                0 => monero::Network::Mainnet,
+                1 => monero::Network::Testnet,
+                2 => monero::Network::Stagenet,
+                _ => unreachable!(),
+            }
+        };
+        let _ = AddressType::from_slice(&data, network);
+        true
     }
 
     const TESTS: u64 = 25_000;

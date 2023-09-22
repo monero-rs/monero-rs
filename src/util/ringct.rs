@@ -28,6 +28,7 @@ use crate::cryptonote::onetime_key::KeyGenerator;
 use crate::util::amount::Amount;
 use crate::util::key::H;
 use crate::{PublicKey, ViewPair};
+use std::array::TryFromSliceError;
 use std::{fmt, io, mem};
 
 use crate::cryptonote::hash::HashError;
@@ -53,6 +54,9 @@ pub enum RingCtError {
     /// Network error.
     #[error("Address error: {0}")]
     AddressError(#[from] AddressError),
+    /// Conversion error.
+    #[error("Conversion error: {0}")]
+    Conversion(String),
 }
 
 // ====================================================================
@@ -231,7 +235,7 @@ impl EcdhInfo {
                 // get first 64 bits (d2b in rctTypes.cpp)
                 let amount_significant_bytes = amount_scalar.to_bytes()[0..8]
                     .try_into()
-                    .expect("Can't fail");
+                    .map_err(|e: TryFromSliceError| RingCtError::Conversion(e.to_string()))?;
                 let amount = u64::from_le_bytes(amount_significant_bytes);
                 (amount, mask_scalar)
             }
