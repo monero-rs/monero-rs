@@ -27,7 +27,6 @@ use crate::cryptonote::hash::HashError;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use std::fmt;
-use std::io::Seek;
 use thiserror::Error;
 
 /// A block header containing the version, the mining timestamp, the previous block hash and the

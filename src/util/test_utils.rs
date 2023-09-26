@@ -241,12 +241,9 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
     // RctSigBase
     let fuzz_bytes = fuzz_data.to_vec().clone();
     let mut decoder = io::Cursor::new(&fuzz_bytes);
-    if let Ok(Some(rct_sig)) = RctSigBase::consensus_decode(
-        &mut decoder,
-        inputs as usize,
-        outputs as usize,
-        fuzz_bytes.len(),
-    ) {
+    if let Ok(Some(rct_sig)) =
+        RctSigBase::consensus_decode(&mut decoder, inputs as usize, outputs as usize)
+    {
         let mut encoder = Vec::new();
         if rct_sig.consensus_encode(&mut encoder).is_ok() {
             // This fails! Should it?
@@ -263,7 +260,6 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
         inputs as usize,
         outputs as usize,
         mixin as usize,
-        fuzz_bytes.len(),
     ) {
         let mut encoder = Vec::new();
         if rct_sig.consensus_encode(&mut encoder, rct_type).is_ok() {

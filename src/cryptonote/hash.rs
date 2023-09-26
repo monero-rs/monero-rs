@@ -30,7 +30,6 @@ use sealed::sealed;
 use tiny_keccak::{Hasher, Keccak};
 
 use std::io;
-use std::io::Seek;
 
 use crate::consensus::encode::{self, Decodable, EncodeError};
 use crate::util::key::PrivateKey;
@@ -77,11 +76,8 @@ impl Hash {
 }
 
 impl Decodable for Hash {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<Hash, encode::EncodeError> {
-        Ok(Hash(Decodable::consensus_decode(r, bytes_upper_limit)?))
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Hash, encode::EncodeError> {
+        Ok(Hash(Decodable::consensus_decode(r)?))
     }
 }
 
@@ -134,11 +130,8 @@ fixed_hash::construct_fixed_hash!(
 );
 
 impl Decodable for Hash8 {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<Hash8, encode::EncodeError> {
-        Ok(Hash8(Decodable::consensus_decode(r, bytes_upper_limit)?))
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Hash8, encode::EncodeError> {
+        Ok(Hash8(Decodable::consensus_decode(r)?))
     }
 }
 

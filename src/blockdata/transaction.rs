@@ -36,9 +36,8 @@ use hex::encode as hex_encode;
 use sealed::sealed;
 use thiserror::Error;
 
-use std::io::Seek;
 use std::ops::Range;
-use std::{fmt, io, mem};
+use std::{fmt, io};
 
 use crate::cryptonote::hash::HashError;
 use crate::util::address::AddressError;
@@ -378,7 +377,7 @@ impl ExtraField {
         // Decode each extra field
         while decoder.position() < bytes.len() as u64 {
             let res: Result<SubField, encode::EncodeError> =
-                Decodable::consensus_decode(&mut decoder, bytes.len());
+                Decodable::consensus_decode(&mut decoder);
             match res {
                 Ok(sub_field) => fields.push(sub_field),
                 Err(err) => return Err(TransactionError::from(err)),
@@ -471,11 +470,8 @@ impl encode::Encodable for RawExtraField {
 }
 
 impl Decodable for RawExtraField {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<Self, encode::EncodeError> {
-        Decodable::consensus_decode(r, bytes_upper_limit).map(Self)
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::EncodeError> {
+        Decodable::consensus_decode(r).map(Self)
     }
 }
 
@@ -864,11 +860,8 @@ impl encode::Encodable for ExtraField {
 }
 
 impl Decodable for SubField {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<SubField, encode::EncodeError> {
-        let tag: u8 = Decodable::consensus_decode(r, 1)?;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<SubField, encode::EncodeError> {
+        let tag: u8 = Decodable::consensus_decode(r)?;
 
         match tag {
             0x0 => {
@@ -876,7 +869,7 @@ impl Decodable for SubField {
                 // zero-valued bytes are valid, thus if a non-zero value has been read, it is an error condition.
                 let mut len = 0;
                 for _ in 1..=u8::MAX {
-                    let byte: Result<u8, encode::EncodeError> = Decodable::consensus_decode(r, 1);
+                    let byte: Result<u8, encode::EncodeError> = Decodable::consensus_decode(r);
                     match byte {
                         Ok(val) => {
                             if val != 0 {
@@ -894,32 +887,24 @@ impl Decodable for SubField {
 
                 Ok(SubField::Padding(len))
             }
-            0x1 => Ok(SubField::TxPublicKey(Decodable::consensus_decode(
-                r,
-                bytes_upper_limit,
-            )?)),
-            0x2 => Ok(SubField::Nonce(Decodable::consensus_decode(
-                r,
-                bytes_upper_limit,
-            )?)),
+            0x1 => Ok(SubField::TxPublicKey(Decodable::consensus_decode(r)?)),
+            0x2 => Ok(SubField::Nonce(Decodable::consensus_decode(r)?)),
             0x3 => {
-                let size = VarInt::consensus_decode(r, mem::size_of::<VarInt>() * 2)?;
+                let size = VarInt::consensus_decode(r)?;
                 let mut depth = None;
                 if size.0 == 33 {
-                    depth = Some(VarInt::consensus_decode(r, mem::size_of::<VarInt>() * 2)?);
+                    depth = Some(VarInt::consensus_decode(r)?);
                 }
                 Ok(SubField::MergeMining(
                     depth,
-                    Decodable::consensus_decode(r, bytes_upper_limit)?,
+                    Decodable::consensus_decode(r)?,
                 ))
             }
             0x4 => Ok(SubField::AdditionalPublickKey(Decodable::consensus_decode(
                 r,
-                bytes_upper_limit,
             )?)),
             0xde => Ok(SubField::MysteriousMinerGate(Decodable::consensus_decode(
                 r,
-                bytes_upper_limit,
             )?)),
             _ => Err(encode::EncodeError::ParseFailed(
                 "Invalid sub-field type".to_string(),
@@ -972,22 +957,19 @@ impl encode::Encodable for SubField {
 }
 
 impl Decodable for TxIn {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<TxIn, encode::EncodeError> {
-        let intype: u8 = Decodable::consensus_decode(r, bytes_upper_limit)?;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<TxIn, encode::EncodeError> {
+        let intype: u8 = Decodable::consensus_decode(r)?;
         match intype {
             0xff => Ok(TxIn::Gen {
-                height: Decodable::consensus_decode(r, bytes_upper_limit)?,
+                height: Decodable::consensus_decode(r)?,
             }),
             0x0 | 0x1 => Err(EncodeError::ConsensusEncodingFailed(
                 "Scripts input/output are not supported".to_string(),
             )),
             0x2 => Ok(TxIn::ToKey {
-                amount: Decodable::consensus_decode(r, bytes_upper_limit)?,
-                key_offsets: Decodable::consensus_decode(r, bytes_upper_limit)?,
-                k_image: Decodable::consensus_decode(r, bytes_upper_limit)?,
+                amount: Decodable::consensus_decode(r)?,
+                key_offsets: Decodable::consensus_decode(r)?,
+                k_image: Decodable::consensus_decode(r)?,
             }),
             _ => Err(encode::EncodeError::ParseFailed(
                 "Invalid input type".to_string(),
@@ -1019,18 +1001,17 @@ impl encode::Encodable for TxIn {
 }
 
 impl Decodable for TxOutTarget {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+    fn consensus_decode<R: io::Read + ?Sized>(
         r: &mut R,
-        bytes_upper_limit: usize,
     ) -> Result<TxOutTarget, encode::EncodeError> {
-        let outtype: u8 = Decodable::consensus_decode(r, bytes_upper_limit)?;
+        let outtype: u8 = Decodable::consensus_decode(r)?;
         match outtype {
             0x2 => Ok(TxOutTarget::ToKey {
-                key: Decodable::consensus_decode(r, bytes_upper_limit)?,
+                key: Decodable::consensus_decode(r)?,
             }),
             0x3 => Ok(TxOutTarget::ToTaggedKey {
-                key: Decodable::consensus_decode(r, bytes_upper_limit)?,
-                view_tag: Decodable::consensus_decode(r, bytes_upper_limit)?,
+                key: Decodable::consensus_decode(r)?,
+                view_tag: Decodable::consensus_decode(r)?,
             }),
             _ => Err(encode::EncodeError::ParseFailed(
                 "Invalid output type".to_string(),
@@ -1062,11 +1043,10 @@ impl encode::Encodable for TxOutTarget {
 
 #[allow(non_snake_case)]
 impl Decodable for Transaction {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+    fn consensus_decode<R: io::Read + ?Sized>(
         r: &mut R,
-        bytes_upper_limit: usize,
     ) -> Result<Transaction, encode::EncodeError> {
-        let prefix: TransactionPrefix = Decodable::consensus_decode(r, bytes_upper_limit)?;
+        let prefix: TransactionPrefix = Decodable::consensus_decode(r)?;
 
         let inputs = prefix.inputs.len();
         let outputs = prefix.outputs.len();
@@ -1080,7 +1060,7 @@ impl Decodable for Transaction {
                         TxIn::ToKey { key_offsets, .. } => {
                             let sigs: Result<Vec<Signature>, encode::EncodeError> = key_offsets
                                 .iter()
-                                .map(|_| Decodable::consensus_decode(r, bytes_upper_limit))
+                                .map(|_| Decodable::consensus_decode(r))
                                 .collect();
                             Some(sigs)
                         }
@@ -1104,23 +1084,17 @@ impl Decodable for Transaction {
                     });
                 }
 
-                if let Some(sig) =
-                    RctSigBase::consensus_decode(r, inputs, outputs, bytes_upper_limit)?
-                {
+                if let Some(sig) = RctSigBase::consensus_decode(r, inputs, outputs)? {
                     let p = {
                         if sig.rct_type != RctType::Null {
                             let mixin_size = if inputs > 0 {
                                 match &prefix.inputs[0] {
-                                    TxIn::ToKey { key_offsets, .. } => {
-                                        match key_offsets.len().checked_sub(1) {
-                                            Some(val) => val,
-                                            None => {
-                                                return Err(encode::EncodeError::ParseFailed(
-                                                    "Invalid input type".to_string(),
-                                                ))
-                                            }
-                                        }
-                                    }
+                                    TxIn::ToKey { key_offsets, .. } => key_offsets
+                                        .len()
+                                        .checked_sub(1)
+                                        .ok_or(encode::EncodeError::ParseFailed(
+                                            "Invalid input type".to_string(),
+                                        ))?,
                                     _ => 0,
                                 }
                             } else {
@@ -1132,7 +1106,6 @@ impl Decodable for Transaction {
                                 inputs,
                                 outputs,
                                 mixin_size,
-                                bytes_upper_limit,
                             )?
                         } else {
                             None

@@ -26,10 +26,8 @@
 
 use hex::encode as hex_encode;
 
-use std::cmp::{max, min};
 use std::convert::TryFrom;
 use std::fmt::Debug;
-use std::io::Seek;
 use std::ops::Deref;
 use std::{fmt, io, mem, u32};
 
@@ -43,6 +41,9 @@ use crate::util::key::KeyError;
 use crate::util::ringct::RingCtError;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+
+/// The maximum memory size of a vector that can be allocated during decoding.
+pub const MAX_VEC_MEM_ALLOC_SIZE: usize = 32 * 1024 * 1024; // 32 MiB
 
 /// Errors encountered when encoding or decoding data.
 #[derive(Error, Debug, PartialEq)]
@@ -103,21 +104,11 @@ pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, EncodeError> {
     }
 }
 
-// This limit must always be greater than the maximum number of bytes that can be allocated, so a conservative guess is
-// fine. For complex data types the length of the data buffer does not represent the number of bytes that will be
-// allocated.
-fn bytes_upper_limit_calc<T: Decodable>(data: &[u8]) -> usize {
-    mem::size_of::<T>()
-        .saturating_mul(5) // This is a conservative safety limit
-        .saturating_mul(data.len())
-}
-
 /// Deserialize an object from a vector, but will not report an error if said deserialization
 /// doesn't consume the entire vector.
 pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), EncodeError> {
-    let bytes_upper_limit = bytes_upper_limit_calc::<T>(data);
     let mut decoder = io::Cursor::new(data);
-    let rv = Decodable::consensus_decode(&mut decoder, bytes_upper_limit)?;
+    let rv = Decodable::consensus_decode(&mut decoder)?;
     let consumed = decoder.position() as usize;
 
     Ok((rv, consumed))
@@ -281,10 +272,7 @@ pub trait Encodable {
 /// Data which can be decoded in a consensus-consistent way.
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format.
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<Self, EncodeError>;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, EncodeError>;
 }
 
 /// A variable-length unsigned integer type as defined by the Monero codebase.
@@ -318,10 +306,7 @@ macro_rules! impl_int_encodable {
     ($ty:ident, $meth_dec:ident, $meth_enc:ident) => {
         impl Decodable for $ty {
             #[inline]
-            fn consensus_decode<R: io::Read + ?Sized + Seek>(
-                r: &mut R,
-                _max_mem_bytes: usize,
-            ) -> Result<Self, EncodeError> {
+            fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, EncodeError> {
                 ReadExt::$meth_dec(r).map($ty::from_le)
             }
         }
@@ -382,10 +367,7 @@ impl Encodable for VarInt {
 
 impl Decodable for VarInt {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        max_mem_bytes: usize,
-    ) -> Result<Self, EncodeError> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, EncodeError> {
         let mut res: Vec<u8> = vec![];
         loop {
             let n = r.read_u8()?;
@@ -398,13 +380,6 @@ impl Decodable for VarInt {
             if n & 0b1000_0000 == 0 {
                 break;
             }
-        }
-        if res.len() > max_mem_bytes {
-            return Err(EncodeError::ParseFailed(format!(
-                "VarInt overflows upper allocatable bytes limit: {} > {}",
-                res.len(),
-                max_mem_bytes
-            )));
         }
         let mut int = 0u64;
         res.reverse();
@@ -441,10 +416,7 @@ impl Encodable for bool {
 
 impl Decodable for bool {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        _max_mem_bytes: usize,
-    ) -> Result<bool, EncodeError> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<bool, EncodeError> {
         ReadExt::read_bool(r)
     }
 }
@@ -463,11 +435,8 @@ impl Encodable for String {
 
 impl Decodable for String {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<String, EncodeError> {
-        String::from_utf8(Decodable::consensus_decode(r, bytes_upper_limit)?)
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<String, EncodeError> {
+        String::from_utf8(Decodable::consensus_decode(r)?)
             .map_err(|_| self::EncodeError::ParseFailed("String was not valid UTF8".to_string()))
     }
 }
@@ -492,15 +461,12 @@ macro_rules! impl_array {
 
         impl<T: Decodable + Copy> Decodable for [T; $size] {
             #[inline]
-            fn consensus_decode<R: io::Read + ?Sized + Seek>(
-                r: &mut R,
-                bytes_upper_limit: usize,
-            ) -> Result<Self, EncodeError> {
+            fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, EncodeError> {
                 // Set everything to the first decode
-                let mut ret = [Decodable::consensus_decode(r, bytes_upper_limit)?; $size];
+                let mut ret = [Decodable::consensus_decode(r)?; $size];
                 // Set the rest
                 for item in ret.iter_mut().take($size).skip(1) {
-                    *item = Decodable::consensus_decode(r, bytes_upper_limit)?;
+                    *item = Decodable::consensus_decode(r)?;
                 }
                 Ok(ret)
             }
@@ -538,62 +504,51 @@ impl<T: Encodable> Encodable for Vec<T> {
 
 impl<T: Decodable> Decodable for Vec<T> {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<Self, EncodeError> {
-        let len = usize::try_from(*VarInt::consensus_decode(r, mem::size_of::<VarInt>() * 2)?)
-            .map_err(|e| {
-                self::EncodeError::ParseFailed(format!("VarInt overflows usize ({})", e))
-            })?;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, EncodeError> {
+        let len = usize::try_from(*VarInt::consensus_decode(r)?).map_err(|e| {
+            self::EncodeError::ParseFailed(format!("VarInt overflows usize ({})", e))
+        })?;
 
         // Prevent allocations larger than the maximum allowed size
         let layout_size = mem::size_of::<T>().saturating_mul(len);
-        if layout_size > max_allocatable_mem_bytes_size(bytes_upper_limit) {
+        if layout_size > MAX_VEC_MEM_ALLOC_SIZE {
             return Err(self::EncodeError::ParseFailed(format!(
                 "length ({} x {} = {}) exceeds maximum allocatable bytes ({}) by {} bytes",
                 mem::size_of::<T>(),
                 len,
                 layout_size,
-                max_allocatable_mem_bytes_size(bytes_upper_limit),
-                layout_size.saturating_sub(max_allocatable_mem_bytes_size(bytes_upper_limit)),
+                MAX_VEC_MEM_ALLOC_SIZE,
+                layout_size.saturating_sub(MAX_VEC_MEM_ALLOC_SIZE),
             )));
         }
 
         let mut ret = Vec::with_capacity(len);
         for _ in 0..len {
-            ret.push(Decodable::consensus_decode(r, bytes_upper_limit)?);
+            ret.push(Decodable::consensus_decode(r)?);
         }
         Ok(ret)
     }
 }
 
 /// Decode a vector of a given size
-pub fn consensus_decode_sized_vec<R: io::Read + ?Sized + Seek, T: Decodable>(
+pub fn consensus_decode_sized_vec<R: io::Read + ?Sized, T: Decodable>(
     r: &mut R,
     size: usize,
-    bytes_upper_limit: usize,
 ) -> Result<Vec<T>, EncodeError> {
     let layout_size = mem::size_of::<T>().saturating_mul(size);
-    if layout_size > max_allocatable_mem_bytes_size(bytes_upper_limit) {
+    if layout_size > MAX_VEC_MEM_ALLOC_SIZE {
         return Err(EncodeError::ParseFailed(format!(
             "length ({} x {} = {}) exceeds maximum allocatable bytes ({}) by {} bytes",
             mem::size_of::<T>(),
             size,
             layout_size,
-            max_allocatable_mem_bytes_size(bytes_upper_limit),
-            layout_size.saturating_sub(max_allocatable_mem_bytes_size(bytes_upper_limit)),
+            MAX_VEC_MEM_ALLOC_SIZE,
+            layout_size.saturating_sub(MAX_VEC_MEM_ALLOC_SIZE),
         )));
     }
-    let max_item_size = if size > 0 {
-        // Allow some margin for each item
-        (max_allocatable_mem_bytes_size(bytes_upper_limit) as f64 / size as f64) as usize * 5
-    } else {
-        size
-    };
     let mut ret = Vec::with_capacity(size);
     for _ in 0..size {
-        let item = Decodable::consensus_decode(r, max_item_size)?;
+        let item = Decodable::consensus_decode(r)?;
         ret.push(item);
     }
     Ok(ret)
@@ -619,48 +574,37 @@ impl<T: Encodable> Encodable for Box<[T]> {
 
 impl<T: Decodable> Decodable for Box<[T]> {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-        bytes_upper_limit: usize,
-    ) -> Result<Self, EncodeError> {
-        let len = usize::try_from(*VarInt::consensus_decode(r, mem::size_of::<VarInt>() * 2)?)
-            .map_err(|e| {
-                self::EncodeError::ParseFailed(format!("VarInt overflows usize ({})", e))
-            })?;
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, EncodeError> {
+        let len = usize::try_from(*VarInt::consensus_decode(r)?).map_err(|e| {
+            self::EncodeError::ParseFailed(format!("VarInt overflows usize ({})", e))
+        })?;
 
         // Prevent allocations larger than the maximum allowed size
         let layout_size = mem::size_of::<T>().saturating_mul(len);
-        if layout_size > max_allocatable_mem_bytes_size(bytes_upper_limit) {
+        if layout_size > MAX_VEC_MEM_ALLOC_SIZE {
             return Err(self::EncodeError::ParseFailed(format!(
                 "length ({} x {} = {}) exceeds maximum allocatable bytes ({}) by {} bytes",
                 mem::size_of::<T>(),
                 len,
                 layout_size,
-                max_allocatable_mem_bytes_size(bytes_upper_limit),
-                layout_size.saturating_sub(max_allocatable_mem_bytes_size(bytes_upper_limit)),
+                MAX_VEC_MEM_ALLOC_SIZE,
+                layout_size.saturating_sub(MAX_VEC_MEM_ALLOC_SIZE),
             )));
         }
 
         let mut ret = Vec::with_capacity(len);
         for _ in 0..len {
-            ret.push(Decodable::consensus_decode(r, bytes_upper_limit)?);
+            ret.push(Decodable::consensus_decode(r)?);
         }
         Ok(ret.into_boxed_slice())
     }
-}
-
-// Maximum allocatable memory bytes size - this number does not need to be exact, it only needs to be ample, as its
-// primary purpose is to prevent memory overflows during consensus decoding for vectors or arrays.
-pub(crate) fn max_allocatable_mem_bytes_size(bytes_upper_limit: usize) -> usize {
-    const MAX_MEM_ALLOC_SIZE: usize = 32 * 1024 * 1024; // 32 MiB
-    min(MAX_MEM_ALLOC_SIZE, max(bytes_upper_limit, 128))
 }
 
 #[cfg(test)]
 mod tests {
     use super::{deserialize, serialize, EncodeError, VarInt};
     use crate::blockdata::transaction::{ExtraField, SubField, TxOutTarget};
-    use crate::consensus::encode::{bytes_upper_limit_calc, max_allocatable_mem_bytes_size};
+    use crate::consensus::encode::MAX_VEC_MEM_ALLOC_SIZE;
     use crate::consensus::Decodable;
     use crate::util::ringct::{Key, RctSig, RctSigBase, RctType};
     use crate::{Block, Hash, PublicKey, Transaction, TransactionPrefix, TxIn, TxOut};
@@ -754,15 +698,17 @@ mod tests {
 
     #[test]
     fn deserialize_vec_max_allocation() {
-        for i in 0..10 {
-            let len = VarInt(i);
+        for length in (0..10).chain(
+            (MAX_VEC_MEM_ALLOC_SIZE / 64) as u64 - 10..=(MAX_VEC_MEM_ALLOC_SIZE / 64) as u64 + 10,
+        ) {
+            let len = VarInt(length);
             let data = serialize(&len).unwrap();
             let res = deserialize::<Vec<[u8; 64]>>(&data);
-            if i == 0 {
+            if length == 0 {
                 assert!(res.is_ok());
             } else {
                 let err = res.unwrap_err();
-                if i <= 2 {
+                if length <= (MAX_VEC_MEM_ALLOC_SIZE / 64) as u64 {
                     assert!(matches!(err, EncodeError::Io(_)));
                 } else {
                     assert!(matches!(err, EncodeError::ParseFailed(_)));
@@ -777,8 +723,10 @@ mod tests {
         }
         assert_eq!(data[1..], deserialize::<Vec<u8>>(&data[..]).unwrap());
 
-        let bytes_upper_limit = bytes_upper_limit_calc::<Vec<u8>>(&data[..]);
-        for length in 0..bytes_upper_limit as u64 + 100 {
+        for length in (0..10)
+            .chain(data_len - 10..=data_len + 10)
+            .chain(MAX_VEC_MEM_ALLOC_SIZE as u64 - 10..=MAX_VEC_MEM_ALLOC_SIZE as u64 + 10)
+        {
             let replace_len = VarInt(length);
             let replace_len_bytes = serialize(&replace_len).unwrap();
             for (i, val) in replace_len_bytes.iter().enumerate() {
@@ -791,7 +739,7 @@ mod tests {
                 let err = res.unwrap_err();
                 if length < data_len {
                     assert!(matches!(err, EncodeError::ParseFailed(_)));
-                } else if length <= bytes_upper_limit as u64 {
+                } else if length <= MAX_VEC_MEM_ALLOC_SIZE as u64 {
                     assert!(matches!(err, EncodeError::Io(_)));
                 } else {
                     assert!(matches!(err, EncodeError::ParseFailed(_)));
@@ -835,30 +783,14 @@ mod tests {
 
     #[test]
     fn decode_mem_size() {
-        assert_eq!(max_allocatable_mem_bytes_size(0), 128);
-        assert_eq!(max_allocatable_mem_bytes_size(51), 128);
-        assert_eq!(max_allocatable_mem_bytes_size(128), 128);
-        assert_eq!(max_allocatable_mem_bytes_size(129), 129);
-        assert_eq!(
-            max_allocatable_mem_bytes_size(32 * 1024 * 1024),
-            32 * 1024 * 1024
-        );
-        assert_eq!(
-            max_allocatable_mem_bytes_size(1024 * 1024 * 1024),
-            32 * 1024 * 1024
-        );
-
         let byte_value_max = 100u8;
         let buffer_length = (mem::size_of::<Key>() * (byte_value_max as usize + 1)) + 1;
         for byte_value in 0..=byte_value_max {
             let serialized_bytes = vec![byte_value; buffer_length];
             let mut decoder = io::Cursor::new(&serialized_bytes[..]);
-            let res: Result<Key, EncodeError> = Decodable::consensus_decode(&mut decoder, 0);
+            let res: Result<Key, EncodeError> = Decodable::consensus_decode(&mut decoder);
             assert!(res.is_ok());
-            let res: Result<Vec<Key>, EncodeError> = Decodable::consensus_decode(
-                &mut decoder,
-                mem::size_of::<Key>() * byte_value as usize,
-            );
+            let res: Result<Vec<Key>, EncodeError> = Decodable::consensus_decode(&mut decoder);
             assert!(res.is_ok());
         }
     }

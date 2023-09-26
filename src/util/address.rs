@@ -41,7 +41,6 @@
 #![allow(clippy::incorrect_clone_impl_on_copy_type)]
 
 use std::fmt;
-use std::io::Seek;
 use std::str::FromStr;
 
 use base58_monero::base58;
@@ -396,11 +395,10 @@ mod serde_impl {
 }
 
 impl Decodable for Address {
-    fn consensus_decode<R: std::io::Read + ?Sized + Seek>(
+    fn consensus_decode<R: std::io::Read + ?Sized>(
         r: &mut R,
-        bytes_upper_limit: usize,
     ) -> Result<Address, encode::EncodeError> {
-        let address: Vec<u8> = Decodable::consensus_decode(r, bytes_upper_limit)?;
+        let address: Vec<u8> = Decodable::consensus_decode(r)?;
         Ok(Address::from_bytes(&address)?)
     }
 }
@@ -418,7 +416,6 @@ impl crate::consensus::encode::Encodable for Address {
 #[cfg(test)]
 mod tests {
     use hex::{FromHex, FromHexError, ToHex};
-    use std::mem;
 
     use crate::consensus::encode::{Decodable, Encodable};
     use std::str::FromStr;
@@ -456,7 +453,7 @@ mod tests {
         let mut encoder = Vec::new();
         full_address.clone().consensus_encode(&mut encoder).unwrap();
         let mut res = std::io::Cursor::new(encoder);
-        let addr_decoded = Address::consensus_decode(&mut res, mem::size_of::<Address>()).unwrap();
+        let addr_decoded = Address::consensus_decode(&mut res).unwrap();
         assert_eq!(full_address, addr_decoded);
     }
 
