@@ -1,8 +1,8 @@
 [package]
 name = "monero-fuzz"
 version = "0.0.0"
-edition = "2021"
 publish = false
+edition = "2021"
 
 [package.metadata]
 cargo-fuzz = true
@@ -21,7 +21,73 @@ members = ["."]
 debug = 1
 
 [[bin]]
+name = "block_d"
+path = "fuzz_targets/block_d.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "block_header"
 path = "fuzz_targets/block_header.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "block_header_d"
+path = "fuzz_targets/block_header_d.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "extra_field_p"
+path = "fuzz_targets/extra_field_p.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "hash_convert"
+path = "fuzz_targets/hash_convert.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "raw_extra_field_d"
+path = "fuzz_targets/raw_extra_field_d.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "raw_extra_field_from"
+path = "fuzz_targets/raw_extra_field_from.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "transaction_check_outputs"
+path = "fuzz_targets/transaction_check_outputs.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "transaction_components"
+path = "fuzz_targets/transaction_components.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "transaction_d"
+path = "fuzz_targets/transaction_d.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "transaction_hash"
+path = "fuzz_targets/transaction_hash.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "transaction_prefix_d"
+path = "fuzz_targets/transaction_prefix_d.rs"
 test = false
 doc = false

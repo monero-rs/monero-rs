@@ -19,10 +19,16 @@
 //! integrations.
 //!
 
+/// Public 'address' module
 pub mod address;
+/// Public 'amount' module
 pub mod amount;
+/// Public 'key' module
 pub mod key;
+/// Public 'ringct' module
 pub mod ringct;
+/// Public 'test_utils' module
+pub mod test_utils;
 
 use super::network;
 use crate::blockdata::transaction;

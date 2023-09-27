@@ -357,9 +357,8 @@ impl crate::consensus::encode::Encodable for Address {
 
 #[cfg(test)]
 mod tests {
-    use hex::{FromHex, FromHexError, ToHex};
-
     use crate::consensus::encode::{Decodable, Encodable};
+    use hex::{FromHex, FromHexError, ToHex};
     use std::str::FromStr;
 
     use super::{base58, Address, AddressType, Network, PaymentId, PublicKey};
@@ -531,5 +530,43 @@ mod tests {
         assert_eq!(address_from_hex, address);
         let address_from_hex_with_0x = Address::from_hex(address_hex_lower_with_0x).unwrap();
         assert_eq!(address_from_hex_with_0x, address);
+    }
+
+    #[test]
+    fn previous_fuzz_address_from_bytes_failures() {
+        let data = [];
+        let _ = Address::from_bytes(&data);
+        let data = [63];
+        let _ = Address::from_bytes(&data);
+        let data = [
+            25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0,
+        ];
+        let _ = Address::from_bytes(&data);
+    }
+
+    #[test]
+    fn previous_fuzz_address_from_slice_failures() {
+        fn fuzz(data: &[u8]) -> bool {
+            let network = if data.is_empty() {
+                Network::Mainnet
+            } else {
+                match data.len() % 3 {
+                    0 => Network::Mainnet,
+                    1 => Network::Testnet,
+                    2 => Network::Stagenet,
+                    _ => unreachable!(),
+                }
+            };
+            let _ = AddressType::from_slice(data, network);
+            true
+        }
+
+        let data = [];
+        fuzz(&data);
+        let data = [25, 0, 0, 0, 0];
+        fuzz(&data);
+        let data = [25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        fuzz(&data);
     }
 }
