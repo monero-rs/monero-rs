@@ -25,9 +25,3 @@ name = "block_header"
 path = "fuzz_targets/block_header.rs"
 test = false
 doc = false
-
-[[bin]]
-name = "transaction"
-path = "fuzz_targets/transaction.rs"
-test = false
-doc = false
