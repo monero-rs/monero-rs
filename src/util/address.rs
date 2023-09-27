@@ -1,5 +1,5 @@
 // Rust Monero Library
-// Written in 2019-2022 by
+// Written in 2019-2023 by
 //   Monero Rust Contributors
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -36,6 +36,9 @@
 //! # Ok::<(), Error>(())
 //! ```
 //!
+
+// TODO: remove this when fixed-hash stop raising clippy errors...
+#![allow(clippy::incorrect_clone_impl_on_copy_type)]
 
 use std::fmt;
 use std::str::FromStr;
@@ -76,9 +79,10 @@ pub enum Error {
 /// Address type: standard, integrated, or sub-address.
 ///
 /// AddressType implements [`Default`] and returns [`AddressType::Standard`].
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum AddressType {
     /// Standard address.
+    #[default]
     Standard,
     /// Address with a short 8 bytes payment id.
     Integrated(PaymentId),
@@ -121,12 +125,6 @@ impl AddressType {
                 _ => Err(Error::InvalidMagicByte),
             },
         }
-    }
-}
-
-impl Default for AddressType {
-    fn default() -> AddressType {
-        AddressType::Standard
     }
 }
 
