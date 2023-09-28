@@ -582,7 +582,7 @@ impl TransactionPrefix {
                     }
                     let sub_index = checker.check_with_key_generator(keygen, i, &key)?;
 
-                    Some((i, out, sub_index, tx_pubkey))
+                    Some((i, out, sub_index, pub_key))
                 };
                 // Try the main public key and then if that fails the additional key.
                 check_key(tx_pubkey).or_else(|| check_key(additional_key?))
