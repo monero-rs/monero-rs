@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Use both transaction public keys when scanning outputs & reject non-canonical public keys in the tx-extra by [@Boog900](https://github.com/Boog900) ([#180](https://github.com/monero-rs/monero-rs/pull/180))
+
 ## [0.19.0] - 2023-09-15
 
 ### Changed
