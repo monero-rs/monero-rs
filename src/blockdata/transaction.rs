@@ -46,6 +46,9 @@ pub enum Error {
     /// No transaction public key found in extra.
     #[error("No transaction public key found")]
     NoTxPublicKey,
+    /// The amount of additional keys is invalid.
+    #[error("The amount of additional keys is invalid")]
+    InvalidAmountOfAdditionalKeys,
     /// Scripts input/output are not supported.
     #[error("Script not supported")]
     ScriptNotSupported,
@@ -542,30 +545,47 @@ impl TransactionPrefix {
         rct_sig_base: Option<&RctSigBase>,
     ) -> Result<Vec<OwnedTxOut>, Error> {
         let extra_field = self.extra.try_parse();
-        let tx_pubkeys = match extra_field.tx_additional_pubkeys() {
-            Some(additional_keys) => additional_keys,
-            None => {
-                let tx_pubkey = extra_field.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
 
-                // if we don't have additional_pubkeys, we check every output against the single `tx_pubkey`
-                vec![tx_pubkey; self.outputs.len()]
+        let tx_pubkey = extra_field.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
+
+        let additional_keys = match extra_field.tx_additional_pubkeys() {
+            Some(additional_keys) => {
+                // Check that if there are additional keys the amount of them is equal to the amount
+                // of outputs
+                if !additional_keys.is_empty() && additional_keys.len() != self.outputs.len() {
+                    return Err(Error::InvalidAmountOfAdditionalKeys);
+                } else {
+                    additional_keys.into_iter().map(Some).collect()
+                }
+            }
+            None => {
+                vec![None; self.outputs.len()]
             }
         };
+
+        // This iterator allows us to use the additional key at the correct output index and the the main pubkey.
+        let pubkeys_iter = additional_keys
+            .into_iter()
+            .zip([tx_pubkey].into_iter().cycle());
 
         let owned_txouts = self
             .outputs
             .iter()
             .enumerate()
-            .zip(tx_pubkeys.iter())
-            .filter_map(|((i, out), tx_pubkey)| {
-                let key = out.target.as_one_time_key()?;
-                let keygen = KeyGenerator::from_key(checker.keys, *tx_pubkey);
-                if !out.target.check_view_tag(keygen.rv, i as u8) {
-                    return None;
-                }
-                let sub_index = checker.check_with_key_generator(keygen, i, &key)?;
+            .zip(pubkeys_iter)
+            .filter_map(|((i, out), (additional_key, tx_pubkey))| {
+                let check_key = |pub_key| {
+                    let key = out.target.as_one_time_key()?;
+                    let keygen = KeyGenerator::from_key(checker.keys, pub_key);
+                    if !out.target.check_view_tag(keygen.rv, i as u8) {
+                        return None;
+                    }
+                    let sub_index = checker.check_with_key_generator(keygen, i, &key)?;
 
-                Some((i, out, sub_index, tx_pubkey))
+                    Some((i, out, sub_index, pub_key))
+                };
+                // Try the main public key and then if that fails the additional key.
+                check_key(tx_pubkey).or_else(|| check_key(additional_key?))
             })
             .map(|(i, out, sub_index, tx_pubkey)| {
                 let opening = match rct_sig_base {
@@ -585,7 +605,7 @@ impl TransactionPrefix {
                             .ok_or(Error::InvalidCommitment)?;
 
                         let opening = ecdh_info
-                            .open_commitment(checker.keys, tx_pubkey, i, &actual_commitment)
+                            .open_commitment(checker.keys, &tx_pubkey, i, &actual_commitment)
                             .ok_or(Error::InvalidCommitment)?;
 
                         Some(opening)
@@ -597,7 +617,7 @@ impl TransactionPrefix {
                     index: i,
                     out,
                     sub_index: *sub_index,
-                    tx_pubkey: *tx_pubkey,
+                    tx_pubkey,
                     opening,
                 })
             })
