@@ -33,7 +33,7 @@ pub fn fuzz_block_deserialize(fuzz_data: &[u8]) -> bool {
 
     // Block
     if let Ok(val) = deserialize::<Block>(&fuzz_bytes[..]) {
-        assert_eq!(fuzz_bytes, serialize(&val));
+        assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
     true
@@ -45,10 +45,7 @@ pub fn fuzz_block_header_deserialize(fuzz_data: &[u8]) -> bool {
 
     // BlockHeader
     if let Ok(val) = deserialize::<BlockHeader>(&fuzz_bytes[..]) {
-        if fuzz_bytes != serialize(&val) {
-            println!("fuzz_data: {:?}", fuzz_data);
-        }
-        assert_eq!(fuzz_bytes, serialize(&val));
+        assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
     true
@@ -60,7 +57,7 @@ pub fn fuzz_transaction_prefix_deserialize(fuzz_data: &[u8]) -> bool {
 
     // TransactionPrefix
     if let Ok(val) = deserialize::<TransactionPrefix>(&fuzz_bytes[..]) {
-        assert_eq!(fuzz_bytes, serialize(&val));
+        assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
     true
@@ -75,6 +72,18 @@ pub enum AddPadding {
     ToMiddle,
     /// Add padding to the rear of the extra field
     ToRear,
+}
+
+fn u64_val_from_fuzz_data(fuzz_data: &[u8]) -> u64 {
+    if fuzz_data.is_empty() {
+        0
+    } else {
+        let mut vec = fuzz_data.to_vec().clone();
+        vec.resize(8, 0);
+        let mut bytes = [0u8; 8];
+        bytes.copy_from_slice(vec.as_slice());
+        u64::from_le_bytes(bytes)
+    }
 }
 
 /// Fuzz helper function to create an extra field, called from the fuzz target
@@ -97,15 +106,7 @@ pub fn fuzz_create_extra_field(fuzz_data: &[u8], add_padding: AddPadding) -> Ext
     };
 
     // SubField::MergeMining
-    let u64_val = if fuzz_bytes.is_empty() {
-        0
-    } else {
-        let mut vec = fuzz_bytes.clone();
-        vec.resize(8, 0);
-        let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(vec.as_slice());
-        u64::from_le_bytes(bytes)
-    };
+    let u64_val = u64_val_from_fuzz_data(fuzz_data);
     let merge_mining_field = SubField::MergeMining(Some(VarInt(u64_val)), hash);
 
     // SubField::AdditionalPublickKey
@@ -155,38 +156,38 @@ pub fn fuzz_create_extra_field(fuzz_data: &[u8], add_padding: AddPadding) -> Ext
     ExtraField(sub_fields)
 }
 
+/// Fuzz for extra field's sub fields parse, called from the fuzz target
+pub fn fuzz_extra_field_parse_sub_fields(extra_field: &ExtraField, fuzz_data: &[u8]) -> bool {
+    for sub_field in &extra_field.0 {
+        let ser_sub_field = serialize(sub_field);
+        match deserialize::<SubField>(&ser_sub_field) {
+            Ok(des_sub_field) => {
+                assert_eq!(
+                    sub_field, &des_sub_field,
+                    "\nsub field: {}\nfuzz_data: {:?}",
+                    sub_field, fuzz_data
+                )
+            }
+            Err(err) => {
+                panic!(
+                    "Deserializing a serialized SubField may not fail\n({})\nsub field: {:?}\nfuzz_data: {:?}",
+                    err,
+                    sub_field,
+                    fuzz_data
+                )
+            }
+        }
+    }
+
+    true
+}
+
 /// Fuzz for extra field try parse, called from the fuzz target
 pub fn fuzz_extra_field_try_parse(
     extra_field: &ExtraField,
     add_padding: AddPadding,
     fuzz_data: &[u8],
 ) -> bool {
-    for sub_field in &extra_field.0 {
-        match sub_field {
-            SubField::Padding(_) => {
-                // Round trip serialization and deserialization of padding sub-field is not guaranteed
-            }
-            SubField::TxPublicKey(_)
-            | SubField::Nonce(_)
-            | SubField::MergeMining(_, _)
-            | SubField::AdditionalPublickKey(_)
-            | SubField::MysteriousMinerGate(_) => {
-                let ser_sub_field = serialize(sub_field);
-                match deserialize::<SubField>(&ser_sub_field) {
-                    Ok(des_sub_field) => {
-                        if sub_field != &des_sub_field {
-                            println!("fuzz_data a: {:?}", fuzz_data);
-                        }
-                        assert_eq!(sub_field, &des_sub_field)
-                    }
-                    Err(err) => {
-                        println!("fuzz_data b: {:?}", fuzz_data);
-                        panic!("Deserializing a serialized SubField may not fail ({})", err)
-                    }
-                }
-            }
-        }
-    }
     match RawExtraField::try_from(extra_field.clone()) {
         Ok(raw_extra_field) => {
             match ExtraField::try_parse(&raw_extra_field) {
@@ -207,19 +208,21 @@ pub fn fuzz_extra_field_try_parse(
                                     .take(i)
                                     .cloned()
                                     .collect::<Vec<SubField>>();
-                                if i_subfields != i_parsed_subfields {
-                                    println!("fuzz_data: {:?}", fuzz_data);
-                                }
-                                assert_eq!(i_subfields, i_parsed_subfields);
+                                assert_eq!(
+                                    i_subfields, i_parsed_subfields,
+                                    "fuzz_data: {:?}",
+                                    fuzz_data
+                                );
                                 return true;
                             }
                         }
                     }
                     // Asserts must be equal in all other cases
-                    if extra_field != &parsed_extra_field {
-                        println!("fuzz_data: {:?}", fuzz_data);
-                    }
-                    assert_eq!(extra_field, &parsed_extra_field)
+                    assert_eq!(
+                        extra_field, &parsed_extra_field,
+                        "\nfuzz_data: {:?}",
+                        fuzz_data
+                    )
                 }
                 Err(err) => {
                     match add_padding {
@@ -230,8 +233,12 @@ pub fn fuzz_extra_field_try_parse(
                             // This is acceptable, because the extra field composition may be invalid
                         }
                         AddPadding::ToRear => {
-                            println!("fuzz_data: {:?}", fuzz_data);
-                            panic!("Parsing a serialized ExtraField with padding at the rear may not fail ({})", err)
+                            panic!(
+                                "Parsing a serialized ExtraField with padding at the rear may not fail\n({})\nraw extra field: {:?}\nfuzz_data: {:?}",
+                                err,
+                                raw_extra_field,
+                                fuzz_data
+                            )
                         }
                     }
                 }
@@ -239,7 +246,10 @@ pub fn fuzz_extra_field_try_parse(
         }
         Err(err) => {
             println!("fuzz_data: {:?}", fuzz_data);
-            panic!("Serializing an ExtraField may not fail ({})", err)
+            panic!(
+                "Serializing an ExtraField may not fail\n({})\nextra field: {:?}\nfuzz_data: {:?}",
+                err, extra_field, fuzz_data
+            )
         }
     };
 
@@ -287,7 +297,7 @@ pub fn fuzz_transaction_deserialize(fuzz_data: &[u8]) -> bool {
     // let serialized_tx = serialize(&transaction);
     // let _ = deserialize::<Transaction>(&serialized_tx[..]);
 
-    let transaction = fuzz_create_transaction_2(fuzz_data, &raw_extra_field);
+    let transaction = fuzz_create_transaction_alternative_2(fuzz_data, &raw_extra_field);
     let serialized_tx = serialize(&transaction);
     let _ = deserialize::<Transaction>(&serialized_tx[..]);
 
@@ -356,8 +366,10 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
 }
 
 /// Fuzz helper function to create a transaction, called from the fuzz target
-pub fn fuzz_create_transaction_1(fuzz_data: &[u8], raw_extra_field: &RawExtraField) -> Transaction {
-    let fuzz_bytes = fuzz_data.to_vec();
+pub fn fuzz_create_transaction_alternative_1(
+    fuzz_data: &[u8],
+    raw_extra_field: &RawExtraField,
+) -> Transaction {
     let hash_1 = Hash::new(fuzz_data);
     let hash_2 = Hash::new(hash_1.0);
     let hash_3 = Hash::new(hash_2.0);
@@ -366,15 +378,7 @@ pub fn fuzz_create_transaction_1(fuzz_data: &[u8], raw_extra_field: &RawExtraFie
     let hash_6 = Hash::new(hash_5.0);
     let hash_7 = Hash::new(hash_6.0);
     let hash_8 = Hash::new(hash_7.0);
-    let u64_val = if fuzz_bytes.is_empty() {
-        0
-    } else {
-        let mut vec = fuzz_bytes.clone();
-        vec.resize(8, 0);
-        let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(vec.as_slice());
-        u64::from_le_bytes(bytes)
-    };
+    let u64_val = u64_val_from_fuzz_data(fuzz_data);
 
     let prefix = TransactionPrefix {
         version: VarInt(u64_val),
@@ -450,8 +454,10 @@ pub fn fuzz_create_transaction_1(fuzz_data: &[u8], raw_extra_field: &RawExtraFie
 }
 
 /// Fuzz helper function to create a transaction, called from the fuzz target
-pub fn fuzz_create_transaction_2(fuzz_data: &[u8], raw_extra_field: &RawExtraField) -> Transaction {
-    let fuzz_bytes = fuzz_data.to_vec();
+pub fn fuzz_create_transaction_alternative_2(
+    fuzz_data: &[u8],
+    raw_extra_field: &RawExtraField,
+) -> Transaction {
     let hash_1 = Hash::new(fuzz_data);
     let hash_2 = Hash::new(hash_1.0);
     let hash_3 = Hash::new(hash_2.0);
@@ -460,15 +466,7 @@ pub fn fuzz_create_transaction_2(fuzz_data: &[u8], raw_extra_field: &RawExtraFie
     let hash_6 = Hash::new(hash_5.0);
     let hash_7 = Hash::new(hash_6.0);
     let hash_8 = Hash::new(hash_7.0);
-    let u64_val = if fuzz_bytes.is_empty() {
-        0
-    } else {
-        let mut vec = fuzz_bytes.clone();
-        vec.resize(8, 0);
-        let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(vec.as_slice());
-        u64::from_le_bytes(bytes)
-    };
+    let u64_val = u64_val_from_fuzz_data(fuzz_data);
 
     let prefix = TransactionPrefix {
         version: VarInt(u64_val),

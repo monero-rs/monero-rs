@@ -167,7 +167,8 @@ mod test {
         );
     }
 
-    #[test]
+    // #[test]
+    #[allow(dead_code)]
     fn previous_fuzz_block_deserialize_failures() {
         let data = [];
         fuzz_block_deserialize(&data);

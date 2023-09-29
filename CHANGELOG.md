@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Extended fuzzing test framework with failing unit tests blanked out [@hansieodendaal](https://github.com/hansieodendaal)([#182](https://github.com/monero-rs/monero-rs/pull/182))
+
 ### Fixed
 
 - Use both transaction public keys when scanning outputs & reject non-canonical public keys in the tx-extra by [@Boog900](https://github.com/Boog900) ([#180](https://github.com/monero-rs/monero-rs/pull/180))

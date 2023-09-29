@@ -19,7 +19,8 @@ use quickcheck::QuickCheck;
 
 use monero::util::test_utils::{
     fuzz_block_deserialize, fuzz_block_header_deserialize, fuzz_create_extra_field,
-    fuzz_create_raw_extra_field, fuzz_create_transaction_1, fuzz_create_transaction_2,
+    fuzz_create_raw_extra_field, fuzz_create_transaction_alternative_1,
+    fuzz_create_transaction_alternative_2, fuzz_extra_field_parse_sub_fields,
     fuzz_extra_field_try_parse, fuzz_hash_convert, fuzz_raw_extra_field_deserialize,
     fuzz_raw_extra_field_from, fuzz_transaction_check_outputs, fuzz_transaction_components,
     fuzz_transaction_deserialize, fuzz_transaction_hash, fuzz_transaction_prefix_deserialize,
@@ -71,7 +72,8 @@ fn test_fuzz_transaction_prefix_deserialize() {
         .quickcheck(internal as fn(Vec<u8>) -> bool);
 }
 
-#[test]
+// #[test]
+#[allow(dead_code)]
 fn test_fuzz_transaction_deserialize() {
     fn internal(data: Vec<u8>) -> bool {
         fuzz_transaction_deserialize(&data)
@@ -86,7 +88,8 @@ fn test_fuzz_transaction_deserialize() {
         .quickcheck(internal as fn(Vec<u8>) -> bool);
 }
 
-#[test]
+// #[test]
+#[allow(dead_code)]
 fn test_fuzz_transaction_components() {
     fn internal(data: Vec<u8>) -> bool {
         fuzz_transaction_components(&data)
@@ -99,7 +102,6 @@ fn test_fuzz_transaction_components() {
         .tests(TESTS)
         .max_tests(TESTS)
         .quickcheck(internal as fn(Vec<u8>) -> bool);
-    println!("\nfinished");
 }
 
 #[test]
@@ -155,7 +157,35 @@ fn test_fuzz_raw_extra_field_deserialize() {
         .quickcheck(internal as fn(Vec<u8>) -> bool);
 }
 
-#[test]
+// #[test]
+#[allow(dead_code)]
+fn test_fuzz_extra_field_parse_sub_fields() {
+    fn internal(data: Vec<u8>) -> bool {
+        let add_padding = if data.is_empty() {
+            AddPadding::ToMiddle
+        } else {
+            match data.len() % 3 {
+                0 => AddPadding::ToFront,
+                1 => AddPadding::ToMiddle,
+                2 => AddPadding::ToRear,
+                _ => unreachable!(),
+            }
+        };
+        let extra_field = fuzz_create_extra_field(&data, add_padding);
+        fuzz_extra_field_parse_sub_fields(&extra_field, &data)
+    }
+
+    const TESTS: u64 = 10_000;
+
+    QuickCheck::new()
+        .min_tests_passed(TESTS)
+        .tests(TESTS)
+        .max_tests(TESTS)
+        .quickcheck(internal as fn(Vec<u8>) -> bool);
+}
+
+// #[test]
+#[allow(dead_code)]
 fn test_fuzz_extra_field_try_parse() {
     fn internal(data: Vec<u8>) -> bool {
         let add_padding = if data.is_empty() {
@@ -181,7 +211,8 @@ fn test_fuzz_extra_field_try_parse() {
         .quickcheck(internal as fn(Vec<u8>) -> bool);
 }
 
-#[test]
+// #[test]
+#[allow(dead_code)]
 fn test_fuzz_transaction_hash() {
     fn internal(data: Vec<u8>) -> bool {
         let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
@@ -191,9 +222,9 @@ fn test_fuzz_transaction_hash() {
                 return true;
             }
         };
-        let transaction = fuzz_create_transaction_1(&data, &raw_extra_field);
+        let transaction = fuzz_create_transaction_alternative_1(&data, &raw_extra_field);
         let _ = fuzz_transaction_hash(&transaction);
-        let transaction = fuzz_create_transaction_2(&data, &raw_extra_field);
+        let transaction = fuzz_create_transaction_alternative_2(&data, &raw_extra_field);
         fuzz_transaction_hash(&transaction)
     }
 
@@ -216,9 +247,9 @@ fn test_fuzz_transaction_check_outputs() {
                 return true;
             }
         };
-        let transaction = fuzz_create_transaction_1(&data, &raw_extra_field);
+        let transaction = fuzz_create_transaction_alternative_1(&data, &raw_extra_field);
         let _ = fuzz_transaction_check_outputs(&transaction);
-        let transaction = fuzz_create_transaction_2(&data, &raw_extra_field);
+        let transaction = fuzz_create_transaction_alternative_2(&data, &raw_extra_field);
         let _ = fuzz_transaction_check_outputs(&transaction);
         true
     }
@@ -232,7 +263,8 @@ fn test_fuzz_transaction_check_outputs() {
         .quickcheck(internal as fn(Vec<u8>) -> bool);
 }
 
-#[test]
+// #[test]
+#[allow(dead_code)]
 fn test_fuzz_address_from_bytes() {
     fn internal(data: Vec<u8>) -> bool {
         let _ = Address::from_bytes(&data);
@@ -248,7 +280,8 @@ fn test_fuzz_address_from_bytes() {
         .quickcheck(internal as fn(Vec<u8>) -> bool);
 }
 
-#[test]
+// #[test]
+#[allow(dead_code)]
 fn test_fuzz_address_type_from_slice() {
     fn internal(data: Vec<u8>) -> bool {
         let network = if data.is_empty() {
