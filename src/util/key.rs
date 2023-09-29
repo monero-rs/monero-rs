@@ -289,8 +289,14 @@ impl PublicKey {
             return Err(Error::InvalidLength);
         }
         let point = CompressedEdwardsY::from_slice(data).map_err(|_| Error::InvalidPoint)?;
+        // Check that the point is valid and canonical.
+        // https://github.com/dalek-cryptography/curve25519-dalek/issues/380
         match point.decompress() {
-            Some(_) => (),
+            Some(point) => {
+                if point.compress().as_bytes() != data {
+                    return Err(Error::InvalidPoint);
+                }
+            }
             None => {
                 return Err(Error::InvalidPoint);
             }
