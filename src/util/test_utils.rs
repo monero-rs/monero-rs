@@ -99,11 +99,7 @@ pub fn fuzz_create_extra_field(fuzz_data: &[u8], add_padding: AddPadding) -> Ext
     let nonce_field = SubField::Nonce(fuzz_bytes.clone());
 
     // SubField::Padding
-    let padding_field = if fuzz_bytes.is_empty() {
-        SubField::Padding(u8::MIN)
-    } else {
-        SubField::Padding(fuzz_bytes[0])
-    };
+    let padding_field = SubField::Padding(fuzz_bytes.first().copied().unwrap_or_default());
 
     // SubField::MergeMining
     let u64_val = u64_val_from_fuzz_data(fuzz_data);
@@ -196,23 +192,13 @@ pub fn fuzz_extra_field_try_parse(
                     for (i, item) in extra_field.0.iter().enumerate() {
                         if let SubField::Padding(val) = item {
                             if *val != u8::MAX && i < extra_field.0.len() - 1 {
-                                let i_subfields = extra_field
-                                    .0
-                                    .iter()
-                                    .take(i)
-                                    .cloned()
-                                    .collect::<Vec<SubField>>();
-                                let i_parsed_subfields = parsed_extra_field
-                                    .0
-                                    .iter()
-                                    .take(i)
-                                    .cloned()
-                                    .collect::<Vec<SubField>>();
-                                assert_eq!(
-                                    i_subfields, i_parsed_subfields,
+                                assert!(
+                                    !parsed_extra_field.0.is_empty()
+                                        && parsed_extra_field.0.starts_with(&extra_field.0[0..i]),
                                     "fuzz_data: {:?}",
                                     fuzz_data
                                 );
+
                                 return true;
                             }
                         }
@@ -245,7 +231,6 @@ pub fn fuzz_extra_field_try_parse(
             };
         }
         Err(err) => {
-            println!("fuzz_data: {:?}", fuzz_data);
             panic!(
                 "Serializing an ExtraField may not fail\n({})\nextra field: {:?}\nfuzz_data: {:?}",
                 err, extra_field, fuzz_data
