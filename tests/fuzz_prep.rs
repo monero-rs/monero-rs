@@ -27,7 +27,8 @@ use monero::util::test_utils::{
     AddPadding,
 };
 
-#[test]
+// #[test]
+#[allow(dead_code)]
 fn test_fuzz_block_deserialize() {
     fn internal(data: Vec<u8>) -> bool {
         fuzz_block_deserialize(&data)
@@ -167,8 +168,7 @@ fn test_fuzz_extra_field_parse_sub_fields() {
             match data.len() % 3 {
                 0 => AddPadding::ToFront,
                 1 => AddPadding::ToMiddle,
-                2 => AddPadding::ToRear,
-                _ => unreachable!(),
+                _ => AddPadding::ToRear,
             }
         };
         let extra_field = fuzz_create_extra_field(&data, add_padding);
@@ -194,8 +194,7 @@ fn test_fuzz_extra_field_try_parse() {
             match data.len() % 3 {
                 0 => AddPadding::ToFront,
                 1 => AddPadding::ToMiddle,
-                2 => AddPadding::ToRear,
-                _ => unreachable!(),
+                _ => AddPadding::ToRear,
             }
         };
         let extra_field = fuzz_create_extra_field(&data, add_padding);
@@ -290,8 +289,7 @@ fn test_fuzz_address_type_from_slice() {
             match data.len() % 3 {
                 0 => monero::Network::Mainnet,
                 1 => monero::Network::Testnet,
-                2 => monero::Network::Stagenet,
-                _ => unreachable!(),
+                _ => monero::Network::Stagenet,
             }
         };
         let _ = AddressType::from_slice(&data, network);

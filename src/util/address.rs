@@ -556,8 +556,7 @@ mod tests {
                 match data.len() % 3 {
                     0 => Network::Mainnet,
                     1 => Network::Testnet,
-                    2 => Network::Stagenet,
-                    _ => unreachable!(),
+                    _ => Network::Stagenet,
                 }
             };
             let _ = AddressType::from_slice(data, network);

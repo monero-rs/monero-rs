@@ -14,8 +14,7 @@ fuzz_target!(|data: &[u8]| {
         match data.len() % 3 {
             0 => AddPadding::ToFront,
             1 => AddPadding::ToMiddle,
-            2 => AddPadding::ToRear,
-            _ => unreachable!(),
+            _ => AddPadding::ToRear,
         }
     };
     let extra_field = fuzz_create_extra_field(data, add_padding);

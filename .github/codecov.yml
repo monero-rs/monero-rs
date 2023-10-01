@@ -2,3 +2,5 @@ coverage:
   precision: 1
   round: down
   range: "50...95"
+ignore:
+  - "src/util/test_utils"

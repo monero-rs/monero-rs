@@ -250,8 +250,7 @@ pub fn fuzz_create_raw_extra_field(fuzz_data: &[u8]) -> Result<RawExtraField, St
             match fuzz_data.len() % 3 {
                 0 => AddPadding::ToFront,
                 1 => AddPadding::ToMiddle,
-                2 => AddPadding::ToRear,
-                _ => unreachable!(),
+                _ => AddPadding::ToRear,
             }
         };
         fuzz_create_extra_field(fuzz_data, add_padding)
