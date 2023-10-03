@@ -188,6 +188,26 @@ pub fn fuzz_extra_field_try_parse(
         Ok(raw_extra_field) => {
             match ExtraField::try_parse(&raw_extra_field) {
                 Ok(parsed_extra_field) => {
+                    assert_eq!(
+                        extra_field, &parsed_extra_field,
+                        "\nfuzz_data: {:?}",
+                        fuzz_data
+                    )
+                }
+                Err(parsed_extra_field) => {
+                    match add_padding {
+                        AddPadding::ToFront | AddPadding::ToMiddle => {
+                            // This is acceptable, because the extra field composition may be invalid
+                        }
+                        AddPadding::ToRear => {
+                            panic!(
+                                "Parsing a serialized ExtraField with padding at the rear may not fail\n({})\nraw extra field: {:?}\nfuzz_data: {:?}",
+                                parsed_extra_field,
+                                raw_extra_field,
+                                fuzz_data
+                            )
+                        }
+                    }
                     // If variable padding is not at the end, at least all previous sub-fields must be equal
                     for (i, item) in extra_field.0.iter().enumerate() {
                         if let SubField::Padding(val) = item {
@@ -201,30 +221,6 @@ pub fn fuzz_extra_field_try_parse(
 
                                 return true;
                             }
-                        }
-                    }
-                    // Asserts must be equal in all other cases
-                    assert_eq!(
-                        extra_field, &parsed_extra_field,
-                        "\nfuzz_data: {:?}",
-                        fuzz_data
-                    )
-                }
-                Err(err) => {
-                    match add_padding {
-                        AddPadding::ToFront => {
-                            // This is acceptable, because the extra field composition may be invalid
-                        }
-                        AddPadding::ToMiddle => {
-                            // This is acceptable, because the extra field composition may be invalid
-                        }
-                        AddPadding::ToRear => {
-                            panic!(
-                                "Parsing a serialized ExtraField with padding at the rear may not fail\n({})\nraw extra field: {:?}\nfuzz_data: {:?}",
-                                err,
-                                raw_extra_field,
-                                fuzz_data
-                            )
                         }
                     }
                 }
