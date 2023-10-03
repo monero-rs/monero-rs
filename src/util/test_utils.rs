@@ -64,7 +64,7 @@ pub fn fuzz_transaction_prefix_deserialize(fuzz_data: &[u8]) -> bool {
 }
 
 /// Padding sub-field position in extra data
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AddPadding {
     /// Add padding to the front of the extra field
     ToFront,
@@ -190,38 +190,43 @@ pub fn fuzz_extra_field_try_parse(
                 Ok(parsed_extra_field) => {
                     assert_eq!(
                         extra_field, &parsed_extra_field,
-                        "\nfuzz_data: {:?}",
-                        fuzz_data
+                        "\nOn 'Ok(_)\noriginal: {:?}\nparsed:   {:?}\n'fuzz_data: {:?}",
+                        extra_field, parsed_extra_field, fuzz_data
                     )
                 }
                 Err(parsed_extra_field) => {
-                    match add_padding {
-                        AddPadding::ToFront | AddPadding::ToMiddle => {
-                            // This is acceptable, because the extra field composition may be invalid
-                        }
-                        AddPadding::ToRear => {
-                            panic!(
-                                "Parsing a serialized ExtraField with padding at the rear may not fail\n({})\nraw extra field: {:?}\nfuzz_data: {:?}",
-                                parsed_extra_field,
-                                raw_extra_field,
-                                fuzz_data
-                            )
-                        }
+                    if parsed_extra_field.0.len() > extra_field.0.len() {
+                        panic!(
+                            "On 'Err(_)', parsed extra field has to many sub fields\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
+                            extra_field,
+                            parsed_extra_field,
+                            fuzz_data,
+                        );
                     }
-                    // If variable padding is not at the end, at least all previous sub-fields must be equal
-                    for (i, item) in extra_field.0.iter().enumerate() {
-                        if let SubField::Padding(val) = item {
-                            if *val != u8::MAX && i < extra_field.0.len() - 1 {
-                                assert!(
-                                    !parsed_extra_field.0.is_empty()
-                                        && parsed_extra_field.0.starts_with(&extra_field.0[0..i]),
-                                    "fuzz_data: {:?}",
-                                    fuzz_data
+                    for (i, parsed_sub_field) in parsed_extra_field.0.iter().enumerate() {
+                        match parsed_sub_field {
+                            SubField::Padding(_) => {
+                                // The padding sub-field may be different on error
+                            }
+                            _ => {
+                                // Other sub-fields must be the same on error
+                                assert_eq!(
+                                    extra_field.0[i], parsed_sub_field.clone(),
+                                   "\nOn 'Err(_)'\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
+                                   extra_field,
+                                   parsed_extra_field,
+                                   fuzz_data
                                 );
-
-                                return true;
                             }
                         }
+                    }
+                    if add_padding == AddPadding::ToRear {
+                        panic!(
+                            "\nOn 'Err(_)', parsing a serialized ExtraField with padding at the rear may not fail\n({:?})\n({:?})\nfuzz_data: {:?}",
+                            extra_field,
+                            parsed_extra_field,
+                            fuzz_data,
+                        );
                     }
                 }
             };

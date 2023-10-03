@@ -1687,6 +1687,16 @@ mod tests {
             109, 171, 190, 187, 161, 65, 255, 27, 123, 233, 124, 255, 56, 77, 89, 255, 4, 48,
         ];
         fuzz(&data);
+
+        // debug/release: With variable padding not at the end, parsed fields returned by Err(_) are not equal,
+        //                ExtraField (a) -> RawExtraField -> ExtraField (b), then b.0[i] != a.0[i]
+
+        let data = [
+            230, 196, 73, 143, 43, 56, 217, 81, 1, 244, 76, 0, 106, 157, 99, 164, 0, 128, 107, 252,
+            189, 156, 211, 217, 79, 231, 213, 136, 104, 65, 213, 255, 90, 255, 15, 64, 244, 201,
+            135, 97, 135, 0, 21, 174, 185, 65, 184, 27, 229, 84, 182, 255, 236, 217, 32, 1, 63,
+        ];
+        fuzz(&data);
     }
 
     // #[test]
