@@ -13,7 +13,6 @@
 // copies or substantial portions of the Software.
 //
 
-use monero::blockdata::transaction::RawExtraField;
 use monero::{Address, AddressType};
 use quickcheck::QuickCheck;
 
@@ -138,8 +137,7 @@ fn test_fuzz_raw_extra_field_from() {
 #[test]
 fn test_fuzz_raw_extra_field_deserialize() {
     fn internal(data: Vec<u8>) -> bool {
-        let extra_field = fuzz_create_extra_field(&data, AddPadding::ToRear);
-        let raw_extra_field = match RawExtraField::try_from(extra_field) {
+        let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
             Ok(val) => val,
             Err(_) => {
                 // This may not fail, otherwise the test cannot continue

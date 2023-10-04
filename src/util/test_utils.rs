@@ -211,7 +211,7 @@ pub fn fuzz_extra_field_try_parse(
                             _ => {
                                 // Other sub-fields must be the same on error
                                 assert_eq!(
-                                    extra_field.0[i], parsed_sub_field.clone(),
+                                    &extra_field.0[i], parsed_sub_field,
                                    "\nOn 'Err(_)'\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
                                    extra_field,
                                    parsed_extra_field,
@@ -278,9 +278,9 @@ pub fn fuzz_transaction_deserialize(fuzz_data: &[u8]) -> bool {
         }
     };
 
-    // let transaction = fuzz_create_transaction_1(fuzz_data, &raw_extra_field);
-    // let serialized_tx = serialize(&transaction);
-    // let _ = deserialize::<Transaction>(&serialized_tx[..]);
+    let transaction = fuzz_create_transaction_alternative_1(fuzz_data, &raw_extra_field);
+    let serialized_tx = serialize(&transaction);
+    let _ = deserialize::<Transaction>(&serialized_tx[..]);
 
     let transaction = fuzz_create_transaction_alternative_2(fuzz_data, &raw_extra_field);
     let serialized_tx = serialize(&transaction);
@@ -563,6 +563,8 @@ pub fn fuzz_raw_extra_field_deserialize(raw_extra_field: &RawExtraField) -> bool
 pub fn fuzz_raw_extra_field_from(fuzz_data: &[u8]) -> bool {
     let extra_field = fuzz_create_extra_field(fuzz_data, AddPadding::ToRear);
     assert!(RawExtraField::try_from(extra_field.clone()).is_ok());
+
+    let _ = fuzz_create_raw_extra_field(fuzz_data);
 
     true
 }

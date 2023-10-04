@@ -45,6 +45,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "extra_field_sub_fileds_p"
+path = "fuzz_targets/extra_field_sub_fileds_p.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "hash_convert"
 path = "fuzz_targets/hash_convert.rs"
 test = false
