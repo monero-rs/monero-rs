@@ -33,6 +33,9 @@ pub fn fuzz_block_deserialize(fuzz_data: &[u8]) -> bool {
 
     // Block
     if let Ok(val) = deserialize::<Block>(&fuzz_bytes[..]) {
+        println!("here 1");
+        println!("header {:?}", serialize(&val.header));
+        println!("transaction_prefix {:?}", serialize(&val.miner_tx.prefix));
         assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
@@ -45,6 +48,7 @@ pub fn fuzz_block_header_deserialize(fuzz_data: &[u8]) -> bool {
 
     // BlockHeader
     if let Ok(val) = deserialize::<BlockHeader>(&fuzz_bytes[..]) {
+        println!("here 2");
         assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
@@ -57,6 +61,7 @@ pub fn fuzz_transaction_prefix_deserialize(fuzz_data: &[u8]) -> bool {
 
     // TransactionPrefix
     if let Ok(val) = deserialize::<TransactionPrefix>(&fuzz_bytes[..]) {
+        println!("here 3");
         assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
@@ -153,23 +158,18 @@ pub fn fuzz_create_extra_field(fuzz_data: &[u8], add_padding: AddPadding) -> Ext
 }
 
 /// Fuzz for extra field's sub fields parse, called from the fuzz target
-pub fn fuzz_extra_field_parse_sub_fields(extra_field: &ExtraField, fuzz_data: &[u8]) -> bool {
+pub fn fuzz_extra_field_parse_sub_fields(extra_field: &ExtraField) -> bool {
     for sub_field in &extra_field.0 {
         let ser_sub_field = serialize(sub_field);
+        println!("here 4");
         match deserialize::<SubField>(&ser_sub_field) {
             Ok(des_sub_field) => {
-                assert_eq!(
-                    sub_field, &des_sub_field,
-                    "\nsub field: {}\nfuzz_data: {:?}",
-                    sub_field, fuzz_data
-                )
+                assert_eq!(sub_field, &des_sub_field, "\nsub field: {}", sub_field)
             }
             Err(err) => {
                 panic!(
-                    "Deserializing a serialized SubField may not fail\n({})\nsub field: {:?}\nfuzz_data: {:?}",
-                    err,
-                    sub_field,
-                    fuzz_data
+                    "Deserializing a serialized SubField may not fail\n({})\nsub field: {:?}",
+                    err, sub_field
                 )
             }
         }
@@ -186,8 +186,10 @@ pub fn fuzz_extra_field_try_parse(
 ) -> bool {
     match RawExtraField::try_from(extra_field.clone()) {
         Ok(raw_extra_field) => {
+            println!("here 5");
             match ExtraField::try_parse(&raw_extra_field) {
                 Ok(parsed_extra_field) => {
+                    println!("here 5.1");
                     assert_eq!(
                         extra_field, &parsed_extra_field,
                         "\nOn 'Ok(_)\noriginal: {:?}\nparsed:   {:?}\n'fuzz_data: {:?}",
@@ -204,12 +206,15 @@ pub fn fuzz_extra_field_try_parse(
                         );
                     }
                     for (i, parsed_sub_field) in parsed_extra_field.0.iter().enumerate() {
+                        println!("here 5.2");
                         match parsed_sub_field {
                             SubField::Padding(_) => {
                                 // The padding sub-field may be different on error
+                                println!("here 5.3");
                             }
                             _ => {
                                 // Other sub-fields must be the same on error
+                                println!("here 5.4");
                                 assert_eq!(
                                     &extra_field.0[i], parsed_sub_field,
                                    "\nOn 'Err(_)'\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
@@ -278,6 +283,7 @@ pub fn fuzz_transaction_deserialize(fuzz_data: &[u8]) -> bool {
         }
     };
 
+    println!("here 6");
     let transaction = fuzz_create_transaction_alternative_1(fuzz_data, &raw_extra_field);
     let serialized_tx = serialize(&transaction);
     let _ = deserialize::<Transaction>(&serialized_tx[..]);
@@ -316,6 +322,7 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
     if let Ok(val) = deserialize::<TransactionPrefix>(&fuzz_bytes[..]) {
         assert_eq!(fuzz_bytes, serialize(&val));
     }
+    println!("here 7.1");
 
     // RctSigBase
     let fuzz_bytes = fuzz_data.to_vec().clone();
@@ -329,6 +336,7 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
             // assert_eq!(fuzz_bytes, encoder);
         }
     }
+    println!("here 7.2");
 
     // RctSigPrunable
     let fuzz_bytes = fuzz_data.to_vec().clone();
@@ -346,6 +354,7 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
             // assert_eq!(fuzz_bytes, encoder);
         }
     }
+    println!("here 7.3");
 
     true
 }
@@ -603,4 +612,390 @@ pub fn fuzz_transaction_check_outputs(transaction: &Transaction) -> bool {
 
     let _ = transaction.check_outputs(&viewpair, 0..3, 0..3);
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Address, AddressType, Network};
+    use quickcheck::QuickCheck;
+
+    use crate::util::fuzz_utils::{
+        fuzz_block_deserialize, fuzz_block_header_deserialize, fuzz_create_extra_field,
+        fuzz_create_raw_extra_field, fuzz_create_transaction_alternative_1,
+        fuzz_create_transaction_alternative_2, fuzz_extra_field_parse_sub_fields,
+        fuzz_extra_field_try_parse, fuzz_hash_convert, fuzz_raw_extra_field_deserialize,
+        fuzz_raw_extra_field_from, fuzz_transaction_check_outputs, fuzz_transaction_components,
+        fuzz_transaction_deserialize, fuzz_transaction_hash, fuzz_transaction_prefix_deserialize,
+        AddPadding,
+    };
+
+    // #[test]
+    #[allow(dead_code)]
+    fn test_fuzz_block_deserialize() {
+        fn internal(data: Vec<u8>) -> bool {
+            fuzz_block_deserialize(&data)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    #[test]
+    fn test_fuzz_block_header_deserialize() {
+        fn internal(data: Vec<u8>) -> bool {
+            fuzz_block_header_deserialize(&data)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    #[test]
+    fn test_fuzz_transaction_prefix_deserialize() {
+        fn internal(data: Vec<u8>) -> bool {
+            fuzz_transaction_prefix_deserialize(&data)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn test_fuzz_transaction_deserialize() {
+        fn internal(data: Vec<u8>) -> bool {
+            fuzz_transaction_deserialize(&data)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn test_fuzz_transaction_components() {
+        fn internal(data: Vec<u8>) -> bool {
+            fuzz_transaction_components(&data)
+        }
+
+        const TESTS: u64 = 1_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    #[test]
+    fn test_fuzz_hash_convert() {
+        fn internal(data: Vec<u8>) -> bool {
+            fuzz_hash_convert(&data)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    #[test]
+    fn test_fuzz_raw_extra_field_from() {
+        fn internal(data: Vec<u8>) -> bool {
+            fuzz_raw_extra_field_from(&data)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    #[test]
+    fn test_fuzz_raw_extra_field_deserialize() {
+        fn internal(data: Vec<u8>) -> bool {
+            let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
+                Ok(val) => val,
+                Err(_) => {
+                    // This may not fail, otherwise the test cannot continue
+                    return true;
+                }
+            };
+            fuzz_raw_extra_field_deserialize(&raw_extra_field)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn test_fuzz_extra_field_parse_sub_fields() {
+        fn internal(data: Vec<u8>) -> bool {
+            let add_padding = if data.is_empty() {
+                AddPadding::ToMiddle
+            } else {
+                match data.len() % 3 {
+                    0 => AddPadding::ToFront,
+                    1 => AddPadding::ToMiddle,
+                    _ => AddPadding::ToRear,
+                }
+            };
+            let extra_field = fuzz_create_extra_field(&data, add_padding);
+            fuzz_extra_field_parse_sub_fields(&extra_field)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn test_fuzz_extra_field_try_parse() {
+        fn internal(data: Vec<u8>) -> bool {
+            let add_padding = if data.is_empty() {
+                AddPadding::ToMiddle
+            } else {
+                match data.len() % 3 {
+                    0 => AddPadding::ToFront,
+                    1 => AddPadding::ToMiddle,
+                    _ => AddPadding::ToRear,
+                }
+            };
+            let extra_field = fuzz_create_extra_field(&data, add_padding);
+            fuzz_extra_field_try_parse(&extra_field, add_padding, &data)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn test_fuzz_transaction_hash() {
+        fn internal(data: Vec<u8>) -> bool {
+            let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
+                Ok(val) => val,
+                Err(_) => {
+                    // This may not fail, otherwise the test cannot continue
+                    return true;
+                }
+            };
+            let transaction = fuzz_create_transaction_alternative_1(&data, &raw_extra_field);
+            let _ = fuzz_transaction_hash(&transaction);
+            let transaction = fuzz_create_transaction_alternative_2(&data, &raw_extra_field);
+            fuzz_transaction_hash(&transaction)
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    #[test]
+    fn test_fuzz_transaction_check_outputs() {
+        fn internal(data: Vec<u8>) -> bool {
+            let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
+                Ok(val) => val,
+                Err(_) => {
+                    // This may not fail, otherwise the test cannot continue
+                    return true;
+                }
+            };
+            let transaction = fuzz_create_transaction_alternative_1(&data, &raw_extra_field);
+            let _ = fuzz_transaction_check_outputs(&transaction);
+            let transaction = fuzz_create_transaction_alternative_2(&data, &raw_extra_field);
+            let _ = fuzz_transaction_check_outputs(&transaction);
+            true
+        }
+
+        const TESTS: u64 = 1_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn test_fuzz_address_from_bytes() {
+        fn internal(data: Vec<u8>) -> bool {
+            let _ = Address::from_bytes(&data);
+            true
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn test_fuzz_address_type_from_slice() {
+        fn internal(data: Vec<u8>) -> bool {
+            let network = if data.is_empty() {
+                Network::Mainnet
+            } else {
+                match data.len() % 3 {
+                    0 => Network::Mainnet,
+                    1 => Network::Testnet,
+                    _ => Network::Stagenet,
+                }
+            };
+            let _ = AddressType::from_slice(&data, network);
+            true
+        }
+
+        const TESTS: u64 = 10_000;
+
+        QuickCheck::new()
+            .min_tests_passed(TESTS)
+            .tests(TESTS)
+            .max_tests(TESTS)
+            .quickcheck(internal as fn(Vec<u8>) -> bool);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Code coverage section
+    // ---------------------------------------------------------------------------------------------
+    #[test]
+    fn test_fuzz_block_deserialize_coverage() {
+        let data = [
+            12, 12, 148, 222, 186, 248, 5, 190, 179, 72, 156, 114, 42, 40, 92, 9, 42, 50, 231, 198,
+            137, 58, 191, 199, 208, 105, 105, 156, 131, 38, 252, 52, 69, 167, 73, 197, 39, 107, 98,
+            0, 0, 0, 0, 2, 155, 137, 34, 1, 255, 223, 136, 34, 1, 182, 153, 212, 200, 177, 236, 2,
+            2, 35, 223, 82, 74, 242, 162, 239, 95, 135, 10, 219, 110, 28, 235, 3, 164, 117, 195,
+            159, 139, 158, 247, 106, 165, 11, 70, 221, 210, 161, 131, 73, 64, 43, 1, 40, 57, 191,
+            161, 155, 117, 36, 236, 116, 136, 145, 119, 20, 194, 22, 202, 37, 75, 56, 237, 4, 36,
+            202, 101, 174, 130, 138, 124, 0, 106, 234, 241, 2, 8, 245, 49, 106, 127, 107, 153, 204,
+            166, 0, 0,
+        ];
+        fuzz_block_deserialize(&data);
+    }
+
+    #[test]
+    fn test_fuzz_block_header_deserialize_coverage() {
+        let data = [
+            12, 12, 148, 222, 186, 248, 5, 190, 179, 72, 156, 114, 42, 40, 92, 9, 42, 50, 231, 198,
+            137, 58, 191, 199, 208, 105, 105, 156, 131, 38, 252, 52, 69, 167, 73, 197, 39, 107, 98,
+            0, 0, 0, 0,
+        ];
+        fuzz_block_header_deserialize(&data);
+    }
+
+    #[test]
+    fn test_fuzz_transaction_prefix_deserialize_coverage() {
+        let data = [
+            2, 155, 137, 34, 1, 255, 223, 136, 34, 1, 182, 153, 212, 200, 177, 236, 2, 2, 35, 223,
+            82, 74, 242, 162, 239, 95, 135, 10, 219, 110, 28, 235, 3, 164, 117, 195, 159, 139, 158,
+            247, 106, 165, 11, 70, 221, 210, 161, 131, 73, 64, 43, 1, 40, 57, 191, 161, 155, 117,
+            36, 236, 116, 136, 145, 119, 20, 194, 22, 202, 37, 75, 56, 237, 4, 36, 202, 101, 174,
+            130, 138, 124, 0, 106, 234, 241, 2, 8, 245, 49, 106, 127, 107, 153, 204, 166,
+        ];
+        fuzz_transaction_prefix_deserialize(&data);
+    }
+
+    #[test]
+    fn test_fuzz_extra_field_parse_sub_fields_coverage() {
+        let extra_field_1 = fuzz_create_extra_field(&[0, 1, 2], AddPadding::ToFront);
+        let extra_field_2 = fuzz_create_extra_field(&[0, 1, 2], AddPadding::ToMiddle);
+        assert_ne!(extra_field_1, extra_field_2);
+
+        let mut extra_field = fuzz_create_extra_field(&[], AddPadding::ToRear);
+        extra_field.0.pop();
+        extra_field.0.pop();
+        fuzz_extra_field_parse_sub_fields(&extra_field);
+    }
+
+    #[test]
+    fn test_fuzz_extra_field_try_parse_coverage() {
+        let extra_field = fuzz_create_extra_field(&[], AddPadding::ToRear);
+        fuzz_extra_field_try_parse(&extra_field, AddPadding::ToRear, &[]);
+        let data = [
+            230, 196, 73, 143, 43, 56, 217, 81, 1, 244, 76, 0, 106, 157, 99, 164, 0, 128, 107, 252,
+            189, 156, 211, 217, 79, 231, 213, 136, 104, 65, 213, 255, 90, 255, 15, 64, 244, 201,
+            135, 97, 135, 0, 21, 174, 185, 65, 184, 27, 229, 84, 182, 255, 236, 217, 32, 1, 63,
+        ];
+        let mut extra_field = fuzz_create_extra_field(&data, AddPadding::ToMiddle);
+        extra_field.0.pop();
+        fuzz_extra_field_try_parse(&extra_field, AddPadding::ToMiddle, &[]);
+    }
+
+    #[test]
+    fn test_fuzz_transaction_deserialize_coverage() {
+        use std::panic;
+        let _result = panic::catch_unwind(|| {
+            let data = [1];
+            fuzz_transaction_deserialize(&data);
+        });
+    }
+
+    #[test]
+    fn test_fuzz_remaining_coverage() {
+        let data = [1];
+        fuzz_transaction_components(&data);
+        fuzz_hash_convert(&data);
+        let raw_extra_field = fuzz_create_raw_extra_field(&data).unwrap();
+        fuzz_raw_extra_field_deserialize(&raw_extra_field);
+        fuzz_raw_extra_field_from(&data);
+        fuzz_transaction_hash(&fuzz_create_transaction_alternative_2(
+            &data,
+            &raw_extra_field,
+        ));
+        fuzz_transaction_check_outputs(&fuzz_create_transaction_alternative_2(
+            &data,
+            &raw_extra_field,
+        ));
+    }
 }

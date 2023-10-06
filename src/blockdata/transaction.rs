@@ -1138,12 +1138,6 @@ mod tests {
     use crate::cryptonote::hash::Hashable;
     use crate::util::key::{PrivateKey, PublicKey, ViewPair};
     use crate::util::ringct::{RctSig, RctSigBase, RctType};
-    use crate::util::test_utils::{
-        fuzz_block_header_deserialize, fuzz_create_extra_field, fuzz_create_raw_extra_field,
-        fuzz_create_transaction_alternative_1, fuzz_extra_field_parse_sub_fields,
-        fuzz_extra_field_try_parse, fuzz_transaction_deserialize, fuzz_transaction_hash,
-        AddPadding,
-    };
     use crate::{
         blockdata::transaction::{SubField, TxIn, TxOutTarget},
         cryptonote::onetime_key::SubKeyChecker,
@@ -1502,7 +1496,16 @@ mod tests {
         assert_eq!(parsed_extra_field, extra_field.0);
     }
 
+    #[cfg(feature = "fuzzing")]
+    use crate::util::fuzz_utils::{
+        fuzz_block_header_deserialize, fuzz_create_extra_field, fuzz_create_raw_extra_field,
+        fuzz_create_transaction_alternative_1, fuzz_extra_field_parse_sub_fields,
+        fuzz_extra_field_try_parse, fuzz_transaction_deserialize, fuzz_transaction_hash,
+        AddPadding,
+    };
+
     #[test]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_block_header_deserialize_failures() {
         // panic: varint decoding
         let data = [
@@ -1533,6 +1536,7 @@ mod tests {
 
     // #[test]
     #[allow(dead_code)]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_transaction_deserialize_failures1() {
         // panic: memory overflow
         let data = [
@@ -1563,6 +1567,7 @@ mod tests {
 
     // #[test]
     #[allow(dead_code)]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_transaction_deserialize_failures2() {
         // panic in debug mode: attempt to subtract with overflow
         let data = [
@@ -1607,6 +1612,7 @@ mod tests {
 
     // #[test]
     #[allow(dead_code)]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_extra_field_parse_sub_fields_failures() {
         fn fuzz(data: &[u8]) -> bool {
             let add_padding = if data.is_empty() {
@@ -1619,7 +1625,7 @@ mod tests {
                 }
             };
             let extra_field = fuzz_create_extra_field(data, add_padding);
-            fuzz_extra_field_parse_sub_fields(&extra_field, data)
+            fuzz_extra_field_parse_sub_fields(&extra_field)
         }
 
         // debug:   In `pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8>`
@@ -1652,6 +1658,7 @@ mod tests {
 
     // #[test]
     #[allow(dead_code)]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_extra_field_try_parse_failures() {
         fn fuzz(data: &[u8]) -> bool {
             let add_padding = if data.is_empty() {
@@ -1701,6 +1708,7 @@ mod tests {
 
     // #[test]
     #[allow(dead_code)]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_transaction_hash_failures() {
         fn fuzz(data: &[u8]) -> bool {
             let raw_extra_field = match fuzz_create_raw_extra_field(data) {

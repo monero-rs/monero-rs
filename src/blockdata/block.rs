@@ -139,7 +139,6 @@ mod test {
     use super::*;
     use crate::consensus::encode::deserialize;
     use crate::consensus::encode::serialize;
-    use crate::util::test_utils::fuzz_block_deserialize;
 
     #[test]
     fn test_block_ser() {
@@ -167,8 +166,12 @@ mod test {
         );
     }
 
+    #[cfg(feature = "fuzzing")]
+    use crate::util::fuzz_utils::fuzz_block_deserialize;
+
     // #[test]
     #[allow(dead_code)]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_block_deserialize_failures() {
         let data = [];
         fuzz_block_deserialize(&data);

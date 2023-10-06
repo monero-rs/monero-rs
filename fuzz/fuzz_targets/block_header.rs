@@ -7,7 +7,7 @@ use monero::consensus::Encodable;
 
 fuzz_target!(|data: &[u8]| {
 
-    let mut data2 = Vec::from(data);
+    let data2 = Vec::from(data);
     match BlockHeader::consensus_decode(&mut data2.as_slice()){
        Ok(header) => {
             let mut v = vec![];

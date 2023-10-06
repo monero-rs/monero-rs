@@ -1,7 +1,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use monero::util::test_utils::{
+use monero::util::fuzz_utils::{
     fuzz_create_extra_field,
     fuzz_extra_field_parse_sub_fields,
     AddPadding,
@@ -18,5 +18,5 @@ fuzz_target!(|data: &[u8]| {
         }
     };
     let extra_field = fuzz_create_extra_field(data, add_padding);
-    fuzz_extra_field_parse_sub_fields(&extra_field, &data)
+    let _unused = fuzz_extra_field_parse_sub_fields(&extra_field, &data);
 });

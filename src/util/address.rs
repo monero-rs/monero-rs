@@ -534,6 +534,7 @@ mod tests {
 
     // #[test]
     #[allow(dead_code)]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_address_from_bytes_failures() {
         let data = [];
         let _ = Address::from_bytes(&data);
@@ -548,6 +549,7 @@ mod tests {
 
     // #[test]
     #[allow(dead_code)]
+    #[cfg(feature = "fuzzing")]
     fn previous_fuzz_address_from_slice_failures() {
         fn fuzz(data: &[u8]) -> bool {
             let network = if data.is_empty() {

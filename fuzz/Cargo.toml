@@ -12,6 +12,7 @@ libfuzzer-sys = "0.4"
 
 [dependencies.monero]
 path = ".."
+features = ["fuzzing"]
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -45,8 +46,8 @@ test = false
 doc = false
 
 [[bin]]
-name = "extra_field_sub_fileds_p"
-path = "fuzz_targets/extra_field_sub_fileds_p.rs"
+name = "extra_field_sub_fields_p"
+path = "fuzz_targets/extra_field_sub_fields_p.rs"
 test = false
 doc = false
 
