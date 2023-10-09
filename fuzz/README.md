@@ -1,4 +1,4 @@
-# Fuzzing randomx-rs
+# Fuzzing monero-rs
 
 See https://rust-fuzz.github.io/book/cargo-fuzz.html for more information on fuzzing with cargo-fuzz.
 Install `cargo-fuzz` as per [installation instructions](https://rust-fuzz.github.io/book/cargo-fuzz/setup.html).

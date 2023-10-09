@@ -33,9 +33,6 @@ pub fn fuzz_block_deserialize(fuzz_data: &[u8]) -> bool {
 
     // Block
     if let Ok(val) = deserialize::<Block>(&fuzz_bytes[..]) {
-        println!("here 1");
-        println!("header {:?}", serialize(&val.header));
-        println!("transaction_prefix {:?}", serialize(&val.miner_tx.prefix));
         assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
@@ -48,7 +45,6 @@ pub fn fuzz_block_header_deserialize(fuzz_data: &[u8]) -> bool {
 
     // BlockHeader
     if let Ok(val) = deserialize::<BlockHeader>(&fuzz_bytes[..]) {
-        println!("here 2");
         assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
@@ -61,7 +57,6 @@ pub fn fuzz_transaction_prefix_deserialize(fuzz_data: &[u8]) -> bool {
 
     // TransactionPrefix
     if let Ok(val) = deserialize::<TransactionPrefix>(&fuzz_bytes[..]) {
-        println!("here 3");
         assert_eq!(fuzz_bytes, serialize(&val), "\nfuzz_data: {:?}", fuzz_data);
     }
 
@@ -161,7 +156,6 @@ pub fn fuzz_create_extra_field(fuzz_data: &[u8], add_padding: AddPadding) -> Ext
 pub fn fuzz_extra_field_parse_sub_fields(extra_field: &ExtraField) -> bool {
     for sub_field in &extra_field.0 {
         let ser_sub_field = serialize(sub_field);
-        println!("here 4");
         match deserialize::<SubField>(&ser_sub_field) {
             Ok(des_sub_field) => {
                 assert_eq!(sub_field, &des_sub_field, "\nsub field: {}", sub_field)
@@ -186,10 +180,8 @@ pub fn fuzz_extra_field_try_parse(
 ) -> bool {
     match RawExtraField::try_from(extra_field.clone()) {
         Ok(raw_extra_field) => {
-            println!("here 5");
             match ExtraField::try_parse(&raw_extra_field) {
                 Ok(parsed_extra_field) => {
-                    println!("here 5.1");
                     assert_eq!(
                         extra_field, &parsed_extra_field,
                         "\nOn 'Ok(_)\noriginal: {:?}\nparsed:   {:?}\n'fuzz_data: {:?}",
@@ -206,15 +198,12 @@ pub fn fuzz_extra_field_try_parse(
                         );
                     }
                     for (i, parsed_sub_field) in parsed_extra_field.0.iter().enumerate() {
-                        println!("here 5.2");
                         match parsed_sub_field {
                             SubField::Padding(_) => {
                                 // The padding sub-field may be different on error
-                                println!("here 5.3");
                             }
                             _ => {
                                 // Other sub-fields must be the same on error
-                                println!("here 5.4");
                                 assert_eq!(
                                     &extra_field.0[i], parsed_sub_field,
                                    "\nOn 'Err(_)'\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
@@ -283,7 +272,6 @@ pub fn fuzz_transaction_deserialize(fuzz_data: &[u8]) -> bool {
         }
     };
 
-    println!("here 6");
     let transaction = fuzz_create_transaction_alternative_1(fuzz_data, &raw_extra_field);
     let serialized_tx = serialize(&transaction);
     let _ = deserialize::<Transaction>(&serialized_tx[..]);
@@ -322,7 +310,6 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
     if let Ok(val) = deserialize::<TransactionPrefix>(&fuzz_bytes[..]) {
         assert_eq!(fuzz_bytes, serialize(&val));
     }
-    println!("here 7.1");
 
     // RctSigBase
     let fuzz_bytes = fuzz_data.to_vec().clone();
@@ -336,7 +323,6 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
             // assert_eq!(fuzz_bytes, encoder);
         }
     }
-    println!("here 7.2");
 
     // RctSigPrunable
     let fuzz_bytes = fuzz_data.to_vec().clone();
@@ -354,7 +340,6 @@ pub fn fuzz_transaction_components(fuzz_data: &[u8]) -> bool {
             // assert_eq!(fuzz_bytes, encoder);
         }
     }
-    println!("here 7.3");
 
     true
 }
