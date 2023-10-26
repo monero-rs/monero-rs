@@ -23,6 +23,7 @@ default = ["full"]
 full = ["fixed-hash/std", "fixed-hash/rand"]
 serde = ["serde-crate", "serde-big-array", "curve25519-dalek/serde"]
 experimental = []
+fuzzing = []
 
 [dependencies]
 base58-monero = { version = "2" }
@@ -36,6 +37,8 @@ thiserror = "1.0.24"
 tiny-keccak = { version = "2", features = ["keccak"] }
 
 [dev-dependencies]
+quickcheck = "1"
+rand = "0.8"
 serde_json = "1"
 serde_test = "1"
 

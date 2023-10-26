@@ -19,9 +19,16 @@
 //! integrations.
 //!
 
+/// Public 'address' module
 pub mod address;
+/// Public 'amount' module
 pub mod amount;
+/// Public 'test_utils' module (Only include this module if the "fuzzing" feature is enabled)
+#[cfg(feature = "fuzzing")]
+pub mod fuzz_utils;
+/// Public 'key' module
 pub mod key;
+/// Public 'ringct' module
 pub mod ringct;
 
 use super::network;

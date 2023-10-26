@@ -547,6 +547,8 @@ mod tests {
     use super::{deserialize, serialize, Error, VarInt};
     use crate::{Block, TxIn};
 
+    const MAX_VEC_MEM_ALLOC_SIZE: usize = 4 * 1024 * 1024;
+
     #[test]
     fn deserialize_varint() {
         let int: VarInt = deserialize(&[0b000_0001]).unwrap();
@@ -595,7 +597,15 @@ mod tests {
         let data = deserialize::<Vec<u8>>(&vec).unwrap();
         assert_eq!(data, vec[1..]);
 
+        let vec = vec![
+            [0u8; 64], [1u8; 64], [2u8; 64], [3u8; 64], [4u8; 64], [5u8; 64], [6u8; 64], [7u8; 64],
+        ];
+        let vec_buffer = serialize(&vec);
+        let data = deserialize::<Vec<[u8; 64]>>(&vec_buffer).unwrap();
+        assert_eq!(data, vec);
+
         let tx_in = serialize(&TxIn::Gen { height: VarInt(1) });
+        // First byte is len = 8
         let mut vec = vec![0x08u8];
         for _ in 0..8 {
             vec.extend(tx_in.clone());
@@ -604,11 +614,71 @@ mod tests {
         assert!(tx_ins.iter().all(|t| *t == TxIn::Gen { height: VarInt(1) }));
     }
     #[test]
-    fn deserialize_vec_max_allocation() {
-        let len = VarInt(((4 * 1024 * 1024) / 64) + 1);
+    fn deserialize_voc_with_inadequate_buffer() {
+        let err = deserialize::<Vec<[u8; 64]>>(&[]).unwrap_err();
+        assert!(matches!(err, Error::Io(_)));
+        let len = VarInt(1);
         let data = serialize(&len);
         let err = deserialize::<Vec<[u8; 64]>>(&data).unwrap_err();
-        assert!(matches!(err, Error::ParseFailed(_)));
+        assert!(matches!(err, Error::Io(_)));
+    }
+
+    #[test]
+    fn deserialize_varint_with_empty_buffer() {
+        let err = deserialize::<VarInt>(&[]).unwrap_err();
+        assert!(matches!(err, Error::Io(_)));
+    }
+
+    #[test]
+    fn deserialize_vec_max_allocation() {
+        for length in (0..10).chain(
+            (MAX_VEC_MEM_ALLOC_SIZE / 64) as u64 - 10..=(MAX_VEC_MEM_ALLOC_SIZE / 64) as u64 + 10,
+        ) {
+            let len = VarInt(length);
+            let data = serialize(&len);
+            let res = deserialize::<Vec<[u8; 64]>>(&data);
+            if length == 0 {
+                assert!(res.is_ok());
+            } else {
+                let err = res.unwrap_err();
+                if length <= (MAX_VEC_MEM_ALLOC_SIZE / 64) as u64 {
+                    assert!(matches!(err, Error::Io(_)));
+                } else {
+                    assert!(matches!(err, Error::ParseFailed(_)));
+                }
+            }
+        }
+
+        let data_len = 100u64;
+        let mut data = serialize(&VarInt(data_len));
+        for i in 0..data_len {
+            data.push((i % 255) as u8);
+        }
+        assert_eq!(data[1..], deserialize::<Vec<u8>>(&data[..]).unwrap());
+
+        for length in (0..10)
+            .chain(data_len - 10..=data_len + 10)
+            .chain(MAX_VEC_MEM_ALLOC_SIZE as u64 - 10..=MAX_VEC_MEM_ALLOC_SIZE as u64 + 10)
+        {
+            let replace_len = VarInt(length);
+            let replace_len_bytes = serialize(&replace_len);
+            for (i, val) in replace_len_bytes.iter().enumerate() {
+                data[i] = *val;
+            }
+            let res = deserialize::<Vec<u8>>(&data[..]);
+            if length == data_len {
+                assert!(res.is_ok());
+            } else {
+                let err = res.unwrap_err();
+                if length < data_len {
+                    assert!(matches!(err, Error::ParseFailed(_)));
+                } else if length <= MAX_VEC_MEM_ALLOC_SIZE as u64 {
+                    assert!(matches!(err, Error::Io(_)));
+                } else {
+                    assert!(matches!(err, Error::ParseFailed(_)));
+                }
+            }
+        }
     }
 
     #[test]
