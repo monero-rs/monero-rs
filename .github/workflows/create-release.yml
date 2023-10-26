@@ -9,11 +9,11 @@ jobs:
   create_release:
     name: Create from merged release branch
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
-    uses: monero-rs/workflows/.github/workflows/create-release.yml@v2.0.2
+    uses: monero-rs/workflows/.github/workflows/create-release.yml@v2.0.3
 
   release_to_crates:
     name: Publish the new release to crates.io
-    uses: monero-rs/workflows/.github/workflows/release-to-crates-io.yml@v2.0.2
+    uses: monero-rs/workflows/.github/workflows/release-to-crates-io.yml@v2.0.3
     # Do not run before creating the release is done
     needs: create_release
     secrets:
