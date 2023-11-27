@@ -40,6 +40,9 @@ use crate::util::{address, key, ringct};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
+/// The maximum memory size of a vector that can be allocated during decoding.
+pub const MAX_VEC_MEM_ALLOC_SIZE: usize = 32 * 1024 * 1024; // 32 MiB
+
 /// Errors encountered when encoding or decoding data.
 #[derive(Error, Debug)]
 pub enum Error {
@@ -481,15 +484,14 @@ impl<T: Encodable> Encodable for Vec<T> {
 impl<T: Decodable> Decodable for Vec<T> {
     #[inline]
     fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
-        const MAX_VEC_ALLOC_SIZE: usize = 4 * 1024 * 1024;
         let len = usize::try_from(*VarInt::consensus_decode(r)?)
             .map_err(|_| self::Error::ParseFailed("VarInt overflows usize"))?;
 
-        // Prevent allocations larger than 4 MiB
+        // Prevent allocations larger than the maximum allowed size
         let layout_size = mem::size_of::<T>().saturating_mul(len);
-        if layout_size > MAX_VEC_ALLOC_SIZE {
+        if layout_size > MAX_VEC_MEM_ALLOC_SIZE {
             return Err(self::Error::ParseFailed(
-                "length exceeds maximum allocatable bytes (4 MiB)",
+                "consensus_decode for Vec<T>: length exceeds maximum allocatable bytes",
             ));
         }
 
@@ -501,14 +503,24 @@ impl<T: Decodable> Decodable for Vec<T> {
     }
 }
 
-macro_rules! decode_sized_vec {
-    ( $size:expr, $d:expr ) => {{
-        let mut ret = Vec::with_capacity($size as usize);
-        for _ in 0..$size {
-            ret.push(Decodable::consensus_decode($d)?);
-        }
-        ret
-    }};
+/// Decode a vector of a given size
+pub fn consensus_decode_sized_vec<R: io::Read + ?Sized, T: Decodable>(
+    r: &mut R,
+    size: usize,
+) -> Result<Vec<T>, Error> {
+    // Prevent allocations larger than the maximum allowed size
+    let layout_size = mem::size_of::<T>().saturating_mul(size);
+    if layout_size > MAX_VEC_MEM_ALLOC_SIZE {
+        return Err(Error::ParseFailed(
+            "consensus_decode_sized_vec: length exceeds maximum allocatable bytes",
+        ));
+    }
+    let mut ret = Vec::with_capacity(size);
+    for _ in 0..size {
+        let item = Decodable::consensus_decode(r)?;
+        ret.push(item);
+    }
+    Ok(ret)
 }
 
 macro_rules! encode_sized_vec {
@@ -532,8 +544,17 @@ impl<T: Encodable> Encodable for Box<[T]> {
 impl<T: Decodable> Decodable for Box<[T]> {
     #[inline]
     fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
-        let len = VarInt::consensus_decode(r)?.0;
-        let len = len as usize;
+        let len = usize::try_from(*VarInt::consensus_decode(r)?)
+            .map_err(|_| Error::ParseFailed("VarInt overflows usize"))?;
+
+        // Prevent allocations larger than the maximum allowed size
+        let layout_size = mem::size_of::<T>().saturating_mul(len);
+        if layout_size > MAX_VEC_MEM_ALLOC_SIZE {
+            return Err(Error::ParseFailed(
+                "consensus_decode for Box<T>: length exceeds maximum allocatable bytes",
+            ));
+        }
+
         let mut ret = Vec::with_capacity(len);
         for _ in 0..len {
             ret.push(Decodable::consensus_decode(r)?);
@@ -641,11 +662,7 @@ mod tests {
                 assert!(res.is_ok());
             } else {
                 let err = res.unwrap_err();
-                if length <= (MAX_VEC_MEM_ALLOC_SIZE / 64) as u64 {
-                    assert!(matches!(err, Error::Io(_)));
-                } else {
-                    assert!(matches!(err, Error::ParseFailed(_)));
-                }
+                assert!(matches!(err, Error::Io(_)));
             }
         }
 
@@ -672,10 +689,8 @@ mod tests {
                 let err = res.unwrap_err();
                 if length < data_len {
                     assert!(matches!(err, Error::ParseFailed(_)));
-                } else if length <= MAX_VEC_MEM_ALLOC_SIZE as u64 {
-                    assert!(matches!(err, Error::Io(_)));
                 } else {
-                    assert!(matches!(err, Error::ParseFailed(_)));
+                    assert!(matches!(err, Error::Io(_)));
                 }
             }
         }
