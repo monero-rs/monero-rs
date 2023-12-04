@@ -107,24 +107,30 @@ impl Block {
         )
     }
 
-    /// Serializes the block into the format required to get the block id or to calculate the proof of work.
-    pub fn serialize_hashable(&self) -> Vec<u8> {
+    /// Internal function that serializes the block header and other necessary data
+    /// in order to get the block ID or to calculate the proof of work.
+    fn serialize_header_and_root(&self) -> Vec<u8> {
         let mut blob = crate::consensus::serialize(&self.header);
         blob.extend_from_slice(&self.tx_root()[..]);
         blob.append(&mut crate::consensus::serialize(&VarInt(
             1 + self.tx_hashes.len() as u64,
         )));
 
-        let mut out = crate::consensus::serialize(&VarInt(blob.len().try_into().unwrap()));
-        out.append(&mut blob);
-        out
+        blob
+    }
+
+    /// Serializes the block into the format required to calculate the proof of work.
+    pub fn serialize_hashable(&self) -> Vec<u8> {
+        self.serialize_header_and_root()
     }
 
     /// Compute block id
     pub fn id(&self) -> crate::Hash {
-        let hash = crate::Hash(crate::cryptonote::hash::keccak_256(
-            &self.serialize_hashable(),
-        ));
+        let mut blob = self.serialize_header_and_root();
+        let mut out = crate::consensus::serialize(&VarInt(blob.len().try_into().unwrap()));
+        out.append(&mut blob);
+
+        let hash = crate::Hash(crate::cryptonote::hash::keccak_256(&out));
 
         if hash == CORRECT_BLOCK_ID_202612 {
             EXISTING_BLOCK_ID_202612
@@ -145,7 +151,7 @@ mod test {
         // block with only the miner tx and no other transactions
         let hex = "0c0c94debaf805beb3489c722a285c092a32e7c6893abfc7d069699c8326fc3445a749c5276b6200000000029b892201ffdf882201b699d4c8b1ec020223df524af2a2ef5f870adb6e1ceb03a475c39f8b9ef76aa50b46ddd2a18349402b012839bfa19b7524ec7488917714c216ca254b38ed0424ca65ae828a7c006aeaf10208f5316a7f6b99cca60000";
         // blockhashing blob for above block as accepted by monero
-        let hex_blockhash_blob="4c0c0c94debaf805beb3489c722a285c092a32e7c6893abfc7d069699c8326fc3445a749c5276b6200000000602d0d4710e2c2d38da0cce097accdf5dc18b1d34323880c1aae90ab8f6be6e201";
+        let hex_blockhash_blob="0c0c94debaf805beb3489c722a285c092a32e7c6893abfc7d069699c8326fc3445a749c5276b6200000000602d0d4710e2c2d38da0cce097accdf5dc18b1d34323880c1aae90ab8f6be6e201";
         let bytes = hex::decode(hex).unwrap();
         let block = deserialize::<Block>(&bytes[..]).unwrap();
         let encode2 = block.serialize_hashable();
