@@ -23,7 +23,7 @@
 //!
 
 // TODO: remove this when fixed-hash stop raising clippy errors...
-#![allow(clippy::incorrect_clone_impl_on_copy_type)]
+#![allow(clippy::non_canonical_clone_impl)]
 
 use curve25519_dalek::scalar::Scalar;
 use sealed::sealed;

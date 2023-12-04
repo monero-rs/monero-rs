@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use both transaction public keys when scanning outputs & reject non-canonical public keys in the tx-extra by [@Boog900](https://github.com/Boog900) ([#180](https://github.com/monero-rs/monero-rs/pull/180))
 - Error on non-minimal varint encoding and fix silent overflow [@stringhandler](https://github.com/stringhandler)([#174](https://github.com/monero-rs/monero-rs/pull/174))
+- Avoid prepending VarInt length of the blockhashing blob when using `Block::serialize_hashable()` [@parazyd](https://github.com/parazyd)([#194](https://github.com/monero-rs/monero-rs/pull/194))
 
 ## [0.19.0] - 2023-09-15
 
