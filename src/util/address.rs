@@ -101,7 +101,6 @@ impl AddressType {
                 "Not enough bytes to decode the AddressType",
             ));
         }
-        const N: usize = 73;
         let byte = bytes[0];
         use AddressType::*;
         use Network::*;
@@ -109,12 +108,12 @@ impl AddressType {
             Mainnet => match byte {
                 18 => Ok(Standard),
                 19 => {
-                    if bytes.len() < N {
+                    if bytes.len() < 73 {
                         return Err(Error::Encoding(
                             "from_slice: Not enough bytes to decode the AddressType (<73)",
                         ));
                     }
-                    let payment_id = PaymentId::from_slice(&bytes[65..N]);
+                    let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
                 42 => Ok(SubAddress),
@@ -123,12 +122,12 @@ impl AddressType {
             Testnet => match byte {
                 53 => Ok(Standard),
                 54 => {
-                    if bytes.len() < N {
+                    if bytes.len() < 73 {
                         return Err(Error::Encoding(
                             "from_slice: Not enough bytes to decode the AddressType (<73)",
                         ));
                     }
-                    let payment_id = PaymentId::from_slice(&bytes[65..N]);
+                    let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
                 63 => Ok(SubAddress),
@@ -137,12 +136,12 @@ impl AddressType {
             Stagenet => match byte {
                 24 => Ok(Standard),
                 25 => {
-                    if bytes.len() < N {
+                    if bytes.len() < 73 {
                         return Err(Error::Encoding(
                             "from_slice: Not enough bytes to decode the AddressType (<73)",
                         ));
                     }
-                    let payment_id = PaymentId::from_slice(&bytes[65..N]);
+                    let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
                 36 => Ok(SubAddress),
