@@ -74,6 +74,9 @@ pub enum Error {
     /// Network error.
     #[error("Network error: {0}")]
     Network(#[from] network::Error),
+    /// Encode error.
+    #[error("Encode error: {0}")]
+    Encoding(&'static str),
 }
 
 /// Address type: standard, integrated, or sub-address.
@@ -93,6 +96,11 @@ pub enum AddressType {
 impl AddressType {
     /// Recover the address type given an address bytes and the network.
     pub fn from_slice(bytes: &[u8], net: Network) -> Result<AddressType, Error> {
+        if bytes.is_empty() {
+            return Err(Error::Encoding(
+                "Not enough bytes to decode the AddressType",
+            ));
+        }
         let byte = bytes[0];
         use AddressType::*;
         use Network::*;
@@ -100,6 +108,11 @@ impl AddressType {
             Mainnet => match byte {
                 18 => Ok(Standard),
                 19 => {
+                    if bytes.len() < 73 {
+                        return Err(Error::Encoding(
+                            "from_slice: Not enough bytes to decode the AddressType (<73)",
+                        ));
+                    }
                     let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
@@ -109,6 +122,11 @@ impl AddressType {
             Testnet => match byte {
                 53 => Ok(Standard),
                 54 => {
+                    if bytes.len() < 73 {
+                        return Err(Error::Encoding(
+                            "from_slice: Not enough bytes to decode the AddressType (<73)",
+                        ));
+                    }
                     let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
@@ -118,6 +136,11 @@ impl AddressType {
             Stagenet => match byte {
                 24 => Ok(Standard),
                 25 => {
+                    if bytes.len() < 73 {
+                        return Err(Error::Encoding(
+                            "from_slice: Not enough bytes to decode the AddressType (<73)",
+                        ));
+                    }
                     let payment_id = PaymentId::from_slice(&bytes[65..73]);
                     Ok(Integrated(payment_id))
                 }
@@ -232,8 +255,13 @@ impl Address {
     }
 
     /// Parse an address from a vector of bytes, fail if the magic byte is incorrect, if public
-    /// keys are not valid points, if payment id is invalid, and if checksums missmatch.
+    /// keys are not valid points, if payment id is invalid, and if checksums mismatch.
     pub fn from_bytes(bytes: &[u8]) -> Result<Address, Error> {
+        if bytes.is_empty() || bytes.len() < 65 {
+            return Err(Error::Encoding(
+                "from_bytes: Not enough bytes to decode the Address (<65)",
+            ));
+        }
         let network = Network::from_u8(bytes[0])?;
         let addr_type = AddressType::from_slice(bytes, network)?;
         let public_spend =
@@ -242,8 +270,22 @@ impl Address {
             PublicKey::from_slice(&bytes[33..65]).map_err(|_| Error::InvalidFormat)?;
 
         let (checksum_bytes, checksum) = match addr_type {
-            AddressType::Standard | AddressType::SubAddress => (&bytes[0..65], &bytes[65..69]),
-            AddressType::Integrated(_) => (&bytes[0..73], &bytes[73..77]),
+            AddressType::Standard | AddressType::SubAddress => {
+                if bytes.len() < 69 {
+                    return Err(Error::Encoding(
+                        "from_bytes: Not enough bytes to decode the Address (<69)",
+                    ));
+                }
+                (&bytes[0..65], &bytes[65..69])
+            }
+            AddressType::Integrated(_) => {
+                if bytes.len() < 77 {
+                    return Err(Error::Encoding(
+                        "from_bytes: Not enough bytes to decode the Address (<77)",
+                    ));
+                }
+                (&bytes[0..73], &bytes[73..77])
+            }
         };
         let verify_checksum = keccak_256(checksum_bytes);
         if &verify_checksum[0..4] != checksum {
@@ -301,7 +343,11 @@ impl hex::FromHex for Address {
 
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", base58::encode(self.as_bytes().as_slice()).unwrap())
+        write!(
+            f,
+            "{}",
+            base58::encode(self.as_bytes().as_slice()).map_err(|_| fmt::Error)?
+        )
     }
 }
 
@@ -532,44 +578,35 @@ mod tests {
         assert_eq!(address_from_hex_with_0x, address);
     }
 
-    // #[test]
-    #[allow(dead_code)]
-    #[cfg(feature = "fuzzing")]
-    fn previous_fuzz_address_from_bytes_failures() {
-        let data = [];
-        let _ = Address::from_bytes(&data);
-        let data = [63];
-        let _ = Address::from_bytes(&data);
-        let data = [
-            25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0,
-        ];
-        let _ = Address::from_bytes(&data);
+    #[test]
+    fn from_bytes_fuzz_with_coverage() {
+        for magic_byte in [7, 18, 19, 42, 53, 54, 63, 24, 25, 36] {
+            let mut data = vec![];
+            let _res = Address::from_bytes(&data);
+            data.push(magic_byte);
+            let _res = Address::from_bytes(&data);
+            #[allow(clippy::same_item_push)]
+            for _ in 0..80 {
+                data.push(0);
+                let _res = Address::from_bytes(&data);
+            }
+        }
     }
 
-    // #[test]
-    #[allow(dead_code)]
-    #[cfg(feature = "fuzzing")]
-    fn previous_fuzz_address_from_slice_failures() {
-        fn fuzz(data: &[u8]) -> bool {
-            let network = if data.is_empty() {
-                Network::Mainnet
-            } else {
-                match data.len() % 3 {
-                    0 => Network::Mainnet,
-                    1 => Network::Testnet,
-                    _ => Network::Stagenet,
+    #[test]
+    fn from_slice_fuzz_with_coverage() {
+        for network in [Network::Mainnet, Network::Testnet, Network::Stagenet] {
+            for magic_byte in [7, 18, 19, 42, 53, 54, 63, 24, 25, 36] {
+                let mut data = vec![];
+                let _res = AddressType::from_slice(&data, network);
+                data.push(magic_byte);
+                let _res = AddressType::from_slice(&data, network);
+                #[allow(clippy::same_item_push)]
+                for _ in 0..80 {
+                    data.push(0);
+                    let _res = AddressType::from_slice(&data, network);
                 }
-            };
-            let _ = AddressType::from_slice(data, network);
-            true
+            }
         }
-
-        let data = [];
-        fuzz(&data);
-        let data = [25, 0, 0, 0, 0];
-        fuzz(&data);
-        let data = [25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        fuzz(&data);
     }
 }
