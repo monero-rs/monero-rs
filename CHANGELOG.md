@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Error on non-minimal varint encoding and fix silent overflow [@stringhandler](https://github.com/stringhandler)([#174](https://github.com/monero-rs/monero-rs/pull/174))
 - Avoid prepending VarInt length of the blockhashing blob when using `Block::serialize_hashable()` [@parazyd](https://github.com/parazyd)([#194](https://github.com/monero-rs/monero-rs/pull/194))
 - Error out of bounds panics in `src/util/address.rs` for `from_bytes` and `from_slice` with fix [@hansieodendaal](https://github.com/hansieodendaal)([#185](https://github.com/monero-rs/monero-rs/pull/185))
-- Error on calculating transaction hash with fix [@hansieodendaal](https://github.com/hansieodendaal)([#186](https://github.com/monero-rs/monero-rs/pull/186))
+- Removed unused output types (and unised `pub fn get_pubkeys`), fixing panic when hashing transactions with those outputs [@hansieodendaal](https://github.com/hansieodendaal)([#186](https://github.com/monero-rs/monero-rs/pull/186))
 
 ## [0.19.0] - 2023-09-15
 

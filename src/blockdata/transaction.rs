@@ -118,26 +118,6 @@ pub enum TxOutTarget {
 }
 
 impl TxOutTarget {
-    /// Retrieve the public keys, if any.
-    pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
-        match self {
-            TxOutTarget::ToKey { key } => {
-                let key = PublicKey::from_slice(key);
-                if let Ok(key) = key {
-                    return Some(vec![key]);
-                }
-                None
-            }
-            TxOutTarget::ToTaggedKey { key, .. } => {
-                let key = PublicKey::from_slice(key);
-                if let Ok(key) = key {
-                    return Some(vec![key]);
-                }
-                None
-            }
-        }
-    }
-
     /// Returns the one-time public key if this is a [`TxOutTarget::ToKey`] or [`TxOutTarget::ToTaggedKey`] and `None` otherwise.
     pub fn as_one_time_key(&self) -> Option<PublicKey> {
         match self {
@@ -188,13 +168,13 @@ pub struct TxOut {
 impl_consensus_encoding!(TxOut, amount, target);
 
 impl TxOut {
-    /// Retreive the public keys, if any
-    pub fn get_pubkeys(&self) -> Option<Vec<PublicKey>> {
-        self.target.get_pubkeys()
+    /// Retrieve the public key, if any
+    pub fn get_one_time_key(&self) -> Option<PublicKey> {
+        self.target.as_one_time_key()
     }
 }
 
-/// Transaction ouput that can be redeemed by a private key pair at a given index and are returned
+/// Transaction output that can be redeemed by a private key pair at a given index and are returned
 /// by the [`check_outputs`] method.
 ///
 /// [`check_outputs`]: TransactionPrefix::check_outputs
@@ -292,11 +272,6 @@ impl<'a> OwnedTxOut<'a> {
     /// None if we didn't have enough information to unblind the output.
     pub fn commitment(&self) -> Option<EdwardsPoint> {
         self.opening.as_ref().map(|o| o.commitment)
-    }
-
-    /// Retreive the public keys, if any.
-    pub fn pubkeys(&self) -> Option<Vec<PublicKey>> {
-        self.out.get_pubkeys()
     }
 
     /// Recover the ephemeral private key for spending the output, this requires access to the

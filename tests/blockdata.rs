@@ -215,7 +215,7 @@ fn deserialize_transaction_13() {
     let tx = deserialize::<Transaction>(&hex[..]);
     assert!(tx.is_ok());
     let tx = tx.unwrap();
-    assert_eq!(tx.prefix.outputs[0].get_pubkeys(), None);
+    assert_eq!(tx.prefix.outputs[0].get_one_time_key(), None);
     assert_eq!(hex, serialize(&tx));
     assert_eq!(
         "4ba024a944a978d6821302910d909e33547ba2ec8b45489bbb6cbc89482ee2d7",
