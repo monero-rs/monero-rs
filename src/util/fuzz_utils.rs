@@ -603,8 +603,7 @@ mod tests {
         AddPadding,
     };
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn test_fuzz_block_deserialize() {
         fn internal(data: Vec<u8>) -> bool {
             fuzz_block_deserialize(&data)
@@ -649,8 +648,7 @@ mod tests {
             .quickcheck(internal as fn(Vec<u8>) -> bool);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn test_fuzz_transaction_deserialize() {
         fn internal(data: Vec<u8>) -> bool {
             fuzz_transaction_deserialize(&data)
@@ -665,8 +663,7 @@ mod tests {
             .quickcheck(internal as fn(Vec<u8>) -> bool);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn test_fuzz_transaction_components() {
         fn internal(data: Vec<u8>) -> bool {
             fuzz_transaction_components(&data)
@@ -785,8 +782,7 @@ mod tests {
             .quickcheck(internal as fn(Vec<u8>) -> bool);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn test_fuzz_transaction_hash() {
         fn internal(data: Vec<u8>) -> bool {
             let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
@@ -837,8 +833,7 @@ mod tests {
             .quickcheck(internal as fn(Vec<u8>) -> bool);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn test_fuzz_address_from_bytes() {
         fn internal(data: Vec<u8>) -> bool {
             let _ = Address::from_bytes(&data);
@@ -854,8 +849,7 @@ mod tests {
             .quickcheck(internal as fn(Vec<u8>) -> bool);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn test_fuzz_address_type_from_slice() {
         fn internal(data: Vec<u8>) -> bool {
             let network = if data.is_empty() {

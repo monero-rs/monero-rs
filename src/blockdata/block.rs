@@ -175,8 +175,7 @@ mod test {
     #[cfg(feature = "fuzzing")]
     use crate::util::fuzz_utils::fuzz_block_deserialize;
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     #[cfg(feature = "fuzzing")]
     fn previous_fuzz_block_deserialize_failures() {
         let data = [];
