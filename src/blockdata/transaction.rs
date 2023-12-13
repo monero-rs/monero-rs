@@ -34,6 +34,7 @@ use hex::encode as hex_encode;
 use sealed::sealed;
 use thiserror::Error;
 
+use std::io::Seek;
 use std::ops::Range;
 use std::{fmt, io};
 
@@ -431,7 +432,7 @@ impl crate::consensus::encode::Encodable for RawExtraField {
 }
 
 impl Decodable for RawExtraField {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Self, encode::Error> {
         Decodable::consensus_decode(r).map(Self)
     }
 }
@@ -825,19 +826,27 @@ impl crate::consensus::encode::Encodable for ExtraField {
 }
 
 impl Decodable for SubField {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<SubField, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<SubField, encode::Error> {
         let tag: u8 = Decodable::consensus_decode(r)?;
 
         match tag {
             0x0 => {
                 let mut i = 0;
-                for _ in 1..u8::MAX {
-                    // Consume all bytes until the end of cursor or until 255 bytes have
+                for _ in 1..=u8::MAX {
+                    // Consume all valid padding bytes until the end of cursor or until 255 valid bytes have
                     // been consumed. A new cursor must be created when parsing extra bytes
                     // otherwise transaction bytes will be consumed
                     let byte: Result<u8, encode::Error> = Decodable::consensus_decode(r);
                     match byte {
-                        Ok(_) => {
+                        Ok(val) => {
+                            // Anything else than '0' is not a padding byte
+                            if val != 0 {
+                                // Rewind the cursor one position back to not consume the non-padding byte
+                                // r.seek(io::SeekFrom::Current(-1))?;
+                                // Notify the caller that parsing failed
+                                println!("Error::ParseFailed(Invalid padding byte)");
+                                return Err(encode::Error::ParseFailed("Invalid padding byte"));
+                            }
                             i += 1;
                         }
                         Err(_) => break,
@@ -906,15 +915,14 @@ impl crate::consensus::encode::Encodable for SubField {
             }
             SubField::MysteriousMinerGate(ref data) => {
                 len += 0xdeu8.consensus_encode(w)?;
-                data.consensus_encode(w)?;
-                Ok(len)
+                Ok(len + data.consensus_encode(w)?)
             }
         }
     }
 }
 
 impl Decodable for TxIn {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<TxIn, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<TxIn, encode::Error> {
         let intype: u8 = Decodable::consensus_decode(r)?;
         match intype {
             0xff => Ok(TxIn::Gen {
@@ -954,7 +962,9 @@ impl crate::consensus::encode::Encodable for TxIn {
 }
 
 impl Decodable for TxOutTarget {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<TxOutTarget, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+    ) -> Result<TxOutTarget, encode::Error> {
         let outtype: u8 = Decodable::consensus_decode(r)?;
         match outtype {
             0x2 => Ok(TxOutTarget::ToKey {
@@ -988,7 +998,9 @@ impl crate::consensus::encode::Encodable for TxOutTarget {
 
 #[allow(non_snake_case)]
 impl Decodable for Transaction {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Transaction, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+        r: &mut R,
+    ) -> Result<Transaction, encode::Error> {
         let prefix: TransactionPrefix = Decodable::consensus_decode(r)?;
 
         let inputs = prefix.inputs.len();
@@ -1604,8 +1616,7 @@ mod tests {
         fuzz_transaction_deserialize(&data);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     #[cfg(feature = "fuzzing")]
     fn previous_fuzz_extra_field_parse_sub_fields_failures() {
         fn fuzz(data: &[u8]) -> bool {
@@ -1650,8 +1661,7 @@ mod tests {
         fuzz(&data);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     #[cfg(feature = "fuzzing")]
     fn previous_fuzz_extra_field_try_parse_failures() {
         fn fuzz(data: &[u8]) -> bool {
@@ -1667,6 +1677,9 @@ mod tests {
             let extra_field = fuzz_create_extra_field(data, add_padding);
             fuzz_extra_field_try_parse(&extra_field, add_padding, data)
         }
+
+        let data = [];
+        fuzz(&data);
 
         // debug/release: With `Padding(255)` anywhere in the list,
         //                ExtraField (a) -> RawExtraField -> ExtraField (b), then a != b
@@ -1704,7 +1717,13 @@ mod tests {
     #[cfg(feature = "fuzzing")]
     fn previous_fuzz_transaction_hash_failures() {
         fn fuzz(data: &[u8]) -> bool {
-            let raw_extra_field = fuzz_create_raw_extra_field(data);
+            let raw_extra_field = match fuzz_create_raw_extra_field(data) {
+                Ok(val) => val,
+                Err(_) => {
+                    // This may not fail, otherwise the test cannot continue
+                    return true;
+                }
+            };
             let transaction = fuzz_create_transaction_alternative_1(data, &raw_extra_field);
             fuzz_transaction_hash(&transaction)
         }

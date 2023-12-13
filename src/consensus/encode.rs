@@ -27,6 +27,7 @@
 use hex::encode as hex_encode;
 
 use std::convert::TryFrom;
+use std::io::Seek;
 use std::ops::Deref;
 use std::{fmt, io, mem, u32};
 
@@ -258,7 +259,7 @@ pub trait Encodable {
 /// Data which can be decoded in a consensus-consistent way.
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format.
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error>;
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Self, Error>;
 }
 
 /// A variable-length unsigned integer type as defined by the Monero codebase.
@@ -292,7 +293,7 @@ macro_rules! impl_int_encodable {
     ($ty:ident, $meth_dec:ident, $meth_enc:ident) => {
         impl Decodable for $ty {
             #[inline]
-            fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+            fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Self, Error> {
                 ReadExt::$meth_dec(r).map($ty::from_le)
             }
         }
@@ -353,7 +354,7 @@ impl Encodable for VarInt {
 
 impl Decodable for VarInt {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Self, Error> {
         let mut res: Vec<u8> = vec![];
         loop {
             let n = r.read_u8()?;
@@ -395,7 +396,7 @@ impl Encodable for bool {
 
 impl Decodable for bool {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<bool, Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<bool, Error> {
         ReadExt::read_bool(r)
     }
 }
@@ -414,7 +415,7 @@ impl Encodable for String {
 
 impl Decodable for String {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<String, Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<String, Error> {
         String::from_utf8(Decodable::consensus_decode(r)?)
             .map_err(|_| self::Error::ParseFailed("String was not valid UTF8"))
     }
@@ -440,7 +441,7 @@ macro_rules! impl_array {
 
         impl<T: Decodable + Copy> Decodable for [T; $size] {
             #[inline]
-            fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+            fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Self, Error> {
                 // Set everything to the first decode
                 let mut ret = [Decodable::consensus_decode(r)?; $size];
                 // Set the rest
@@ -483,7 +484,7 @@ impl<T: Encodable> Encodable for Vec<T> {
 
 impl<T: Decodable> Decodable for Vec<T> {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Self, Error> {
         let len = usize::try_from(*VarInt::consensus_decode(r)?)
             .map_err(|_| self::Error::ParseFailed("VarInt overflows usize"))?;
 
@@ -504,7 +505,7 @@ impl<T: Decodable> Decodable for Vec<T> {
 }
 
 /// Decode a vector of a given size
-pub fn consensus_decode_sized_vec<R: io::Read + ?Sized, T: Decodable>(
+pub fn consensus_decode_sized_vec<R: io::Read + ?Sized + std::io::Seek, T: Decodable>(
     r: &mut R,
     size: usize,
 ) -> Result<Vec<T>, Error> {
@@ -543,7 +544,7 @@ impl<T: Encodable> Encodable for Box<[T]> {
 
 impl<T: Decodable> Decodable for Box<[T]> {
     #[inline]
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, Error> {
+    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Self, Error> {
         let len = usize::try_from(*VarInt::consensus_decode(r)?)
             .map_err(|_| self::Error::ParseFailed("VarInt overflows usize"))?;
 

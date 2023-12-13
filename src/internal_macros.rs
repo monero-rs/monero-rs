@@ -34,7 +34,7 @@ macro_rules! impl_consensus_encoding {
 
         impl $crate::consensus::encode::Decodable for $thing {
             #[inline]
-            fn consensus_decode<R: ::std::io::Read + ?Sized>(
+            fn consensus_decode<R: ::std::io::Read + ?Sized + Seek>(
                 r: &mut R
             ) -> Result<$thing, $crate::consensus::encode::Error> {
                 Ok($thing {

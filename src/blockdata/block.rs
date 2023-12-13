@@ -26,6 +26,7 @@ use crate::cryptonote::hash;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use std::fmt;
+use std::io::Seek;
 
 /// A block header containing the version, the mining timestamp, the previous block hash and the
 /// nonce.
