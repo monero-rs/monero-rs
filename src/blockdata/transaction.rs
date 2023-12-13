@@ -1039,7 +1039,7 @@ impl Decodable for Transaction {
                                             Some(val) => val,
                                             None => {
                                                 return Err(encode::Error::ParseFailed(
-                                                    "Invalid input type",
+                                                    "Input has no ring members",
                                                 ));
                                             }
                                         }
@@ -1762,7 +1762,7 @@ mod tests {
         };
         let raw_tx = serialize(&tx);
         let err = deserialize::<Transaction>(&raw_tx).unwrap_err();
-        assert_eq!(err.to_string(), "Parsing error: Invalid input type");
+        assert_eq!(err.to_string(), "Parsing error: Input has no ring members");
     }
 
     #[test]

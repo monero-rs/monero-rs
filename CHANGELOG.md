@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Avoid prepending VarInt length of the blockhashing blob when using `Block::serialize_hashable()` [@parazyd](https://github.com/parazyd)([#194](https://github.com/monero-rs/monero-rs/pull/194))
 - Error out of bounds panics in `src/util/address.rs` for `from_bytes` and `from_slice` with fix [@hansieodendaal](https://github.com/hansieodendaal)([#185](https://github.com/monero-rs/monero-rs/pull/185))
 - Removed unused output types (and unused `pub fn get_pubkeys`), fixing panic when hashing transactions with those outputs [@hansieodendaal](https://github.com/hansieodendaal)([#186](https://github.com/monero-rs/monero-rs/pull/186))
-- Fixed memory overflow and subtract with overflow, replaced `From<ExtraField> for RawExtraField` with `impl TryFrom<ExtraField> for RawExtraField` to prevent panic [@hansieodendaal](https://github.com/hansieodendaal)([#186](https://github.com/monero-rs/monero-rs/pull/183))
+- Fixed memory overflow and subtract with overflow, replaced `From<ExtraField> for RawExtraField` with `impl TryFrom<ExtraField> for RawExtraField` to prevent panic [@hansieodendaal](https://github.com/hansieodendaal)([#183](https://github.com/monero-rs/monero-rs/pull/183))
 
 ## [0.19.0] - 2023-09-15
 
