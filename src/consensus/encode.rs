@@ -492,8 +492,8 @@ impl<T: Decodable> Decodable for Vec<T> {
                 ))
             }
         };
-        #[cfg(target_pointer_width = "64")]
-        let len = usize::try_from(*len_decoded).expect("usize on 64-bit platforms equals u64");
+        let len = usize::try_from(*len_decoded)
+            .map_err(|_| Error::ParseFailed("VarInt overflows usize"))?;
 
         // Prevent allocations larger than the maximum allowed size
         let layout_size = mem::size_of::<T>().saturating_mul(len);
@@ -560,8 +560,8 @@ impl<T: Decodable> Decodable for Box<[T]> {
                 ));
             }
         };
-        #[cfg(target_pointer_width = "64")]
-        let len = usize::try_from(*len_decoded).expect("usize on 64-bit platforms equals u64");
+        let len = usize::try_from(*len_decoded)
+            .map_err(|_| Error::ParseFailed("VarInt overflows usize"))?;
 
         // Prevent allocations larger than the maximum allowed size
         let layout_size = mem::size_of::<T>().saturating_mul(len);
