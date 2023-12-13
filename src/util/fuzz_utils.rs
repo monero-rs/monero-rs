@@ -375,13 +375,6 @@ pub fn fuzz_create_transaction_alternative_1(
         outputs: vec![
             TxOut {
                 amount: VarInt(u64_val),
-                target: TxOutTarget::ToScript {
-                    keys: vec![H],
-                    script: fuzz_data.to_vec(),
-                },
-            },
-            TxOut {
-                amount: VarInt(u64_val),
                 target: TxOutTarget::ToKey { key: hash_2.0 },
             },
             TxOut {
@@ -390,10 +383,6 @@ pub fn fuzz_create_transaction_alternative_1(
                     key: hash_3.0,
                     view_tag: hash_1.0[0],
                 },
-            },
-            TxOut {
-                amount: VarInt(u64_val),
-                target: TxOutTarget::ToScriptHash { hash: hash_8 },
             },
         ],
         extra: raw_extra_field.clone(),
