@@ -417,11 +417,9 @@ impl RawExtraField {
     }
 }
 
-impl TryFrom<ExtraField> for RawExtraField {
-    type Error = encode::Error;
-
-    fn try_from(extra: ExtraField) -> Result<Self, Self::Error> {
-        encode::deserialize(&serialize(&extra))
+impl From<ExtraField> for RawExtraField {
+    fn from(extra: ExtraField) -> Self {
+        crate::consensus::encode::deserialize(&serialize(&extra)).unwrap()
     }
 }
 
