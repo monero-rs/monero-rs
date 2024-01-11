@@ -178,58 +178,46 @@ pub fn fuzz_extra_field_try_parse(
     add_padding: AddPadding,
     fuzz_data: &[u8],
 ) -> bool {
-    match RawExtraField::try_from(extra_field.clone()) {
-        Ok(raw_extra_field) => {
-            match ExtraField::try_parse(&raw_extra_field) {
-                Ok(parsed_extra_field) => {
-                    assert_eq!(
-                        extra_field, &parsed_extra_field,
-                        "\nOn 'Ok(_)\noriginal: {:?}\nparsed:   {:?}\n'fuzz_data: {:?}",
-                        extra_field, parsed_extra_field, fuzz_data
-                    )
-                }
-                Err(parsed_extra_field) => {
-                    if parsed_extra_field.0.len() > extra_field.0.len() {
-                        panic!(
+    match ExtraField::try_parse(&RawExtraField::from(extra_field.clone())) {
+        Ok(parsed_extra_field) => {
+            assert_eq!(
+                extra_field, &parsed_extra_field,
+                "\nOn 'Ok(_)\noriginal: {:?}\nparsed:   {:?}\n'fuzz_data: {:?}",
+                extra_field, parsed_extra_field, fuzz_data
+            )
+        }
+        Err(parsed_extra_field) => {
+            if parsed_extra_field.0.len() > extra_field.0.len() {
+                panic!(
                             "On 'Err(_)', parsed extra field has to many sub fields\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
                             extra_field,
                             parsed_extra_field,
                             fuzz_data,
                         );
+            }
+            for (i, parsed_sub_field) in parsed_extra_field.0.iter().enumerate() {
+                match parsed_sub_field {
+                    SubField::Padding(_) => {
+                        // The padding sub-field may be different on error
                     }
-                    for (i, parsed_sub_field) in parsed_extra_field.0.iter().enumerate() {
-                        match parsed_sub_field {
-                            SubField::Padding(_) => {
-                                // The padding sub-field may be different on error
-                            }
-                            _ => {
-                                // Other sub-fields must be the same on error
-                                assert_eq!(
-                                    &extra_field.0[i], parsed_sub_field,
-                                   "\nOn 'Err(_)'\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
-                                   extra_field,
-                                   parsed_extra_field,
-                                   fuzz_data
-                                );
-                            }
-                        }
+                    _ => {
+                        // Other sub-fields must be the same on error
+                        assert_eq!(
+                            &extra_field.0[i], parsed_sub_field,
+                            "\nOn 'Err(_)'\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
+                            extra_field, parsed_extra_field, fuzz_data
+                        );
                     }
-                    if add_padding == AddPadding::ToRear {
-                        panic!(
+                }
+            }
+            if add_padding == AddPadding::ToRear {
+                panic!(
                             "\nOn 'Err(_)', parsing a serialized ExtraField with padding at the rear may not fail\n({:?})\n({:?})\nfuzz_data: {:?}",
                             extra_field,
                             parsed_extra_field,
                             fuzz_data,
                         );
-                    }
-                }
-            };
-        }
-        Err(err) => {
-            panic!(
-                "Serializing an ExtraField may not fail\n({})\nextra field: {:?}\nfuzz_data: {:?}",
-                err, extra_field, fuzz_data
-            )
+            }
         }
     };
 
@@ -237,22 +225,17 @@ pub fn fuzz_extra_field_try_parse(
 }
 
 /// Fuzz helper function to create a raw extra field, called from the fuzz target
-pub fn fuzz_create_raw_extra_field(fuzz_data: &[u8]) -> Result<RawExtraField, String> {
-    match RawExtraField::try_from({
-        let add_padding = if fuzz_data.is_empty() {
-            AddPadding::ToMiddle
-        } else {
-            match fuzz_data.len() % 3 {
-                0 => AddPadding::ToFront,
-                1 => AddPadding::ToMiddle,
-                _ => AddPadding::ToRear,
-            }
-        };
-        fuzz_create_extra_field(fuzz_data, add_padding)
-    }) {
-        Ok(val) => Ok(val),
-        Err(e) => Err(e.to_string()),
-    }
+pub fn fuzz_create_raw_extra_field(fuzz_data: &[u8]) -> RawExtraField {
+    let add_padding = if fuzz_data.is_empty() {
+        AddPadding::ToMiddle
+    } else {
+        match fuzz_data.len() % 3 {
+            0 => AddPadding::ToFront,
+            1 => AddPadding::ToMiddle,
+            _ => AddPadding::ToRear,
+        }
+    };
+    RawExtraField::from(fuzz_create_extra_field(fuzz_data, add_padding))
 }
 
 /// Fuzz for transaction deserialization, called from the fuzz target
@@ -264,13 +247,7 @@ pub fn fuzz_transaction_deserialize(fuzz_data: &[u8]) -> bool {
         assert_eq!(fuzz_bytes, serialize(&val));
     }
 
-    let raw_extra_field = match fuzz_create_raw_extra_field(fuzz_data) {
-        Ok(val) => val,
-        Err(_) => {
-            // This may not fail, otherwise the test cannot continue
-            return true;
-        }
-    };
+    let raw_extra_field = fuzz_create_raw_extra_field(fuzz_data);
 
     let transaction = fuzz_create_transaction_alternative_1(fuzz_data, &raw_extra_field);
     let serialized_tx = serialize(&transaction);
@@ -545,7 +522,7 @@ pub fn fuzz_raw_extra_field_deserialize(raw_extra_field: &RawExtraField) -> bool
 /// Fuzz for raw extra field, called from the fuzz target
 pub fn fuzz_raw_extra_field_from(fuzz_data: &[u8]) -> bool {
     let extra_field = fuzz_create_extra_field(fuzz_data, AddPadding::ToRear);
-    assert!(RawExtraField::try_from(extra_field.clone()).is_ok());
+    let _ = RawExtraField::from(extra_field.clone());
 
     let _ = fuzz_create_raw_extra_field(fuzz_data);
 
@@ -711,13 +688,7 @@ mod tests {
     #[test]
     fn test_fuzz_raw_extra_field_deserialize() {
         fn internal(data: Vec<u8>) -> bool {
-            let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
-                Ok(val) => val,
-                Err(_) => {
-                    // This may not fail, otherwise the test cannot continue
-                    return true;
-                }
-            };
+            let raw_extra_field = fuzz_create_raw_extra_field(&data);
             fuzz_raw_extra_field_deserialize(&raw_extra_field)
         }
 
@@ -785,13 +756,7 @@ mod tests {
     #[test]
     fn test_fuzz_transaction_hash() {
         fn internal(data: Vec<u8>) -> bool {
-            let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
-                Ok(val) => val,
-                Err(_) => {
-                    // This may not fail, otherwise the test cannot continue
-                    return true;
-                }
-            };
+            let raw_extra_field = fuzz_create_raw_extra_field(&data);
             let transaction = fuzz_create_transaction_alternative_1(&data, &raw_extra_field);
             let _ = fuzz_transaction_hash(&transaction);
             let transaction = fuzz_create_transaction_alternative_2(&data, &raw_extra_field);
@@ -810,13 +775,7 @@ mod tests {
     #[test]
     fn test_fuzz_transaction_check_outputs() {
         fn internal(data: Vec<u8>) -> bool {
-            let raw_extra_field = match fuzz_create_raw_extra_field(&data) {
-                Ok(val) => val,
-                Err(_) => {
-                    // This may not fail, otherwise the test cannot continue
-                    return true;
-                }
-            };
+            let raw_extra_field = fuzz_create_raw_extra_field(&data);
             let transaction = fuzz_create_transaction_alternative_1(&data, &raw_extra_field);
             let _ = fuzz_transaction_check_outputs(&transaction);
             let transaction = fuzz_create_transaction_alternative_2(&data, &raw_extra_field);
@@ -954,7 +913,7 @@ mod tests {
         let data = [1];
         fuzz_transaction_components(&data);
         fuzz_hash_convert(&data);
-        let raw_extra_field = fuzz_create_raw_extra_field(&data).unwrap();
+        let raw_extra_field = fuzz_create_raw_extra_field(&data);
         fuzz_raw_extra_field_deserialize(&raw_extra_field);
         fuzz_raw_extra_field_from(&data);
         fuzz_transaction_hash(&fuzz_create_transaction_alternative_2(

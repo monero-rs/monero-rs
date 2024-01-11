@@ -1704,13 +1704,7 @@ mod tests {
     #[cfg(feature = "fuzzing")]
     fn previous_fuzz_transaction_hash_failures() {
         fn fuzz(data: &[u8]) -> bool {
-            let raw_extra_field = match fuzz_create_raw_extra_field(data) {
-                Ok(val) => val,
-                Err(_) => {
-                    // This may not fail, otherwise the test cannot continue
-                    return true;
-                }
-            };
+            let raw_extra_field = fuzz_create_raw_extra_field(data);
             let transaction = fuzz_create_transaction_alternative_1(data, &raw_extra_field);
             fuzz_transaction_hash(&transaction)
         }

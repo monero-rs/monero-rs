@@ -53,7 +53,7 @@ fn recover_output_and_amount() {
     let owned_outputs = tx.check_outputs(&view_pair, 0..2, 0..3).unwrap();
 
     assert_eq!(owned_outputs.len(), 1);
-    let out = owned_outputs.get(0).unwrap();
+    let out = owned_outputs.first().unwrap();
 
     // Recover the ephemeral private spend key
     let private_key = out.recover_key(&keypair);
@@ -119,7 +119,7 @@ fn check_output_on_miner_tx() {
         .unwrap();
 
     assert_eq!(owned_outputs.len(), 1);
-    let out = owned_outputs.get(0).unwrap();
+    let out = owned_outputs.first().unwrap();
 
     let private_key = out.recover_key(&keypair);
     assert_eq!(
@@ -169,7 +169,7 @@ fn recover_output_and_amount_view_tagged() {
     let owned_outputs = tx.check_outputs(&view_pair, 0..2, 0..3).unwrap();
 
     assert_eq!(owned_outputs.len(), 1);
-    let out = owned_outputs.get(0).unwrap();
+    let out = owned_outputs.first().unwrap();
 
     // Recover the ephemeral private spend key
     let private_key = out.recover_key(&keypair);
@@ -194,7 +194,7 @@ fn recover_output_and_amount_view_tagged() {
     let owned_outputs = tx.check_outputs(&view_pair, 0..2, 0..3).unwrap();
 
     assert_eq!(owned_outputs.len(), 1);
-    let out = owned_outputs.get(0).unwrap();
+    let out = owned_outputs.first().unwrap();
 
     // Recover the ephemeral private spend key
     let private_key = out.recover_key(&keypair);
@@ -249,7 +249,7 @@ fn recover_output_from_additional_keys() {
     let owned_outputs = tx.check_outputs(&view_pair, 0..2, 0..3).unwrap();
 
     assert_eq!(owned_outputs.len(), 2);
-    let out = owned_outputs.get(0).unwrap();
+    let out = owned_outputs.first().unwrap();
 
     // Recover the ephemeral private spend key
     let private_key = out.recover_key(&keypair);
