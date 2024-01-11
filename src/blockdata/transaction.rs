@@ -1242,13 +1242,12 @@ mod tests {
                         .to_bytes(),
                     },
                 }],
-                extra: RawExtraField::try_from(ExtraField(vec![
+                extra: RawExtraField::from(ExtraField(vec![
                     SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),
                     SubField::Nonce(vec![
                         196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     ]),
-                ]))
-                .unwrap(),
+                ])),
             },
             signatures: vec![],
             rct_signatures: RctSig {
@@ -1328,13 +1327,12 @@ mod tests {
                         .to_bytes(),
                     },
                 }],
-                extra: RawExtraField::try_from(ExtraField(vec![
+                extra: RawExtraField::from(ExtraField(vec![
                     SubField::TxPublicKey(PublicKey::from_slice(pk_extra.as_slice()).unwrap()),
                     SubField::Nonce(vec![
                         196, 37, 4, 0, 27, 37, 187, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     ]),
-                ]))
-                .unwrap(),
+                ])),
             },
             signatures: vec![],
             rct_signatures: RctSig { sig: None, p: None },
