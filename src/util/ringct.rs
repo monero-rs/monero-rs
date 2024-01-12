@@ -43,7 +43,6 @@ use sealed::sealed;
 use thiserror::Error;
 
 use std::convert::TryInto;
-use std::io::Seek;
 
 /// Ring Confidential Transaction potential errors.
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -105,7 +104,7 @@ impl From<[Key; 64]> for Key64 {
 }
 
 impl Decodable for Key64 {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Key64, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Key64, encode::Error> {
         let mut key64 = Key64::new();
         for i in 0..64 {
             let key: Key = Decodable::consensus_decode(r)?;
@@ -311,7 +310,7 @@ impl fmt::Display for EcdhInfo {
 
 impl EcdhInfo {
     /// Decode Diffie-Hellman info given the RingCt type.
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
+    fn consensus_decode<R: io::Read + ?Sized>(
         r: &mut R,
         rct_type: RctType,
     ) -> Result<EcdhInfo, encode::Error> {
@@ -528,7 +527,7 @@ impl fmt::Display for RctSigBase {
 
 impl RctSigBase {
     /// Decode a RingCt base signature given the number of inputs and outputs of the transaction.
-    pub fn consensus_decode<R: io::Read + ?Sized + Seek>(
+    pub fn consensus_decode<R: io::Read + ?Sized>(
         r: &mut R,
         inputs: usize,
         outputs: usize,
@@ -659,7 +658,7 @@ impl RctType {
 }
 
 impl Decodable for RctType {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<RctType, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<RctType, encode::Error> {
         let rct_type: u8 = Decodable::consensus_decode(r)?;
         match rct_type {
             0 => Ok(RctType::Null),
@@ -714,7 +713,7 @@ impl RctSigPrunable {
     /// Decode a prunable RingCt signature given the number of inputs and outputs in the
     /// transaction, the RingCt type and the number of mixins.
     #[allow(non_snake_case)]
-    pub fn consensus_decode<R: io::Read + ?Sized + Seek>(
+    pub fn consensus_decode<R: io::Read + ?Sized>(
         r: &mut R,
         rct_type: RctType,
         inputs: usize,

@@ -18,5 +18,5 @@ fuzz_target!(|data: &[u8]| {
         }
     };
     let extra_field = fuzz_create_extra_field(data, add_padding);
-    let _unused = fuzz_extra_field_parse_sub_fields(&extra_field, &data);
+    let _unused = fuzz_extra_field_parse_sub_fields(&extra_field);
 });

@@ -61,7 +61,6 @@
 
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
-use std::io::Seek;
 use std::ops::{Add, Mul, Sub};
 use std::str::FromStr;
 use std::{fmt, io, ops};
@@ -251,9 +250,7 @@ impl ops::Index<ops::RangeFull> for PrivateKey {
 }
 
 impl Decodable for PrivateKey {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-    ) -> Result<PrivateKey, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<PrivateKey, encode::Error> {
         let bytes: [u8; 32] = Decodable::consensus_decode(r)?;
         Ok(PrivateKey::from_slice(&bytes)?)
     }
@@ -473,9 +470,7 @@ impl ops::Index<ops::RangeFull> for PublicKey {
 }
 
 impl Decodable for PublicKey {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-    ) -> Result<PublicKey, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<PublicKey, encode::Error> {
         let bytes: [u8; 32] = Decodable::consensus_decode(r)?;
         Ok(PublicKey::from_slice(&bytes)?)
     }

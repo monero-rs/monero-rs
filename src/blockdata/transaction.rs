@@ -34,7 +34,6 @@ use hex::encode as hex_encode;
 use sealed::sealed;
 use thiserror::Error;
 
-use std::io::Seek;
 use std::ops::Range;
 use std::{fmt, io};
 
@@ -432,7 +431,7 @@ impl crate::consensus::encode::Encodable for RawExtraField {
 }
 
 impl Decodable for RawExtraField {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<Self, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
         Decodable::consensus_decode(r).map(Self)
     }
 }
@@ -826,7 +825,7 @@ impl crate::consensus::encode::Encodable for ExtraField {
 }
 
 impl Decodable for SubField {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<SubField, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<SubField, encode::Error> {
         let tag: u8 = Decodable::consensus_decode(r)?;
 
         match tag {
@@ -841,10 +840,7 @@ impl Decodable for SubField {
                         Ok(val) => {
                             // Anything else than '0' is not a padding byte
                             if val != 0 {
-                                // Rewind the cursor one position back to not consume the non-padding byte
-                                // r.seek(io::SeekFrom::Current(-1))?;
                                 // Notify the caller that parsing failed
-                                println!("Error::ParseFailed(Invalid padding byte)");
                                 return Err(encode::Error::ParseFailed("Invalid padding byte"));
                             }
                             i += 1;
@@ -922,7 +918,7 @@ impl crate::consensus::encode::Encodable for SubField {
 }
 
 impl Decodable for TxIn {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(r: &mut R) -> Result<TxIn, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<TxIn, encode::Error> {
         let intype: u8 = Decodable::consensus_decode(r)?;
         match intype {
             0xff => Ok(TxIn::Gen {
@@ -962,9 +958,7 @@ impl crate::consensus::encode::Encodable for TxIn {
 }
 
 impl Decodable for TxOutTarget {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-    ) -> Result<TxOutTarget, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<TxOutTarget, encode::Error> {
         let outtype: u8 = Decodable::consensus_decode(r)?;
         match outtype {
             0x2 => Ok(TxOutTarget::ToKey {
@@ -998,9 +992,7 @@ impl crate::consensus::encode::Encodable for TxOutTarget {
 
 #[allow(non_snake_case)]
 impl Decodable for Transaction {
-    fn consensus_decode<R: io::Read + ?Sized + Seek>(
-        r: &mut R,
-    ) -> Result<Transaction, encode::Error> {
+    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Transaction, encode::Error> {
         let prefix: TransactionPrefix = Decodable::consensus_decode(r)?;
 
         let inputs = prefix.inputs.len();
@@ -1717,13 +1709,7 @@ mod tests {
     #[cfg(feature = "fuzzing")]
     fn previous_fuzz_transaction_hash_failures() {
         fn fuzz(data: &[u8]) -> bool {
-            let raw_extra_field = match fuzz_create_raw_extra_field(data) {
-                Ok(val) => val,
-                Err(_) => {
-                    // This may not fail, otherwise the test cannot continue
-                    return true;
-                }
-            };
+            let raw_extra_field = fuzz_create_raw_extra_field(data);
             let transaction = fuzz_create_transaction_alternative_1(data, &raw_extra_field);
             fuzz_transaction_hash(&transaction)
         }

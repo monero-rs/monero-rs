@@ -41,7 +41,6 @@
 #![allow(clippy::non_canonical_clone_impl)]
 
 use std::fmt;
-use std::io::Seek;
 use std::str::FromStr;
 
 use base58_monero::base58;
@@ -386,9 +385,7 @@ mod serde_impl {
 }
 
 impl Decodable for Address {
-    fn consensus_decode<R: std::io::Read + ?Sized + Seek>(
-        r: &mut R,
-    ) -> Result<Address, encode::Error> {
+    fn consensus_decode<R: std::io::Read + ?Sized>(r: &mut R) -> Result<Address, encode::Error> {
         let address: Vec<u8> = Decodable::consensus_decode(r)?;
         Ok(Address::from_bytes(&address)?)
     }
