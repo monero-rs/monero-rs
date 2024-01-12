@@ -22,7 +22,9 @@
 
 use std::{fmt, io};
 
-use crate::consensus::encode::{self, serialize, Decodable, Encodable, VarInt};
+use crate::consensus::encode::{
+    self, consensus_decode_sized_vec, serialize, Decodable, Encodable, VarInt,
+};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::KeyGenerator;
 use crate::util::amount::Amount;
@@ -551,7 +553,7 @@ impl RctSigBase {
                 let txn_fee = Amount::from_pico(*txn_fee);
                 // RctType
                 if rct_type == RctType::Simple {
-                    pseudo_outs = decode_sized_vec!(inputs, r);
+                    pseudo_outs = consensus_decode_sized_vec(r, inputs)?;
                 }
                 // EcdhInfo
                 let mut ecdh_info: Vec<EcdhInfo> = vec![];
@@ -559,7 +561,7 @@ impl RctSigBase {
                     ecdh_info.push(EcdhInfo::consensus_decode(r, rct_type)?);
                 }
                 // OutPk
-                let out_pk: Vec<CtKey> = decode_sized_vec!(outputs, r);
+                let out_pk: Vec<CtKey> = consensus_decode_sized_vec(r, outputs)?;
                 Ok(Some(RctSigBase {
                     rct_type,
                     txn_fee,
@@ -736,14 +738,14 @@ impl RctSigPrunable {
                         }
                         _ => {
                             let size: u32 = Decodable::consensus_decode(r)?;
-                            bulletproofs = decode_sized_vec!(size, r);
+                            bulletproofs = consensus_decode_sized_vec(r, size as usize)?;
                         }
                     }
                 } else if rct_type.is_rct_bp_plus() {
                     let size: u8 = Decodable::consensus_decode(r)?;
-                    bulletproofplus = decode_sized_vec!(size, r);
+                    bulletproofplus = consensus_decode_sized_vec(r, size as usize)?;
                 } else {
-                    range_sigs = decode_sized_vec!(outputs, r);
+                    range_sigs = consensus_decode_sized_vec(r, outputs)?;
                 }
 
                 let mut Clsags: Vec<Clsag> = vec![];
@@ -771,7 +773,8 @@ impl RctSigPrunable {
                             let mut ss: Vec<Vec<Key>> = vec![];
                             for _ in 0..=mixin {
                                 let mg_ss2_elements = if is_simple_or_bp { 2 } else { 1 + inputs };
-                                let ss_elems: Vec<Key> = decode_sized_vec!(mg_ss2_elements, r);
+                                let ss_elems: Vec<Key> =
+                                    consensus_decode_sized_vec(r, mg_ss2_elements)?;
                                 ss.push(ss_elems);
                             }
                             let cc = Decodable::consensus_decode(r)?;
@@ -786,7 +789,7 @@ impl RctSigPrunable {
                     | RctType::Bulletproof2
                     | RctType::Clsag
                     | RctType::BulletproofPlus => {
-                        pseudo_outs = decode_sized_vec!(inputs, r);
+                        pseudo_outs = consensus_decode_sized_vec(r, inputs)?;
                     }
                     _ => (),
                 }
@@ -901,3 +904,187 @@ impl fmt::Display for Signature {
 }
 
 impl_consensus_encoding!(Signature, c, r);
+
+#[cfg(test)]
+mod tests {
+    use crate::consensus::Encodable;
+    use crate::util::ringct::{
+        Clsag, CtKey, EcdhInfo, Key, Key64, MgSig, RctSig, RctSigBase, RctSigPrunable, RctType,
+        Signature,
+    };
+    use crate::{Hash, PrivateKey, PublicKey, ViewPair};
+    use curve25519_dalek::traits::Identity;
+    use curve25519_dalek::EdwardsPoint;
+    use std::io::Cursor;
+
+    #[test]
+    fn code_coverage() {
+        assert_eq!(Key64::new(), Key64::from([Key::new(); 64]));
+        assert_eq!(
+            format!("{}", Key64::new()),
+            "0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n0000000000000000000000000000000000000000000000000000000000000000\n"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                CtKey {
+                    mask: Default::default()
+                }
+            ),
+            "Mask: 0000000000000000000000000000000000000000000000000000000000000000\n"
+        );
+        let ecd_info_a = EcdhInfo::Standard {
+            mask: Key {
+                key: Hash::new("a").to_bytes(),
+            },
+            amount: Key {
+                key: Hash::new("b").to_bytes(),
+            },
+        };
+
+        let opening_a = ecd_info_a.open_commitment(
+            &ViewPair {
+                view: PrivateKey {
+                    scalar: Default::default(),
+                },
+                spend: PublicKey {
+                    point: Default::default(),
+                },
+            },
+            &PublicKey {
+                point: Default::default(),
+            },
+            0,
+            &EdwardsPoint::identity(),
+        );
+        assert_eq!(format!("{:?}", opening_a), "None");
+        assert_eq!(
+            format!("{}", ecd_info_a),
+            "Standard\nMask: 3ac225168df54212a25c1c01fd35bebfea408fdac2e31ddd6f80a4bbf9a5f1cb\nAmount: b5553de315e0edf504d9150af82dafa5c4667fa618ed0a6f19c69b41166c5510\n"
+        );
+        let mut encoder = Cursor::new(vec![]);
+        ecd_info_a.consensus_encode(&mut encoder).unwrap();
+        let res_a = EcdhInfo::consensus_decode(&mut encoder, RctType::Full).unwrap_err();
+        // Note: `EcdhInfo::consensus_decode` fails where it should not !!
+        assert_eq!(res_a.to_string(), "IO error: failed to fill whole buffer");
+
+        let ecd_info_b = EcdhInfo::Bulletproof {
+            amount: Default::default(),
+        };
+        let opening_b = ecd_info_b.open_commitment(
+            &ViewPair {
+                view: PrivateKey {
+                    scalar: Default::default(),
+                },
+                spend: PublicKey {
+                    point: Default::default(),
+                },
+            },
+            &PublicKey {
+                point: Default::default(),
+            },
+            0,
+            &EdwardsPoint::identity(),
+        );
+        assert_eq!(format!("{:?}", opening_b), "None");
+        assert_eq!(
+            format!("{}", ecd_info_b),
+            "Bulletproof2\nAmount: 0x0000…0000\n"
+        );
+        let mut encoder = Cursor::new(vec![]);
+        ecd_info_b.consensus_encode(&mut encoder).unwrap();
+        let res_b = EcdhInfo::consensus_decode(&mut encoder, RctType::Bulletproof).unwrap_err();
+        // Note: `EcdhInfo::consensus_decode` fails where it should not !!
+        assert_eq!(res_b.to_string(), "IO error: failed to fill whole buffer");
+
+        let rct_base_a = RctSigBase {
+            rct_type: RctType::Null,
+            txn_fee: Default::default(),
+            pseudo_outs: vec![],
+            ecdh_info: vec![],
+            out_pk: vec![],
+        };
+        assert_eq!(
+            format!("{}", rct_base_a),
+            "RCT type: Null\nTx fee: 0.000000000000 xmr\n"
+        );
+        let mut encoder = Cursor::new(vec![]);
+        rct_base_a.consensus_encode(&mut encoder).unwrap();
+        let res = RctSigBase::consensus_decode(&mut encoder, 0, 0).unwrap_err();
+        // Note: `EcdhInfo::consensus_decode` fails where it should not !!
+        assert_eq!(res.to_string(), "IO error: failed to fill whole buffer");
+
+        let rct_base_b = RctSigBase {
+            rct_type: RctType::Full,
+            txn_fee: Default::default(),
+            pseudo_outs: vec![],
+            ecdh_info: vec![],
+            out_pk: vec![],
+        };
+        assert_eq!(
+            format!("{}", rct_base_b),
+            "RCT type: Full\nTx fee: 0.000000000000 xmr\n"
+        );
+        let mut encoder = Cursor::new(vec![]);
+        rct_base_b.consensus_encode(&mut encoder).unwrap();
+        let res = RctSigBase::consensus_decode(&mut encoder, 0, 0).unwrap_err();
+        // Note: `RctSigBase::consensus_decode` fails where it should not !!
+        assert_eq!(res.to_string(), "IO error: failed to fill whole buffer");
+
+        let sig = RctSigPrunable {
+            range_sigs: vec![],
+            bulletproofs: vec![],
+            bulletproofplus: vec![],
+            MGs: vec![MgSig {
+                ss: vec![vec![Key::new()]],
+                cc: Key::new(),
+            }],
+            Clsags: vec![Clsag {
+                s: vec![Key::new()],
+                c1: Key::new(),
+                D: Key::new(),
+            }],
+            pseudo_outs: vec![Key::new()],
+        };
+        assert_eq!(
+            format!("{:?}", sig),
+            "RctSigPrunable { range_sigs: [], bulletproofs: [], bulletproofplus: [], MGs: [MgSig { ss: [[0000000000000000000000000000000000000000000000000000000000000000]], cc: 0000000000000000000000000000000000000000000000000000000000000000 }], Clsags: [Clsag { s: [0000000000000000000000000000000000000000000000000000000000000000], c1: 0000000000000000000000000000000000000000000000000000000000000000, D: 0000000000000000000000000000000000000000000000000000000000000000 }], pseudo_outs: [0000000000000000000000000000000000000000000000000000000000000000] }"
+        );
+
+        let mut buffer = Vec::new();
+        let mut encoder = Cursor::new(&mut buffer);
+        sig.consensus_encode(&mut encoder, RctType::Null).unwrap();
+        assert!(buffer.is_empty());
+        let res =
+            RctSigPrunable::consensus_decode(&mut Cursor::new(&buffer), RctType::Null, 0, 0, 0)
+                .unwrap();
+        assert!(res.is_none());
+
+        for rct_type in [
+            RctType::Full,
+            RctType::Bulletproof,
+            RctType::BulletproofPlus,
+            RctType::Bulletproof2,
+            RctType::Simple,
+            RctType::Clsag,
+        ] {
+            let mut buffer = Vec::new();
+            let mut encoder = Cursor::new(&mut buffer);
+            sig.consensus_encode(&mut encoder, rct_type).unwrap();
+            assert!(!buffer.is_empty());
+            let res =
+                RctSigPrunable::consensus_decode(&mut Cursor::new(&buffer), rct_type, 0, 0, 0);
+            assert!(res.is_ok());
+            assert!(res.unwrap().is_some());
+        }
+
+        assert_eq!(
+            format!("{}", RctSig { sig: None, p: None }),
+            "Signature: None\n"
+        );
+        assert_eq!(
+            format!("{}", Signature { c: Default::default(), r: Default::default() }),
+            "C: 0000000000000000000000000000000000000000000000000000000000000000\nR: 0000000000000000000000000000000000000000000000000000000000000000\n"
+        );
+    }
+}
