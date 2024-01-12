@@ -178,7 +178,8 @@ pub fn fuzz_extra_field_try_parse(
     add_padding: AddPadding,
     fuzz_data: &[u8],
 ) -> bool {
-    match ExtraField::try_parse(&RawExtraField::from(extra_field.clone())) {
+    let raw_extra_field = RawExtraField::from(extra_field.clone());
+    match ExtraField::try_parse(&raw_extra_field) {
         Ok(parsed_extra_field) => {
             assert_eq!(
                 extra_field, &parsed_extra_field,
@@ -189,34 +190,38 @@ pub fn fuzz_extra_field_try_parse(
         Err(parsed_extra_field) => {
             if parsed_extra_field.0.len() > extra_field.0.len() {
                 panic!(
-                            "On 'Err(_)', parsed extra field has to many sub fields\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
-                            extra_field,
-                            parsed_extra_field,
-                            fuzz_data,
-                        );
+                    "On 'Err(_)', parsed extra field has to many sub fields\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
+                    extra_field,
+                    parsed_extra_field,
+                    fuzz_data,
+                );
             }
-            for (i, parsed_sub_field) in parsed_extra_field.0.iter().enumerate() {
+            for parsed_sub_field in parsed_extra_field.0.iter() {
                 match parsed_sub_field {
                     SubField::Padding(_) => {
                         // The padding sub-field may be different on error
                     }
                     _ => {
                         // Other sub-fields must be the same on error
-                        assert_eq!(
-                            &extra_field.0[i], parsed_sub_field,
-                            "\nOn 'Err(_)'\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
-                            extra_field, parsed_extra_field, fuzz_data
-                        );
+                        extra_field.0.iter().find(|&x| x == parsed_sub_field).unwrap_or_else(|| {
+                            panic!(
+                                "On 'Err(_)', parsed sub field '{}' is not in original extra field\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
+                                parsed_sub_field,
+                                extra_field,
+                                parsed_extra_field,
+                                fuzz_data,
+                            )
+                        });
                     }
                 }
             }
             if add_padding == AddPadding::ToRear {
                 panic!(
-                            "\nOn 'Err(_)', parsing a serialized ExtraField with padding at the rear may not fail\n({:?})\n({:?})\nfuzz_data: {:?}",
-                            extra_field,
-                            parsed_extra_field,
-                            fuzz_data,
-                        );
+                    "\nOn 'Err(_)', parsing a serialized ExtraField with padding at the rear may not fail\n({:?})\n({:?})\nfuzz_data: {:?}",
+                    extra_field,
+                    parsed_extra_field,
+                    fuzz_data,
+                );
             }
         }
     };
@@ -523,7 +528,6 @@ pub fn fuzz_raw_extra_field_deserialize(raw_extra_field: &RawExtraField) -> bool
 pub fn fuzz_raw_extra_field_from(fuzz_data: &[u8]) -> bool {
     let extra_field = fuzz_create_extra_field(fuzz_data, AddPadding::ToRear);
     let _ = RawExtraField::from(extra_field.clone());
-
     let _ = fuzz_create_raw_extra_field(fuzz_data);
 
     true
@@ -701,8 +705,7 @@ mod tests {
             .quickcheck(internal as fn(Vec<u8>) -> bool);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn test_fuzz_extra_field_parse_sub_fields() {
         fn internal(data: Vec<u8>) -> bool {
             let add_padding = if data.is_empty() {
@@ -727,8 +730,7 @@ mod tests {
             .quickcheck(internal as fn(Vec<u8>) -> bool);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn test_fuzz_extra_field_try_parse() {
         fn internal(data: Vec<u8>) -> bool {
             let add_padding = if data.is_empty() {

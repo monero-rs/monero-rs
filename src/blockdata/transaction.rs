@@ -831,13 +831,18 @@ impl Decodable for SubField {
         match tag {
             0x0 => {
                 let mut i = 0;
-                for _ in 1..u8::MAX {
-                    // Consume all bytes until the end of cursor or until 255 bytes have
+                for _ in 1..=u8::MAX {
+                    // Consume all valid padding bytes until the end of cursor or until 255 valid bytes have
                     // been consumed. A new cursor must be created when parsing extra bytes
                     // otherwise transaction bytes will be consumed
                     let byte: Result<u8, encode::Error> = Decodable::consensus_decode(r);
                     match byte {
-                        Ok(_) => {
+                        Ok(val) => {
+                            // Anything else than '0' is not a padding byte
+                            if val != 0 {
+                                // Notify the caller that parsing failed
+                                return Err(encode::Error::ParseFailed("Invalid padding byte"));
+                            }
                             i += 1;
                         }
                         Err(_) => break,
@@ -906,8 +911,7 @@ impl crate::consensus::encode::Encodable for SubField {
             }
             SubField::MysteriousMinerGate(ref data) => {
                 len += 0xdeu8.consensus_encode(w)?;
-                data.consensus_encode(w)?;
-                Ok(len)
+                Ok(len + data.consensus_encode(w)?)
             }
         }
     }
@@ -1604,8 +1608,7 @@ mod tests {
         fuzz_transaction_deserialize(&data);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     #[cfg(feature = "fuzzing")]
     fn previous_fuzz_extra_field_parse_sub_fields_failures() {
         fn fuzz(data: &[u8]) -> bool {
@@ -1650,8 +1653,7 @@ mod tests {
         fuzz(&data);
     }
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     #[cfg(feature = "fuzzing")]
     fn previous_fuzz_extra_field_try_parse_failures() {
         fn fuzz(data: &[u8]) -> bool {
@@ -1667,6 +1669,9 @@ mod tests {
             let extra_field = fuzz_create_extra_field(data, add_padding);
             fuzz_extra_field_try_parse(&extra_field, add_padding, data)
         }
+
+        let data = [];
+        fuzz(&data);
 
         // debug/release: With `Padding(255)` anywhere in the list,
         //                ExtraField (a) -> RawExtraField -> ExtraField (b), then a != b
