@@ -140,13 +140,13 @@ impl TxOutTarget {
 
     /// Derives a view tag and checks if it matches the outputs view tag,
     /// if no view tag is present the default is true.
-    pub fn check_view_tag(&self, rv: PublicKey, index: u8) -> bool {
+    pub fn check_view_tag(&self, rv: PublicKey, index: usize) -> bool {
         match self {
             TxOutTarget::ToTaggedKey { key: _, view_tag } => {
                 // https://github.com/monero-project/monero/blob/b6a029f222abada36c7bc6c65899a4ac969d7dee/src/crypto/crypto.cpp#L753
                 let salt: Vec<u8> = vec![118, 105, 101, 119, 95, 116, 97, 103];
                 let rv = rv.as_bytes().to_vec();
-                let buf = [salt, rv, Vec::from([index])].concat();
+                let buf = [salt, rv, serialize(&VarInt(index as u64))].concat();
                 *view_tag == hash::Hash::new(buf).as_bytes()[0]
             }
             _ => true,
@@ -537,7 +537,7 @@ impl TransactionPrefix {
                 let check_key = |pub_key| {
                     let key = out.target.as_one_time_key()?;
                     let keygen = KeyGenerator::from_key(checker.keys, pub_key);
-                    if !out.target.check_view_tag(keygen.rv, i as u8) {
+                    if !out.target.check_view_tag(keygen.rv, i) {
                         return None;
                     }
                     let sub_index = checker.check_with_key_generator(keygen, i, &key)?;
