@@ -509,9 +509,9 @@ impl TransactionPrefix {
         let tx_pubkey = extra_field.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
 
         let additional_keys = match extra_field.tx_additional_pubkeys() {
-            Some(additional_keys) => additional_keys.into_iter().map(Some).collect(),
+            Some(additional_keys) => additional_keys,
             None => {
-                vec![None; self.outputs.len()]
+                vec![]
             }
         };
 
@@ -520,6 +520,7 @@ impl TransactionPrefix {
         // of outputs, so we still try the main tx_pubkey.
         let pubkeys_iter = additional_keys
             .into_iter()
+            .map(Some)
             .chain([None].into_iter().cycle())
             .zip([tx_pubkey].into_iter().cycle());
 
