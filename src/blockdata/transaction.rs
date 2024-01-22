@@ -46,9 +46,6 @@ pub enum Error {
     /// No transaction public key found in extra.
     #[error("No transaction public key found")]
     NoTxPublicKey,
-    /// The amount of additional keys is invalid.
-    #[error("The amount of additional keys is invalid")]
-    InvalidAmountOfAdditionalKeys,
     /// Scripts input/output are not supported.
     #[error("Script not supported")]
     ScriptNotSupported,
