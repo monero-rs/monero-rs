@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed merge mining subfield encoding and decoding to be in line with monero [@hansieodendaal](https://github.com/hansieodendaal)([#202](https://github.com/monero-rs/monero-rs/pull/202))
+
 ## [0.20.0] - 2024-01-22
 
 ### Added

@@ -24,6 +24,7 @@ use crate::{
     TxOut, VarInt, ViewPair,
 };
 use hex::{FromHex, ToHex};
+use std::cmp::min;
 use std::io;
 use std::str::FromStr;
 
@@ -103,7 +104,7 @@ pub fn fuzz_create_extra_field(fuzz_data: &[u8], add_padding: AddPadding) -> Ext
 
     // SubField::MergeMining
     let u64_val = u64_val_from_fuzz_data(fuzz_data);
-    let merge_mining_field = SubField::MergeMining(Some(VarInt(u64_val)), hash);
+    let merge_mining_field = SubField::MergeMining(Some(VarInt(min(u64_val, 31))), hash);
 
     // SubField::AdditionalPublickKey
     let additional_public_key_field =
