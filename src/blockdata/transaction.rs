@@ -820,7 +820,6 @@ impl crate::consensus::encode::Encodable for ExtraField {
 impl Decodable for SubField {
     fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<SubField, encode::Error> {
         let tag: u8 = Decodable::consensus_decode(r)?;
-
         match tag {
             0x0 => {
                 let mut i = 0;
@@ -1902,6 +1901,43 @@ mod tests {
                 Ok(parsed_raw) => assert_eq!(parsed_raw.try_parse(), extra_field),
                 Err(e) => panic!("Error: {}", e),
             }
+        }
+    }
+
+    #[test]
+    fn merge_mining_sub_field_detectable_errors() {
+        let mut csprng = OsRng;
+
+        // Change the size ('33' is expected as the 2nd byte)
+        let extra_field = ExtraField(vec![SubField::MergeMining(
+            Some(VarInt(5)),
+            random_hash(&mut csprng),
+        )]);
+        let buffer = serialize(&extra_field);
+        match deserialize::<RawExtraField>(&buffer) {
+            Ok(raw_extra) => {
+                // Alter some of the data
+                let mut raw_extra_new = raw_extra.clone();
+                raw_extra_new.0[1] = 32;
+                assert!(ExtraField::try_parse(&raw_extra_new).is_err());
+            }
+            Err(e) => panic!("Should not fail to deserialize: ({})", e),
+        }
+
+        // Clip the data (only keep the tag)
+        let extra_field = ExtraField(vec![SubField::MergeMining(
+            Some(VarInt(5)),
+            random_hash(&mut csprng),
+        )]);
+        let buffer = serialize(&extra_field);
+        match deserialize::<RawExtraField>(&buffer) {
+            Ok(raw_extra) => {
+                // Alter some of the data
+                let mut raw_extra_new = raw_extra.clone();
+                raw_extra_new.0 = vec![raw_extra.0[0]];
+                assert!(ExtraField::try_parse(&raw_extra_new).is_err());
+            }
+            Err(e) => panic!("Should not fail to deserialize: ({})", e),
         }
     }
 
