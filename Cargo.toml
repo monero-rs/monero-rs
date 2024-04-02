@@ -24,8 +24,6 @@ full = ["fixed-hash/std", "fixed-hash/rand"]
 serde = ["serde-crate", "serde-big-array", "curve25519-dalek/serde"]
 experimental = []
 fuzzing = []
-# Persist these changes once monero releases a new version past `release-v0.18`, then remove the feature
-merge_mining_field_upgrade_v0_18 = []
 
 [dependencies]
 base58-monero = { version = "2" }

@@ -357,7 +357,7 @@ pub enum SubField {
     Padding(u8),
     /// Merge mining infos: `depth` and `merkle_root`, fixed length of one VarInt and 32 bytes
     /// hash.
-    MergeMining(Option<VarInt>, hash::Hash),
+    MergeMining(VarInt, hash::Hash),
     /// Additional public keys for [`Subaddresses`](crate::cryptonote::subaddress) outputs,
     /// variable length of `n` additional public keys.
     AdditionalPublickKey(Vec<PublicKey>),
@@ -375,7 +375,7 @@ impl fmt::Display for SubField {
             }
             SubField::Padding(padding) => writeln!(fmt, "Padding: {}", padding),
             SubField::MergeMining(code, hash) => {
-                writeln!(fmt, "Merge mining: {:?}, {}", code, hash)
+                writeln!(fmt, "Merge mining: {}, {}", code, hash)
             }
             SubField::AdditionalPublickKey(keys) => {
                 writeln!(fmt, "Additional publick keys: ")?;
@@ -846,42 +846,15 @@ impl Decodable for SubField {
             0x2 => Ok(SubField::Nonce(Decodable::consensus_decode(r)?)),
 
             0x3 => {
-                #[cfg(not(feature = "merge_mining_field_upgrade_v0_18"))]
-                {
-                    let data_size: Result<u8, encode::Error> = Decodable::consensus_decode(r);
-                    match data_size {
-                        Ok(size) => {
-                            if size != 33 {
-                                return Err(encode::Error::ParseFailed(
-                                    "Invalid merge mining field data size, expected == 33",
-                                ));
-                            }
-                            let depth: u8 = Decodable::consensus_decode(r)?;
-                            Ok(SubField::MergeMining(
-                                Some(VarInt(depth as u64)),
-                                Decodable::consensus_decode(r)?,
-                            ))
-                        }
-                        Err(_) => Err(encode::Error::ParseFailed(
-                            "Merge mining field size not found",
-                        )),
-                    }
-                }
-                #[cfg(feature = "merge_mining_field_upgrade_v0_18")]
-                {
-                    let data_size: Result<u8, encode::Error> = Decodable::consensus_decode(r);
-                    match data_size {
-                        Ok(_size) => {
-                            let depth: VarInt = Decodable::consensus_decode(r)?;
-                            Ok(SubField::MergeMining(
-                                Some(depth),
-                                Decodable::consensus_decode(r)?,
-                            ))
-                        }
-                        Err(_) => Err(encode::Error::ParseFailed(
-                            "Merge mining field size not found",
-                        )),
-                    }
+                let data_size: Result<u8, encode::Error> = Decodable::consensus_decode(r);
+                match data_size {
+                    Ok(_size) => Ok(SubField::MergeMining(
+                        Decodable::consensus_decode(r)?,
+                        Decodable::consensus_decode(r)?,
+                    )),
+                    Err(_) => Err(encode::Error::ParseFailed(
+                        "Merge mining field size not found",
+                    )),
                 }
             }
 
@@ -917,40 +890,17 @@ impl crate::consensus::encode::Encodable for SubField {
                 Ok(len + nonce.consensus_encode(w)?)
             }
             SubField::MergeMining(ref depth, ref merkle_root) => {
-                // As per monero code `release-v0.18`, `bool add_mm_merkle_root_to_tx_extra(...)`
-                #[cfg(not(feature = "merge_mining_field_upgrade_v0_18"))]
-                {
-                    // Note: If `depth_to_encode >= VarInt(32)` it will not be acceptable in monero, but here the code will
-                    // not error; user applications have to ensure that such values are not passed in.
-                    let depth_to_encode = match depth {
-                        Some(dep) => dep.clone(),
-                        None => VarInt(0),
-                    };
-                    // Tag
-                    len += 0x3u8.consensus_encode(w)?;
-                    // Data size
-                    len += 33u8.consensus_encode(w)?;
-                    // Depth
-                    len += depth_to_encode.0.to_le_bytes()[0].consensus_encode(w)?;
-                    // Hash
-                    Ok(len + merkle_root.consensus_encode(w)?)
-                }
                 // As per monero code after `release-v0.18`, `bool add_mm_merkle_root_to_tx_extra(...)`
-                #[cfg(feature = "merge_mining_field_upgrade_v0_18")]
                 {
-                    let depth_to_encode = match depth {
-                        Some(dep) => dep.clone(),
-                        None => VarInt(0),
-                    };
                     // Tag (u8)
                     len += 0x3u8.consensus_encode(w)?;
                     // Data size (u8)
                     let mut writer_temp = vec![];
-                    let depth_var_int_size = depth_to_encode.consensus_encode(&mut writer_temp)?;
-                    let data_length = 1 /*tag size*/ + 1 /*data size*/ + 32 /*hash*/ + depth_var_int_size.to_le_bytes()[0];
+                    let depth_var_int_size = depth.consensus_encode(&mut writer_temp)?;
+                    let data_length = 32 /*hash*/ + depth_var_int_size.to_le_bytes()[0];
                     len += data_length.consensus_encode(w)?;
                     // Depth (VarInt)
-                    len += depth_to_encode.consensus_encode(w)?;
+                    len += depth.consensus_encode(w)?;
                     // Hash ([u8; 32])
                     len += merkle_root.consensus_encode(w)?;
                     Ok(len)
@@ -1404,19 +1354,11 @@ mod tests {
     fn merge_mining() {
         // tx with MergeMining in extra field
         // hash: 36817336e72ecf7adcff92815de96a0893c1ef777701f1386ebce5f7d9272151
-        #[cfg(not(feature = "merge_mining_field_upgrade_v0_18"))]
+
         let blob: &[u8] = &[
             87, 1, 148, 79, 157, 245, 14, 118, 157, 164, 156, 100, 224, 252, 180, 225, 215, 127,
             137, 5, 5, 101, 72, 235, 154, 127, 4, 145, 76, 45, 116, 177, 187, 175, 2, 17, 62, 19,
             29, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 33, 1, 98, 184, 83, 234, 127, 87, 79,
-            180, 203, 221, 41, 173, 81, 137, 75, 171, 186, 235, 214, 142, 161, 82, 37, 80, 124, 82,
-            217, 229, 81, 235, 25, 149,
-        ];
-        #[cfg(feature = "merge_mining_field_upgrade_v0_18")]
-        let blob: &[u8] = &[
-            87, 1, 148, 79, 157, 245, 14, 118, 157, 164, 156, 100, 224, 252, 180, 225, 215, 127,
-            137, 5, 5, 101, 72, 235, 154, 127, 4, 145, 76, 45, 116, 177, 187, 175, 2, 17, 62, 19,
-            29, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 35, 1, 98, 184, 83, 234, 127, 87, 79,
             180, 203, 221, 41, 173, 81, 137, 75, 171, 186, 235, 214, 142, 161, 82, 37, 80, 124, 82,
             217, 229, 81, 235, 25, 149,
         ];
@@ -1431,7 +1373,7 @@ mod tests {
             ),
             SubField::Nonce(vec![62, 19, 29, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
             SubField::MergeMining(
-                Some(VarInt(1)),
+                VarInt(1),
                 Hash::from_slice(
                     hex::decode("62b853ea7f574fb4cbdd29ad51894babbaebd68ea15225507c52d9e551eb1995")
                         .unwrap()
@@ -1902,11 +1844,11 @@ mod tests {
                 )
                 .unwrap(),
             ),
-            SubField::MergeMining(None, Hash::default()),
+            SubField::MergeMining(VarInt(0), Hash::default()),
         ]);
         assert_eq!(
             format!("{}", extra),
-            "Subfield: Mysterious miner gate: []\n\nSubfield: Additional publick keys: \n\nSubfield: Padding: 0\n\nSubfield: Tx public Key: c6b919050a413044756e328f0ab5146f40a60258b5671e9d6cc972357c9dfa0b\n\nSubfield: Merge mining: None, 0x0000…0000\n\n"
+            "Subfield: Mysterious miner gate: []\n\nSubfield: Additional publick keys: \n\nSubfield: Padding: 0\n\nSubfield: Tx public Key: c6b919050a413044756e328f0ab5146f40a60258b5671e9d6cc972357c9dfa0b\n\nSubfield: Merge mining: 0, 0x0000…0000\n\n"
         );
     }
 
@@ -1920,48 +1862,31 @@ mod tests {
     fn merge_mining_sub_field_depth_happy_path() {
         let mut csprng = OsRng;
 
-        // Encodable and Decodable: `None` or `Some(0)`, both will decode to `Some(0)`
+        // Encodable and Decodable: `0` and `1`
         let hash_1 = random_hash(&mut csprng);
         let hash_2 = random_hash(&mut csprng);
         let extra_field = ExtraField(vec![
-            SubField::MergeMining(None, hash_1),
-            SubField::MergeMining(Some(VarInt(0)), hash_2),
+            SubField::MergeMining(VarInt(0), hash_1),
+            SubField::MergeMining(VarInt(1), hash_2),
         ]);
         let buffer = serialize(&extra_field);
         match deserialize::<RawExtraField>(&buffer) {
             Ok(parsed_raw) => assert_eq!(
                 parsed_raw.try_parse(),
                 ExtraField(vec![
-                    SubField::MergeMining(Some(VarInt(0)), hash_1),
-                    SubField::MergeMining(Some(VarInt(0)), hash_2),
+                    SubField::MergeMining(VarInt(0), hash_1),
+                    SubField::MergeMining(VarInt(1), hash_2),
                 ])
             ),
             Err(e) => panic!("Error: {}", e),
         }
 
-        #[cfg(not(feature = "merge_mining_field_upgrade_v0_18"))]
-        {
-            // Encodable and Decodable - Some(0) to Some(31)
-            let max_depth = 32;
-            for depth in 0..max_depth {
-                let extra_field = ExtraField(vec![SubField::MergeMining(
-                    Some(VarInt(depth)),
-                    random_hash(&mut csprng),
-                )]);
-                let buffer = serialize(&extra_field);
-                match deserialize::<RawExtraField>(&buffer) {
-                    Ok(parsed_raw) => assert_eq!(parsed_raw.try_parse(), extra_field),
-                    Err(e) => panic!("Error: {}", e),
-                }
-            }
-        }
-        // Encodable and Decodable - Some(0) to Some(max_depth)
-        #[cfg(feature = "merge_mining_field_upgrade_v0_18")]
+        // Encodable and Decodable - 0 to max_depth
         {
             // Encodable and Decodable - Some(0) to Some(u64::MAX)
             for depth in [0, 1, 2, 2_048, 1_048_576, 134_217_728, u64::MAX] {
                 let extra_field = ExtraField(vec![SubField::MergeMining(
-                    Some(VarInt(depth)),
+                    VarInt(depth),
                     random_hash(&mut csprng),
                 )]);
                 let buffer = serialize(&extra_field);
@@ -1977,116 +1902,30 @@ mod tests {
     fn merge_mining_sub_field_detectable_errors() {
         let mut csprng = OsRng;
 
-        #[cfg(not(feature = "merge_mining_field_upgrade_v0_18"))]
-        {
-            // Change the size ('33' is expected as the 2nd byte)
-            let extra_field = ExtraField(vec![SubField::MergeMining(
-                Some(VarInt(5)),
-                random_hash(&mut csprng),
-            )]);
-            let buffer = serialize(&extra_field);
-            match deserialize::<RawExtraField>(&buffer) {
-                Ok(raw_extra) => {
-                    // Alter some of the data
-                    let mut raw_extra_new = raw_extra.clone();
-                    raw_extra_new.0[1] = 32;
-                    assert!(ExtraField::try_parse(&raw_extra_new).is_err());
-                }
-                Err(e) => panic!("Should not fail to deserialize: ({})", e),
-            }
-        }
-
-        // Clip the data (only keep the tag)
         let extra_field = ExtraField(vec![SubField::MergeMining(
-            Some(VarInt(5)),
+            VarInt(5),
             random_hash(&mut csprng),
         )]);
         let buffer = serialize(&extra_field);
+
+        // Clip the data (only keep the tag)
         match deserialize::<RawExtraField>(&buffer) {
             Ok(raw_extra) => {
-                // Alter some of the data
                 let mut raw_extra_new = raw_extra.clone();
                 raw_extra_new.0 = vec![raw_extra.0[0]];
                 assert!(ExtraField::try_parse(&raw_extra_new).is_err());
             }
             Err(e) => panic!("Should not fail to deserialize: ({})", e),
         }
-    }
 
-    #[test]
-    #[cfg(not(feature = "merge_mining_field_upgrade_v0_18"))]
-    fn merge_mining_sub_field_depth_32_to_255() {
-        // Although in this implementation a depth of Some(32) to Some(255) is encodable, it will not be encodable in
-        // monero.
-        // Here, encoding a depth of Some(32) to Some(255) will not result in an error and wil be decodable to the same
-        // value.
-        let mut csprng = OsRng;
-
-        for depth in 32..255 {
-            let extra_field = ExtraField(vec![SubField::MergeMining(
-                Some(VarInt(depth)),
-                random_hash(&mut csprng),
-            )]);
-            // monero would error here:
-            // `CHECK_AND_ASSERT_MES(
-            // `    mm_merkle_tree_depth < 32, false,
-            // `    "merge mining merkle tree depth should be less than 32"
-            // `);
-            let buffer = serialize(&extra_field);
-            match deserialize::<RawExtraField>(&buffer) {
-                Ok(parsed_raw) => {
-                    assert_eq!(extra_field, parsed_raw.try_parse());
-                    match ExtraField::try_parse(&parsed_raw) {
-                        Ok(parsed_extra_field) => assert_eq!(extra_field, parsed_extra_field),
-                        Err(parsed_extra_field) => {
-                            panic!("Should not error: {:?}", parsed_extra_field)
-                        }
-                    }
-                }
-                Err(e) => assert_eq!(
-                    e.to_string(),
-                    "Parsing error: data not consumed entirely when explicitly deserializing"
-                ),
+        // Remove some of the hash's bytes
+        match deserialize::<RawExtraField>(&buffer) {
+            Ok(raw_extra) => {
+                let mut raw_extra_new = raw_extra.clone();
+                raw_extra_new.0 = raw_extra.0[0..raw_extra.0.len() - 1].to_vec();
+                assert!(ExtraField::try_parse(&raw_extra_new).is_err());
             }
-        }
-    }
-
-    #[test]
-    #[cfg(not(feature = "merge_mining_field_upgrade_v0_18"))]
-    fn merge_mining_sub_field_depth_255_to_u64_max() {
-        // Although in this implementation a depth of Some(256) to Some(u64::MAX) is encodable, it will not be
-        // encodable in monero.
-        // Here, encoding a depth of Some(32) to Some(255) will not result in an error, but will also not be decodable
-        // to the same value.
-        let mut csprng = OsRng;
-
-        // Should not be encodable! Some(256) to Some(u64::MAX)
-        for depth in [256, 257, u64::MAX] {
-            let extra_field = ExtraField(vec![SubField::MergeMining(
-                Some(VarInt(depth)),
-                random_hash(&mut csprng),
-            )]);
-            // monero would error here:
-            // `CHECK_AND_ASSERT_MES(
-            // `    mm_merkle_tree_depth < 32, false,
-            // `    "merge mining merkle tree depth should be less than 32"
-            // `);
-            let buffer = serialize(&extra_field);
-            match deserialize::<RawExtraField>(&buffer) {
-                Ok(parsed_raw) => {
-                    assert_ne!(extra_field, parsed_raw.try_parse());
-                    match ExtraField::try_parse(&parsed_raw) {
-                        Ok(parsed_extra_field) => assert_ne!(extra_field, parsed_extra_field),
-                        Err(parsed_extra_field) => {
-                            panic!("Should not error: {:?}", parsed_extra_field)
-                        }
-                    }
-                }
-                Err(e) => assert_eq!(
-                    e.to_string(),
-                    "Parsing error: data not consumed entirely when explicitly deserializing"
-                ),
-            }
+            Err(e) => panic!("Should not fail to deserialize: ({})", e),
         }
     }
 }
