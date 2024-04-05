@@ -894,10 +894,10 @@ impl crate::consensus::encode::Encodable for SubField {
                 {
                     // Tag (u8)
                     len += 0x3u8.consensus_encode(w)?;
-                    // Data size (u8)
+                    // Data size (u8) - Note: The size of an encoded VarInt(u64) can never be more than 1 byte
                     let mut writer_temp = vec![];
                     let depth_var_int_size = depth.consensus_encode(&mut writer_temp)?;
-                    let data_length = 32 /*hash*/ + depth_var_int_size.to_le_bytes()[0];
+                    let data_length = 32 /*hash*/ + depth_var_int_size as u8;
                     len += data_length.consensus_encode(w)?;
                     // Depth (VarInt)
                     len += depth.consensus_encode(w)?;
