@@ -357,7 +357,7 @@ pub enum SubField {
     Padding(u8),
     /// Merge mining infos: `depth` and `merkle_root`, fixed length of one VarInt and 32 bytes
     /// hash.
-    MergeMining(Option<VarInt>, hash::Hash),
+    MergeMining(VarInt, hash::Hash),
     /// Additional public keys for [`Subaddresses`](crate::cryptonote::subaddress) outputs,
     /// variable length of `n` additional public keys.
     AdditionalPublickKey(Vec<PublicKey>),
@@ -375,7 +375,7 @@ impl fmt::Display for SubField {
             }
             SubField::Padding(padding) => writeln!(fmt, "Padding: {}", padding),
             SubField::MergeMining(code, hash) => {
-                writeln!(fmt, "Merge mining: {:?}, {}", code, hash)
+                writeln!(fmt, "Merge mining: {}, {}", code, hash)
             }
             SubField::AdditionalPublickKey(keys) => {
                 writeln!(fmt, "Additional publick keys: ")?;
@@ -820,7 +820,6 @@ impl crate::consensus::encode::Encodable for ExtraField {
 impl Decodable for SubField {
     fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<SubField, encode::Error> {
         let tag: u8 = Decodable::consensus_decode(r)?;
-
         match tag {
             0x0 => {
                 let mut i = 0;
@@ -845,17 +844,20 @@ impl Decodable for SubField {
             }
             0x1 => Ok(SubField::TxPublicKey(Decodable::consensus_decode(r)?)),
             0x2 => Ok(SubField::Nonce(Decodable::consensus_decode(r)?)),
+
             0x3 => {
-                let size = VarInt::consensus_decode(r)?;
-                let mut depth = None;
-                if size.0 == 33 {
-                    depth = Some(VarInt::consensus_decode(r)?);
+                let data_size: Result<u8, encode::Error> = Decodable::consensus_decode(r);
+                match data_size {
+                    Ok(_size) => Ok(SubField::MergeMining(
+                        Decodable::consensus_decode(r)?,
+                        Decodable::consensus_decode(r)?,
+                    )),
+                    Err(_) => Err(encode::Error::ParseFailed(
+                        "Merge mining field size not found",
+                    )),
                 }
-                Ok(SubField::MergeMining(
-                    depth,
-                    Decodable::consensus_decode(r)?,
-                ))
             }
+
             0x4 => Ok(SubField::AdditionalPublickKey(Decodable::consensus_decode(
                 r,
             )?)),
@@ -888,15 +890,21 @@ impl crate::consensus::encode::Encodable for SubField {
                 Ok(len + nonce.consensus_encode(w)?)
             }
             SubField::MergeMining(ref depth, ref merkle_root) => {
-                len += 0x3u8.consensus_encode(w)?;
-                match depth {
-                    Some(dep) => {
-                        len += VarInt(33).consensus_encode(w)?;
-                        len += dep.consensus_encode(w)?;
-                    }
-                    None => len += VarInt(32).consensus_encode(w)?,
+                // As per monero code after `release-v0.18`, `bool add_mm_merkle_root_to_tx_extra(...)`
+                {
+                    // Tag (u8)
+                    len += 0x3u8.consensus_encode(w)?;
+                    // Data size (u8) - Note: The size of an encoded VarInt(u64) can never be more than 1 byte
+                    let mut writer_temp = vec![];
+                    let depth_var_int_size = depth.consensus_encode(&mut writer_temp)?;
+                    let data_length = 32 /*hash*/ + depth_var_int_size as u8;
+                    len += data_length.consensus_encode(w)?;
+                    // Depth (VarInt)
+                    len += depth.consensus_encode(w)?;
+                    // Hash ([u8; 32])
+                    len += merkle_root.consensus_encode(w)?;
+                    Ok(len)
                 }
-                Ok(len + merkle_root.consensus_encode(w)?)
             }
             SubField::AdditionalPublickKey(ref pubkeys) => {
                 len += 0x4u8.consensus_encode(w)?;
@@ -1094,6 +1102,8 @@ impl crate::consensus::encode::Encodable for Transaction {
 #[cfg(test)]
 mod tests {
     use curve25519_dalek::Scalar;
+    use rand::rngs::OsRng;
+    use rand::RngCore;
     use std::str::FromStr;
 
     use super::{ExtraField, KeyImage, RawExtraField, Transaction, TransactionPrefix};
@@ -1344,6 +1354,7 @@ mod tests {
     fn merge_mining() {
         // tx with MergeMining in extra field
         // hash: 36817336e72ecf7adcff92815de96a0893c1ef777701f1386ebce5f7d9272151
+
         let blob: &[u8] = &[
             87, 1, 148, 79, 157, 245, 14, 118, 157, 164, 156, 100, 224, 252, 180, 225, 215, 127,
             137, 5, 5, 101, 72, 235, 154, 127, 4, 145, 76, 45, 116, 177, 187, 175, 2, 17, 62, 19,
@@ -1362,7 +1373,7 @@ mod tests {
             ),
             SubField::Nonce(vec![62, 19, 29, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
             SubField::MergeMining(
-                Some(VarInt(1)),
+                VarInt(1),
                 Hash::from_slice(
                     hex::decode("62b853ea7f574fb4cbdd29ad51894babbaebd68ea15225507c52d9e551eb1995")
                         .unwrap()
@@ -1833,11 +1844,88 @@ mod tests {
                 )
                 .unwrap(),
             ),
-            SubField::MergeMining(None, Hash::default()),
+            SubField::MergeMining(VarInt(0), Hash::default()),
         ]);
         assert_eq!(
             format!("{}", extra),
-            "Subfield: Mysterious miner gate: []\n\nSubfield: Additional publick keys: \n\nSubfield: Padding: 0\n\nSubfield: Tx public Key: c6b919050a413044756e328f0ab5146f40a60258b5671e9d6cc972357c9dfa0b\n\nSubfield: Merge mining: None, 0x0000…0000\n\n"
+            "Subfield: Mysterious miner gate: []\n\nSubfield: Additional publick keys: \n\nSubfield: Padding: 0\n\nSubfield: Tx public Key: c6b919050a413044756e328f0ab5146f40a60258b5671e9d6cc972357c9dfa0b\n\nSubfield: Merge mining: 0, 0x0000…0000\n\n"
         );
+    }
+
+    fn random_hash(csprng: &mut OsRng) -> Hash {
+        let mut scalar_bytes = [0u8; 64];
+        csprng.fill_bytes(&mut scalar_bytes);
+        Hash::new(Scalar::from_bytes_mod_order_wide(&scalar_bytes).as_bytes())
+    }
+
+    #[test]
+    fn merge_mining_sub_field_depth_happy_path() {
+        let mut csprng = OsRng;
+
+        // Encodable and Decodable: `0` and `1`
+        let hash_1 = random_hash(&mut csprng);
+        let hash_2 = random_hash(&mut csprng);
+        let extra_field = ExtraField(vec![
+            SubField::MergeMining(VarInt(0), hash_1),
+            SubField::MergeMining(VarInt(1), hash_2),
+        ]);
+        let buffer = serialize(&extra_field);
+        match deserialize::<RawExtraField>(&buffer) {
+            Ok(parsed_raw) => assert_eq!(
+                parsed_raw.try_parse(),
+                ExtraField(vec![
+                    SubField::MergeMining(VarInt(0), hash_1),
+                    SubField::MergeMining(VarInt(1), hash_2),
+                ])
+            ),
+            Err(e) => panic!("Error: {}", e),
+        }
+
+        // Encodable and Decodable - 0 to max_depth
+        {
+            // Encodable and Decodable - Some(0) to Some(u64::MAX)
+            for depth in [0, 1, 2, 2_048, 1_048_576, 134_217_728, u64::MAX] {
+                let extra_field = ExtraField(vec![SubField::MergeMining(
+                    VarInt(depth),
+                    random_hash(&mut csprng),
+                )]);
+                let buffer = serialize(&extra_field);
+                match deserialize::<RawExtraField>(&buffer) {
+                    Ok(parsed_raw) => assert_eq!(parsed_raw.try_parse(), extra_field),
+                    Err(e) => panic!("Error: {}", e),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn merge_mining_sub_field_detectable_errors() {
+        let mut csprng = OsRng;
+
+        let extra_field = ExtraField(vec![SubField::MergeMining(
+            VarInt(5),
+            random_hash(&mut csprng),
+        )]);
+        let buffer = serialize(&extra_field);
+
+        // Clip the data (only keep the tag)
+        match deserialize::<RawExtraField>(&buffer) {
+            Ok(raw_extra) => {
+                let mut raw_extra_new = raw_extra.clone();
+                raw_extra_new.0 = vec![raw_extra.0[0]];
+                assert!(ExtraField::try_parse(&raw_extra_new).is_err());
+            }
+            Err(e) => panic!("Should not fail to deserialize: ({})", e),
+        }
+
+        // Remove some of the hash's bytes
+        match deserialize::<RawExtraField>(&buffer) {
+            Ok(raw_extra) => {
+                let mut raw_extra_new = raw_extra.clone();
+                raw_extra_new.0 = raw_extra.0[0..raw_extra.0.len() - 1].to_vec();
+                assert!(ExtraField::try_parse(&raw_extra_new).is_err());
+            }
+            Err(e) => panic!("Should not fail to deserialize: ({})", e),
+        }
     }
 }
