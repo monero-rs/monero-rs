@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2024-05-01
+
 ### Fixed
 
 - Fixed merge mining subfield encoding and decoding to be in line with monero [@hansieodendaal](https://github.com/hansieodendaal)([#202](https://github.com/monero-rs/monero-rs/pull/202))
@@ -319,7 +321,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Address and subaddress creation, de/serialization and validation
 - Private keys and one-time keys creation, de/serialization and validation
 
-[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/monero-rs/monero-rs/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/monero-rs/monero-rs/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/monero-rs/monero-rs/compare/v0.18.2...v0.19.0
 [0.18.2]: https://github.com/monero-rs/monero-rs/compare/v0.18.1...v0.18.2
