@@ -24,6 +24,7 @@ full = ["fixed-hash/std", "fixed-hash/rand"]
 serde = ["serde-crate", "serde-big-array", "curve25519-dalek/serde"]
 experimental = []
 fuzzing = []
+dev = []
 
 [dependencies]
 base58-monero = { version = "2" }

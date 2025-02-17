@@ -505,12 +505,7 @@ impl TransactionPrefix {
 
         let tx_pubkey = extra_field.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
 
-        let additional_keys = match extra_field.tx_additional_pubkeys() {
-            Some(additional_keys) => additional_keys,
-            None => {
-                vec![]
-            }
-        };
+        let additional_keys = extra_field.tx_additional_pubkeys().unwrap_or_default();
 
         // This iterator allows us to use the additional key at the correct output index and the the main pubkey.
         // We add `None` onto the `additional_keys` iterator just in case the amount of additional_keys is less than the number
