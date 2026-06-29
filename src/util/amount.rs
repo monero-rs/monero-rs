@@ -839,7 +839,7 @@ pub mod serde {
 
     use super::{Amount, Denomination, SignedAmount};
     use sealed::sealed;
-    use serde_crate::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
+    use serde_crate::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeSeq};
 
     #[sealed]
     /// This trait is used only to avoid code duplication and naming collisions of the different
@@ -995,7 +995,7 @@ pub mod serde {
             use super::super::SerdeAmountForOpt;
             use core::fmt;
             use core::marker::PhantomData;
-            use serde_crate::{de, Deserializer, Serializer};
+            use serde_crate::{Deserializer, Serializer, de};
 
             pub fn serialize<A: SerdeAmountForOpt, S: Serializer>(
                 a: &Option<A>,
@@ -1041,7 +1041,7 @@ pub mod serde {
             //! Use with `#[serde(default, serialize_with = "monero::util::amount::serde::as_pico::slice::serialize")]`.
 
             use super::super::SerdeAmountForSlice;
-            use serde_crate::{ser::SerializeSeq, Serializer};
+            use serde_crate::{Serializer, ser::SerializeSeq};
 
             pub fn serialize<A: SerdeAmountForSlice, S: Serializer>(
                 a_slice: &[A],
@@ -1066,7 +1066,7 @@ pub mod serde {
 
             use super::super::{Amount, SignedAmount};
             use core::marker::PhantomData;
-            use serde_crate::{de, Deserializer};
+            use serde_crate::{Deserializer, de};
 
             /// Use with `#[serde(default, deserialize_with = "monero::util::amount::serde::as_pico::vec::deserialize_amount")]`.
             pub fn deserialize_amount<'d, D: Deserializer<'d>>(
@@ -1167,7 +1167,7 @@ pub mod serde {
             use super::super::SerdeAmountForOpt;
             use core::fmt;
             use core::marker::PhantomData;
-            use serde_crate::{de, Deserializer, Serializer};
+            use serde_crate::{Deserializer, Serializer, de};
 
             pub fn serialize<A: SerdeAmountForOpt, S: Serializer>(
                 a: &Option<A>,
@@ -1213,7 +1213,7 @@ pub mod serde {
             //! Use with `#[serde(default, serialize_with = "monero::util::amount::serde::as_xmr::slice::serialize")]`.
 
             use super::super::SerdeAmountForSlice;
-            use serde_crate::{ser::SerializeSeq, Serializer};
+            use serde_crate::{Serializer, ser::SerializeSeq};
 
             pub fn serialize<A: SerdeAmountForSlice, S: Serializer>(
                 a_slice: &[A],
@@ -1238,7 +1238,7 @@ pub mod serde {
 
             use super::super::{super::Denomination, Amount, SignedAmount};
             use core::marker::PhantomData;
-            use serde_crate::{de, Deserializer};
+            use serde_crate::{Deserializer, de};
 
             /// Use with `#[serde(default, deserialize_with = "monero::util::amount::serde::as_xmr::vec::deserialize_amount")]`.
             pub fn deserialize_amount<'d, D: Deserializer<'d>>(
@@ -1978,16 +1978,18 @@ mod tests {
         // errors
         let t: Result<T, serde_json::Error> =
             serde_json::from_str("{\"amt\": \"1000000.0000000000001\", \"samt\": \"1\"}");
-        assert!(t
-            .unwrap_err()
-            .to_string()
-            .contains(&ParsingError::TooPrecise.to_string()));
+        assert!(
+            t.unwrap_err()
+                .to_string()
+                .contains(&ParsingError::TooPrecise.to_string())
+        );
         let t: Result<T, serde_json::Error> =
             serde_json::from_str("{\"amt\": \"-1\", \"samt\": \"1\"}");
-        assert!(t
-            .unwrap_err()
-            .to_string()
-            .contains(&ParsingError::Negative.to_string()));
+        assert!(
+            t.unwrap_err()
+                .to_string()
+                .contains(&ParsingError::Negative.to_string())
+        );
     }
 
     #[cfg(feature = "serde")]

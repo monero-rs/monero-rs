@@ -155,7 +155,7 @@ pub fn get_subaddress(keys: &ViewPair, index: Index, network: Option<Network>) -
 mod tests {
     use std::str::FromStr;
 
-    use super::{get_public_keys, get_subaddress, Index};
+    use super::{Index, get_public_keys, get_subaddress};
     use crate::network::Network;
     use crate::util::key::{PrivateKey, PublicKey, ViewPair};
 
@@ -211,6 +211,9 @@ mod tests {
         };
         let address = get_subaddress(&viewpair, index, Some(Network::Mainnet));
 
-        assert_eq!("89pMNxzcCo5LAPZDX4qaTeanA6ZiS3VRdUbeKHzbDZkD1Q3YsDDfmXbT2zyjLeHWuuN4vxKne8kNpjH3cMk7nmhwSALCxsd", address.to_string());
+        assert_eq!(
+            "89pMNxzcCo5LAPZDX4qaTeanA6ZiS3VRdUbeKHzbDZkD1Q3YsDDfmXbT2zyjLeHWuuN4vxKne8kNpjH3cMk7nmhwSALCxsd",
+            address.to_string()
+        );
     }
 }

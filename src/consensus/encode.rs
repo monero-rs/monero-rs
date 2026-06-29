@@ -360,7 +360,9 @@ impl Decodable for VarInt {
             // Zero in any position other than the first is invalid
             // since it is not the shortest encoding.
             if n == 0 && !res.is_empty() {
-                return Err(Error::ParseFailed("VarInt has a zero in a position other than the first. This is not the shortest encoding."));
+                return Err(Error::ParseFailed(
+                    "VarInt has a zero in a position other than the first. This is not the shortest encoding.",
+                ));
             }
             res.push(n & 0b0111_1111);
             if n & 0b1000_0000 == 0 {
@@ -566,10 +568,10 @@ impl<T: Decodable> Decodable for Box<[T]> {
 #[cfg(test)]
 mod tests {
     use super::{
-        consensus_decode_sized_vec, deserialize, serialize, Error, VarInt, MAX_VEC_MEM_ALLOC_SIZE,
+        Error, MAX_VEC_MEM_ALLOC_SIZE, VarInt, consensus_decode_sized_vec, deserialize, serialize,
     };
     use crate::blockdata::transaction::SubField;
-    use crate::consensus::{serialize_hex, Decodable, Encodable, ReadExt, WriteExt};
+    use crate::consensus::{Decodable, Encodable, ReadExt, WriteExt, serialize_hex};
     use crate::{Block, PublicKey, Transaction, TxIn};
     use std::io::Cursor;
 

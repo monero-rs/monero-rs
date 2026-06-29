@@ -61,7 +61,7 @@ use std::ops::Range;
 
 use crate::consensus::encode::{Encodable, VarInt};
 use crate::cryptonote::hash;
-use crate::cryptonote::subaddress::{self, get_spend_secret_key, Index};
+use crate::cryptonote::subaddress::{self, Index, get_spend_secret_key};
 use crate::util::key::{KeyPair, PrivateKey, PublicKey, ViewPair};
 
 /// Special factor used in all `vR` and `rV` multiplications.

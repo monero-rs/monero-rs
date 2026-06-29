@@ -31,5 +31,5 @@ pub mod encode;
 pub mod endian;
 
 pub use self::encode::{
-    deserialize, serialize, serialize_hex, Decodable, Encodable, ReadExt, WriteExt,
+    Decodable, Encodable, ReadExt, WriteExt, deserialize, serialize, serialize_hex,
 };

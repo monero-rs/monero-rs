@@ -362,7 +362,7 @@ impl FromStr for Address {
 mod serde_impl {
     use super::*;
 
-    use serde_crate::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+    use serde_crate::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
 
     impl Serialize for Address {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -407,7 +407,7 @@ mod tests {
     use hex::{FromHex, FromHexError, ToHex};
     use std::str::FromStr;
 
-    use super::{base58, Address, AddressType, Network, PaymentId, PublicKey};
+    use super::{Address, AddressType, Network, PaymentId, PublicKey, base58};
 
     #[test]
     fn deserialize_address() {

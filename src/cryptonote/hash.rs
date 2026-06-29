@@ -231,7 +231,7 @@ mod tests {
 
     use hex::{FromHex, FromHexError, ToHex};
     #[cfg(feature = "serde")]
-    use serde_test::{assert_tokens, Token};
+    use serde_test::{Token, assert_tokens};
 
     #[test]
     #[cfg(feature = "serde")]
