@@ -3,7 +3,7 @@ name = "monero"
 version = "0.21.0"
 authors = ["Monero Rust Contributors", "h4sh3d <h4sh3d@protonmail.com>"]
 documentation = "https://docs.rs/monero"
-edition = "2021"
+edition = "2024"
 homepage = "https://github.com/monero-rs/monero-rs"
 include = [
   "src/*",
@@ -15,7 +15,7 @@ keywords = ["monero"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/monero-rs/monero-rs"
-rust-version = "1.63.0"
+rust-version = "1.85.0"
 description = "Rust Monero Library."
 
 [features]
