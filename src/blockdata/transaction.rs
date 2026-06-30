@@ -489,7 +489,7 @@ impl TransactionPrefix {
         major: Range<u32>,
         minor: Range<u32>,
         rct_sig_base: Option<&RctSigBase>,
-    ) -> Result<Vec<OwnedTxOut>, Error> {
+    ) -> Result<Vec<OwnedTxOut<'_>>, Error> {
         let checker = SubKeyChecker::new(pair, major, minor);
         self.check_outputs_with(&checker, rct_sig_base)
     }
@@ -500,17 +500,12 @@ impl TransactionPrefix {
         &self,
         checker: &SubKeyChecker,
         rct_sig_base: Option<&RctSigBase>,
-    ) -> Result<Vec<OwnedTxOut>, Error> {
+    ) -> Result<Vec<OwnedTxOut<'_>>, Error> {
         let extra_field = self.extra.try_parse();
 
         let tx_pubkey = extra_field.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
 
-        let additional_keys = match extra_field.tx_additional_pubkeys() {
-            Some(additional_keys) => additional_keys,
-            None => {
-                vec![]
-            }
-        };
+        let additional_keys = extra_field.tx_additional_pubkeys().unwrap_or_default();
 
         // This iterator allows us to use the additional key at the correct output index and the the main pubkey.
         // We add `None` onto the `additional_keys` iterator just in case the amount of additional_keys is less than the number
@@ -637,14 +632,17 @@ impl Transaction {
         pair: &ViewPair,
         major: Range<u32>,
         minor: Range<u32>,
-    ) -> Result<Vec<OwnedTxOut>, Error> {
+    ) -> Result<Vec<OwnedTxOut<'_>>, Error> {
         self.prefix()
             .check_outputs(pair, major, minor, self.rct_signatures.sig.as_ref())
     }
 
     /// Iterate over transaction outputs using the provided [`SubKeyChecker`] to find outputs
     /// related to the `SubKeyChecker`'s view pair.
-    pub fn check_outputs_with(&self, checker: &SubKeyChecker) -> Result<Vec<OwnedTxOut>, Error> {
+    pub fn check_outputs_with(
+        &self,
+        checker: &SubKeyChecker,
+    ) -> Result<Vec<OwnedTxOut<'_>>, Error> {
         self.prefix()
             .check_outputs_with(checker, self.rct_signatures.sig.as_ref())
     }

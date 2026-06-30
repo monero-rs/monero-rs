@@ -257,12 +257,12 @@ impl Amount {
 
     /// The maximum value of an [`Amount`].
     pub fn max_value() -> Amount {
-        Amount(u64::max_value())
+        Amount(u64::MAX)
     }
 
     /// The minimum value of an [`Amount`].
     pub fn min_value() -> Amount {
-        Amount(u64::min_value())
+        Amount(u64::MIN)
     }
 
     /// Convert from a value expressing moneros to an [`Amount`].
@@ -279,7 +279,7 @@ impl Amount {
         if negative {
             return Err(ParsingError::Negative);
         }
-        if piconero > i64::max_value() as u64 {
+        if piconero > i64::MAX as u64 {
             return Err(ParsingError::TooBig);
         }
         Ok(Amount::from_pico(piconero))
@@ -524,12 +524,12 @@ impl SignedAmount {
 
     /// The maximum value of an [`SignedAmount`].
     pub fn max_value() -> SignedAmount {
-        SignedAmount(i64::max_value())
+        SignedAmount(i64::MAX)
     }
 
     /// The minimum value of an [`SignedAmount`].
     pub fn min_value() -> SignedAmount {
-        SignedAmount(i64::min_value())
+        SignedAmount(i64::MIN)
     }
 
     /// Convert from a value expressing moneros to an [`SignedAmount`].
@@ -543,7 +543,7 @@ impl SignedAmount {
     /// use [`FromStr`].
     pub fn from_str_in(s: &str, denom: Denomination) -> Result<SignedAmount, ParsingError> {
         let (negative, piconero) = parse_signed_to_piconero(s, denom)?;
-        if piconero > i64::max_value() as u64 {
+        if piconero > i64::MAX as u64 {
             return Err(ParsingError::TooBig);
         }
         Ok(match negative {
@@ -603,7 +603,7 @@ impl SignedAmount {
             .map(|a: i64| a as u64)
             .unwrap_or_else(|| {
                 // We could also hard code this into `9223372036854775808`
-                u64::max_value() - self.as_pico() as u64 + 1
+                u64::MAX - self.as_pico() as u64 + 1
             });
         fmt_piconero_in(picos, self.is_negative(), f, denom)
     }
@@ -1471,8 +1471,8 @@ mod tests {
             Ok(Amount::from_pico(1_234_567_123_456_789_123))
         );
 
-        // make sure Piconero > i64::max_value() is checked.
-        let amount = Amount::from_pico(i64::max_value() as u64);
+        // make sure Piconero > i64::MAX is checked.
+        let amount = Amount::from_pico(i64::MAX as u64);
         assert_eq!(
             Amount::from_str_in(&amount.to_string_in(pico), pico),
             Ok(amount)
@@ -1537,26 +1537,20 @@ mod tests {
         let sp = SignedAmount::from_pico;
 
         assert_eq!(Amount::max_value().to_signed(), Err(E::TooBig));
-        assert_eq!(
-            p(i64::max_value() as u64).to_signed(),
-            Ok(sp(i64::max_value()))
-        );
+        assert_eq!(p(i64::MAX as u64).to_signed(), Ok(sp(i64::MAX)));
         assert_eq!(p(0).to_signed(), Ok(sp(0)));
         assert_eq!(p(1).to_signed(), Ok(sp(1)));
         assert_eq!(p(1).to_signed(), Ok(sp(1)));
-        assert_eq!(p(i64::max_value() as u64 + 1).to_signed(), Err(E::TooBig));
+        assert_eq!(p(i64::MAX as u64 + 1).to_signed(), Err(E::TooBig));
 
         assert_eq!(sp(-1).to_unsigned(), Err(E::Negative));
-        assert_eq!(
-            sp(i64::max_value()).to_unsigned(),
-            Ok(p(i64::max_value() as u64))
-        );
+        assert_eq!(sp(i64::MAX).to_unsigned(), Ok(p(i64::MAX as u64)));
 
         assert_eq!(sp(0).to_unsigned().unwrap().to_signed(), Ok(sp(0)));
         assert_eq!(sp(1).to_unsigned().unwrap().to_signed(), Ok(sp(1)));
         assert_eq!(
-            sp(i64::max_value()).to_unsigned().unwrap().to_signed(),
-            Ok(sp(i64::max_value()))
+            sp(i64::MAX).to_unsigned().unwrap().to_signed(),
+            Ok(sp(i64::MAX))
         );
     }
 
@@ -1651,10 +1645,7 @@ mod tests {
             Ok(ua_pic(1_000_000_000_000))
         );
         assert_eq!(
-            ua_str(
-                &ua_pic(u64::max_value()).to_string_in(D::Millinero),
-                D::Millinero
-            ),
+            ua_str(&ua_pic(u64::MAX).to_string_in(D::Millinero), D::Millinero),
             Err(ParsingError::TooBig)
         );
 
@@ -1664,18 +1655,12 @@ mod tests {
         );
 
         assert_eq!(
-            sa_str(
-                &sa_pic(i64::max_value()).to_string_in(D::Piconero),
-                D::Micronero
-            ),
+            sa_str(&sa_pic(i64::MAX).to_string_in(D::Piconero), D::Micronero),
             Err(ParsingError::TooBig)
         );
         // Test an overflow bug in `abs()`
         assert_eq!(
-            sa_str(
-                &sa_pic(i64::min_value()).to_string_in(D::Piconero),
-                D::Micronero
-            ),
+            sa_str(&sa_pic(i64::MIN).to_string_in(D::Piconero), D::Micronero),
             Err(ParsingError::TooBig)
         );
     }

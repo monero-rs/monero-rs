@@ -28,7 +28,7 @@ use hex::encode as hex_encode;
 
 use std::convert::TryFrom;
 use std::ops::Deref;
-use std::{fmt, io, mem, u32};
+use std::{fmt, io, mem};
 
 use sealed::sealed;
 use thiserror::Error;

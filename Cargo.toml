@@ -25,6 +25,9 @@ serde = ["serde-crate", "serde-big-array", "curve25519-dalek/serde"]
 experimental = []
 fuzzing = []
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("dev"))'] }
+
 [dependencies]
 base58-monero = { version = "2" }
 curve25519-dalek = { version = "4" }
