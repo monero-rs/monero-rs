@@ -149,7 +149,7 @@ impl TryFrom<&[u8]> for PrivateKey {
     }
 }
 
-impl<'a, 'b> Add<&'b PrivateKey> for &'a PrivateKey {
+impl<'b> Add<&'b PrivateKey> for &PrivateKey {
     type Output = PrivateKey;
 
     fn add(self, other: &'b PrivateKey) -> Self::Output {
@@ -158,7 +158,7 @@ impl<'a, 'b> Add<&'b PrivateKey> for &'a PrivateKey {
     }
 }
 
-impl<'a> Add<PrivateKey> for &'a PrivateKey {
+impl Add<PrivateKey> for &PrivateKey {
     type Output = PrivateKey;
 
     fn add(self, other: PrivateKey) -> Self::Output {
@@ -217,7 +217,7 @@ impl<'b> Mul<&'b PublicKey> for PrivateKey {
     }
 }
 
-impl<'a, 'b> Mul<&'b PublicKey> for &'a PrivateKey {
+impl<'b> Mul<&'b PublicKey> for &PrivateKey {
     type Output = PublicKey;
 
     fn mul(self, other: &'b PublicKey) -> Self::Output {
@@ -336,7 +336,7 @@ impl TryFrom<&[u8]> for PublicKey {
     }
 }
 
-impl<'a, 'b> Add<&'b PublicKey> for &'a PublicKey {
+impl<'b> Add<&'b PublicKey> for &PublicKey {
     type Output = PublicKey;
 
     fn add(self, other: &'b PublicKey) -> Self::Output {
@@ -347,7 +347,7 @@ impl<'a, 'b> Add<&'b PublicKey> for &'a PublicKey {
     }
 }
 
-impl<'a> Add<PublicKey> for &'a PublicKey {
+impl Add<PublicKey> for &PublicKey {
     type Output = PublicKey;
 
     fn add(self, other: PublicKey) -> Self::Output {
@@ -380,7 +380,7 @@ impl Add<PublicKey> for PublicKey {
     }
 }
 
-impl<'a, 'b> Sub<&'b PublicKey> for &'a PublicKey {
+impl<'b> Sub<&'b PublicKey> for &PublicKey {
     type Output = PublicKey;
 
     fn sub(self, other: &'b PublicKey) -> Self::Output {
@@ -391,7 +391,7 @@ impl<'a, 'b> Sub<&'b PublicKey> for &'a PublicKey {
     }
 }
 
-impl<'a> Sub<PublicKey> for &'a PublicKey {
+impl Sub<PublicKey> for &PublicKey {
     type Output = PublicKey;
 
     fn sub(self, other: PublicKey) -> Self::Output {
@@ -556,10 +556,10 @@ mod tests {
 
     #[test]
     fn parse_public_key() {
-        assert!(PublicKey::from_str(
-            "eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3"
-        )
-        .is_ok());
+        assert!(
+            PublicKey::from_str("eac2cc96e0ae684388e3185d5277e51313bff98b9ad4a12dcd9205f20d37f1a3")
+                .is_ok()
+        );
     }
 
     #[test]

@@ -191,9 +191,7 @@ pub fn fuzz_extra_field_try_parse(
             if parsed_extra_field.0.len() > extra_field.0.len() {
                 panic!(
                     "On 'Err(_)', parsed extra field has to many sub fields\noriginal: {:?}\nparsed:   {:?}\nfuzz_data: {:?}",
-                    extra_field,
-                    parsed_extra_field,
-                    fuzz_data,
+                    extra_field, parsed_extra_field, fuzz_data,
                 );
             }
             for parsed_sub_field in parsed_extra_field.0.iter() {
@@ -218,9 +216,7 @@ pub fn fuzz_extra_field_try_parse(
             if add_padding == AddPadding::ToRear {
                 panic!(
                     "\nOn 'Err(_)', parsing a serialized ExtraField with padding at the rear may not fail\n({:?})\n({:?})\nfuzz_data: {:?}",
-                    extra_field,
-                    parsed_extra_field,
-                    fuzz_data,
+                    extra_field, parsed_extra_field, fuzz_data,
                 );
             }
         }
@@ -575,13 +571,12 @@ mod tests {
     use quickcheck::QuickCheck;
 
     use crate::util::fuzz_utils::{
-        fuzz_block_deserialize, fuzz_block_header_deserialize, fuzz_create_extra_field,
+        AddPadding, fuzz_block_deserialize, fuzz_block_header_deserialize, fuzz_create_extra_field,
         fuzz_create_raw_extra_field, fuzz_create_transaction_alternative_1,
         fuzz_create_transaction_alternative_2, fuzz_extra_field_parse_sub_fields,
         fuzz_extra_field_try_parse, fuzz_hash_convert, fuzz_raw_extra_field_deserialize,
         fuzz_raw_extra_field_from, fuzz_transaction_check_outputs, fuzz_transaction_components,
         fuzz_transaction_deserialize, fuzz_transaction_hash, fuzz_transaction_prefix_deserialize,
-        AddPadding,
     };
 
     #[test]

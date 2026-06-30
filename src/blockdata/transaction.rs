@@ -20,7 +20,7 @@
 //! private view key and public spend key (view key-pair: [`ViewPair`]).
 //!
 
-use crate::consensus::encode::{self, serialize, Decodable, VarInt};
+use crate::consensus::encode::{self, Decodable, VarInt, serialize};
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::{KeyGenerator, KeyRecoverer, SubKeyChecker};
 use crate::cryptonote::subaddress::Index;
@@ -489,7 +489,7 @@ impl TransactionPrefix {
         major: Range<u32>,
         minor: Range<u32>,
         rct_sig_base: Option<&RctSigBase>,
-    ) -> Result<Vec<OwnedTxOut>, Error> {
+    ) -> Result<Vec<OwnedTxOut<'_>>, Error> {
         let checker = SubKeyChecker::new(pair, major, minor);
         self.check_outputs_with(&checker, rct_sig_base)
     }
@@ -500,17 +500,12 @@ impl TransactionPrefix {
         &self,
         checker: &SubKeyChecker,
         rct_sig_base: Option<&RctSigBase>,
-    ) -> Result<Vec<OwnedTxOut>, Error> {
+    ) -> Result<Vec<OwnedTxOut<'_>>, Error> {
         let extra_field = self.extra.try_parse();
 
         let tx_pubkey = extra_field.tx_pubkey().ok_or(Error::NoTxPublicKey)?;
 
-        let additional_keys = match extra_field.tx_additional_pubkeys() {
-            Some(additional_keys) => additional_keys,
-            None => {
-                vec![]
-            }
-        };
+        let additional_keys = extra_field.tx_additional_pubkeys().unwrap_or_default();
 
         // This iterator allows us to use the additional key at the correct output index and the the main pubkey.
         // We add `None` onto the `additional_keys` iterator just in case the amount of additional_keys is less than the number
@@ -637,14 +632,17 @@ impl Transaction {
         pair: &ViewPair,
         major: Range<u32>,
         minor: Range<u32>,
-    ) -> Result<Vec<OwnedTxOut>, Error> {
+    ) -> Result<Vec<OwnedTxOut<'_>>, Error> {
         self.prefix()
             .check_outputs(pair, major, minor, self.rct_signatures.sig.as_ref())
     }
 
     /// Iterate over transaction outputs using the provided [`SubKeyChecker`] to find outputs
     /// related to the `SubKeyChecker`'s view pair.
-    pub fn check_outputs_with(&self, checker: &SubKeyChecker) -> Result<Vec<OwnedTxOut>, Error> {
+    pub fn check_outputs_with(
+        &self,
+        checker: &SubKeyChecker,
+    ) -> Result<Vec<OwnedTxOut<'_>>, Error> {
         self.prefix()
             .check_outputs_with(checker, self.rct_signatures.sig.as_ref())
     }
@@ -1102,20 +1100,20 @@ impl crate::consensus::encode::Encodable for Transaction {
 #[cfg(test)]
 mod tests {
     use curve25519_dalek::Scalar;
-    use rand::rngs::OsRng;
     use rand::RngCore;
+    use rand::rngs::OsRng;
     use std::str::FromStr;
 
     use super::{ExtraField, KeyImage, RawExtraField, Transaction, TransactionPrefix};
-    use crate::consensus::encode::{deserialize, deserialize_partial, serialize, VarInt};
+    use crate::consensus::encode::{VarInt, deserialize, deserialize_partial, serialize};
     use crate::cryptonote::hash::Hashable;
     use crate::cryptonote::subaddress::Index;
     use crate::util::key::{PrivateKey, PublicKey, ViewPair};
     use crate::util::ringct::{RctSig, RctSigBase, RctType};
     use crate::{
+        Amount, OwnedTxOut,
         blockdata::transaction::{SubField, TxIn, TxOutTarget},
         cryptonote::onetime_key::SubKeyChecker,
-        Amount, OwnedTxOut,
     };
     use crate::{Hash, TxOut};
 
@@ -1484,7 +1482,9 @@ mod tests {
     fn bad_extra() {
         // tx with a bad extra field
         // coinbase tx of block 2742099
-        let blob: &[u8] = &hex_literal::hex!("3e01e3a5d36abb941d7472195f1cf94a7a8913655f07738fa542315caa004f1ec3d0027571776b78754b728e9275804d2b0000000001000000080000000100");
+        let blob: &[u8] = &hex_literal::hex!(
+            "3e01e3a5d36abb941d7472195f1cf94a7a8913655f07738fa542315caa004f1ec3d0027571776b78754b728e9275804d2b0000000001000000080000000100"
+        );
 
         let parsed_extra_field = vec![SubField::TxPublicKey(
             PublicKey::from_slice(
@@ -1502,10 +1502,10 @@ mod tests {
 
     #[cfg(feature = "fuzzing")]
     use crate::util::fuzz_utils::{
-        fuzz_block_header_deserialize, fuzz_create_extra_field, fuzz_create_raw_extra_field,
-        fuzz_create_transaction_alternative_1, fuzz_extra_field_parse_sub_fields,
-        fuzz_extra_field_try_parse, fuzz_transaction_deserialize, fuzz_transaction_hash,
-        AddPadding,
+        AddPadding, fuzz_block_header_deserialize, fuzz_create_extra_field,
+        fuzz_create_raw_extra_field, fuzz_create_transaction_alternative_1,
+        fuzz_extra_field_parse_sub_fields, fuzz_extra_field_try_parse,
+        fuzz_transaction_deserialize, fuzz_transaction_hash,
     };
 
     #[test]

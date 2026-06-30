@@ -23,7 +23,7 @@
 use std::{fmt, io};
 
 use crate::consensus::encode::{
-    self, consensus_decode_sized_vec, serialize, Decodable, Encodable, VarInt,
+    self, Decodable, Encodable, VarInt, consensus_decode_sized_vec, serialize,
 };
 use crate::cryptonote::hash;
 use crate::cryptonote::onetime_key::KeyGenerator;
@@ -913,8 +913,8 @@ mod tests {
         Signature,
     };
     use crate::{Hash, PrivateKey, PublicKey, ViewPair};
-    use curve25519_dalek::traits::Identity;
     use curve25519_dalek::EdwardsPoint;
+    use curve25519_dalek::traits::Identity;
     use std::io::Cursor;
 
     #[test]
@@ -1083,7 +1083,13 @@ mod tests {
             "Signature: None\n"
         );
         assert_eq!(
-            format!("{}", Signature { c: Default::default(), r: Default::default() }),
+            format!(
+                "{}",
+                Signature {
+                    c: Default::default(),
+                    r: Default::default()
+                }
+            ),
             "C: 0000000000000000000000000000000000000000000000000000000000000000\nR: 0000000000000000000000000000000000000000000000000000000000000000\n"
         );
     }

@@ -15,11 +15,11 @@
 
 #![cfg(feature = "serde")]
 
-use monero::util::amount::{
-    serde::{SerdeAmount, SerdeAmountForOpt},
-    SignedAmount,
-};
 use monero::Amount;
+use monero::util::amount::{
+    SignedAmount,
+    serde::{SerdeAmount, SerdeAmountForOpt},
+};
 use serde_crate::{Deserialize, Serialize};
 
 #[test]
