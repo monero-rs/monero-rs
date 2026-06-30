@@ -32,7 +32,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("dev"))'] 
 base58-monero = { version = "2" }
 curve25519-dalek = { version = "4" }
 hex = "0.4.3"
-hex-literal = "0.4.1"
+hex-literal = "1.1.0"
 sealed = "0.6"
 serde-big-array = { version = "0.5.1", optional = true }
 serde-crate = { package = "serde", version = "1", features = ["derive"], optional = true }
