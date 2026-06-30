@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump MSRV to version `1.85.0` and rust to 2024 by [@Boog900](https://github.com/Boog900) ([#217](https://github.com/monero-rs/monero-rs/pull/217))
+
 ## [0.21.0] - 2024-05-01
 
 ### Fixed
