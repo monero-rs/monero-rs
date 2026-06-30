@@ -8,6 +8,9 @@ on:
 
 jobs:
   codecov:
+    # Disabled because it requires a token
+    if: false
+
     runs-on: ubuntu-latest
     container:
       image: xd009642/tarpaulin:develop-nightly
