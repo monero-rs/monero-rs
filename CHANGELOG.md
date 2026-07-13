@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-07-13
+
 ### Changed
 
 - Bump MSRV to version `1.85.0` and rust to 2024 by [@Boog900](https://github.com/Boog900) ([#217](https://github.com/monero-rs/monero-rs/pull/217))
@@ -326,7 +328,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Address and subaddress creation, de/serialization and validation
 - Private keys and one-time keys creation, de/serialization and validation
 
-[Unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.21.0...HEAD
+[unreleased]: https://github.com/monero-rs/monero-rs/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/monero-rs/monero-rs/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/monero-rs/monero-rs/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/monero-rs/monero-rs/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/monero-rs/monero-rs/compare/v0.18.2...v0.19.0
