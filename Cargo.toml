@@ -29,7 +29,7 @@ fuzzing = []
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("dev"))'] }
 
 [dependencies]
-base58-monero = { version = "2" }
+base58-monero = "2.1.0"
 curve25519-dalek = { version = "4" }
 hex = "0.4.3"
 hex-literal = "1.1.0"
